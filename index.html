@@ -1655,7 +1655,7 @@ createApp({
       }catch(e){}
     }
     window.addEventListener('storage', e=>{ if(!FORMAL && e.key===KEY && e.newValue){ try{ applying=true; st.value=migrate(JSON.parse(e.newValue)); nextTick(()=>{ applying=false; }); }catch(err){ applying=false; } } });
-    watch(role, v=>{ try{ localStorage.setItem(KEY+'-role', v); }catch(e){} navMode.value=['control','record'].includes(v)?'all':'mine'; if(!roleObj.value.pages.includes(page.value) && page.value!=='feedback') go(roleObj.value.pages[0]); });
+    watch(role, v=>{ try{ localStorage.setItem(KEY+'-role', v); }catch(e){} navMode.value=['control','record'].includes(v)?'all':'mine'; if(!FORMAL && !roleObj.value.pages.includes(page.value) && page.value!=='feedback') go(roleObj.value.pages[0]); });
 
     /* ----- 頁面切換（網址 #名稱，可直接分享某一頁） ----- */
     const validPage = p => PAGES.some(x=>x.id===p);
@@ -2132,10 +2132,14 @@ createApp({
     const pend={}; // 這台裝置還沒送達雲端的筆數（同一筆在送出中時，不接受回音，避免蓋掉正在打的字）
     function sortArr(name){ const a=st.value[name], by={ events:(x,y)=>(x.order||0)-(y.order||0), timeline:(x,y)=>(x.time||'').localeCompare(y.time||''), broadcasts:(x,y)=>(x.ts||0)-(y.ts||0), logs:(x,y)=>(y.ts||0)-(x.ts||0), guests:(x,y)=>(x.ord||0)-(y.ord||0), batches:(x,y)=>String(x.id).localeCompare(String(y.id)) }; if(by[name]) a.sort(by[name]); }
     function applyRemote(fn){ applying=true; try{ fn(); } finally { nextTick(()=>{ applying=false; }); } }
+    let lastServer=Date.now();
+    function markNet(snap){ if(!snap.metadata.fromCache){ lastServer=Date.now(); fb.online=true; } }
+    setInterval(()=>{ if(!FORMAL) return; const off = (typeof navigator!=='undefined' && navigator.onLine===false) || (fb.pending>0 && Date.now()-lastServer>5000); fb.online=!off; },1000);
+    window.addEventListener('online', ()=>{ fb.online=true; }); window.addEventListener('offline', ()=>{ fb.online=false; });
     function checkReady(){ if(!fb.ready && fb.seen.events && fb.seen.meta && fb.seen.timeline) fb.ready=true; }
     function listenArr(name,q){
       return q.onSnapshot({ includeMetadataChanges:true }, snap=>{
-        fb.online=!snap.metadata.fromCache; fb.seen[name]=true; if(name==='events' && !snap.metadata.fromCache) fb.empty=snap.empty; checkReady();
+        markNet(snap); fb.seen[name]=true; if(name==='events' && !snap.metadata.fromCache) fb.empty=snap.empty; checkReady();
         const ch=snap.docChanges(); if(!ch.length) return;
         applyRemote(()=>{ const arr=st.value[name]; let touched=false;
           ch.forEach(c=>{ const id=c.doc.id;
@@ -2148,7 +2152,7 @@ createApp({
     }
     function listenMap(name,q,apply){
       return q.onSnapshot({ includeMetadataChanges:true }, snap=>{
-        fb.online=!snap.metadata.fromCache; fb.seen[name]=true; checkReady();
+        markNet(snap); fb.seen[name]=true; checkReady();
         const ch=snap.docChanges(); if(!ch.length) return;
         applyRemote(()=>ch.forEach(c=>{ const id=c.doc.id; if(c.type==='removed'){ delete remoteSer[name][id]; apply(id,null); return; } const d=c.doc.data(); const ser=canon(d); if(remoteSer[name][id]===ser || pend[name+'/'+id]>0) return; remoteSer[name][id]=ser; apply(id,d); }));
       }, e=>{ fb.err='無法讀取「'+name+'」：'+(e.code||''); });
@@ -2160,7 +2164,7 @@ createApp({
       const ser=canon(data), prev=remoteSer[col][id]; if(prev===ser) return;
       remoteSer[col][id]=ser; const t0=performance.now(); fb.pending++; const pk=col+'/'+id; pend[pk]=(pend[pk]||0)+1;
       fref(col,id).set(JSON.parse(JSON.stringify(data)))
-        .then(()=>{ fb.latency=Math.round(performance.now()-t0); fb.lastAck=hhmmss(); })
+        .then(()=>{ fb.latency=Math.round(performance.now()-t0); fb.lastAck=hhmmss(); lastServer=Date.now(); })
         .catch(e=>{ remoteSer[col][id]=prev; revertLocal(col,id,prev); toast(e && e.code==='permission-denied' ? '沒有權限修改這項資料（目前身分：'+roleObj.value.name+'）' : '資料送出失敗：'+((e&&e.code)||''), true); })
         .finally(()=>{ fb.pending=Math.max(0,fb.pending-1); pend[pk]=Math.max(0,(pend[pk]||1)-1); });
     }
@@ -2205,7 +2209,7 @@ createApp({
       try{
         firebase.initializeApp(window.FIREBASE_CONFIG); fdb=firebase.firestore();
         if(window.FB_EMULATOR){ fdb.useEmulator('127.0.0.1',8080); } // 只在本機測試用
-        fdb.enablePersistence({ synchronizeTabs:true }).catch(()=>{});
+        fdb.enablePersistence().catch(()=>{}); // 只有第一個分頁使用離線保存；其他分頁各自連線，連線燈才準確
         fauth=firebase.auth(); if(window.FB_EMULATOR) fauth.useEmulator('http://127.0.0.1:9099');
         subscribeAll();
         fauth.onAuthStateChanged(async u=>{
