@@ -1,0 +1,30 @@
+rules_version = '2';
+// 楠梓國小 運動會即時通報系統：資料庫安全規則
+// 交接時要改的地方：下面兩個函式裡的學校網域與系統管理員帳號（要和 config.js 一致）
+service cloud.firestore {
+  match /databases/{db}/documents {
+    function signedIn() { return request.auth != null; }
+    function email() { return request.auth.token.email.lower(); }
+    function isSchool() { return signedIn() && email().matches('.*@e1[.]ntps[.]kh[.]edu[.]tw$'); }
+    function isAdmin() { return signedIn() && email() in ['bing5201314@e1.ntps.kh.edu.tw']; }
+    function myRole() {
+      return exists(/databases/$(db)/documents/roles/$(email()))
+        ? get(/databases/$(db)/documents/roles/$(email())).data.role : 'teacher';
+    }
+    function hasRole(list) { return isAdmin() || (isSchool() && myRole() in list); }
+    function staff() { return hasRole(['control','record','sport','checkin','mc','guest','award','live','doc']); }
+
+    // 公開可看（大會看板、看直播）；修改需對應組別
+    match /meta/{id}       { allow read: if true; allow write: if hasRole(['record','sport','control','live']); }
+    match /events/{id}     { allow read: if true; allow write: if hasRole(['record','sport','checkin']); }
+    match /timeline/{id}   { allow read: if true; allow write: if hasRole(['control','record']); }
+    match /batches/{id}    { allow read: if true; allow write: if hasRole(['award','control','record']); }
+    match /guests/{id}     { allow read: if true; allow write: if hasRole(['guest','doc','control','award','record']); }
+    match /broadcasts/{id} { allow read: if true; allow write: if staff(); }
+    // 學校帳號才能看／填
+    match /allrun/{cls}    { allow read, write: if isSchool(); }
+    match /logs/{id}       { allow read: if hasRole(['record','control']); allow create: if isSchool(); }
+    match /devices/{id}    { allow read: if hasRole(['record','control']); allow write: if isSchool(); }
+    match /roles/{e}       { allow read: if isSchool(); allow write: if isAdmin(); }
+  }
+}
