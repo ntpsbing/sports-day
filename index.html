@@ -265,6 +265,9 @@ html.ov-transparent body::before{ display:none; }
 .netbar{ background:#B42318; color:#fff; font-weight:700; text-align:center; padding:8px max(16px, env(safe-area-inset-right,0px)) 8px max(16px, env(safe-area-inset-left,0px)); }
 .rolechip{ background:#fff; color:#0E2132; border-radius:10px; min-height:44px; padding:0 12px; font-weight:900; display:flex; align-items:center; }
 .btn-wrap{ white-space:normal; text-align:left; line-height:1.35; padding-block:8px; height:auto; }
+.gridcls{ display:grid; gap:6px; grid-template-columns:repeat(auto-fill,minmax(92px,1fr)); }
+.clsbtn{ min-height:48px; border-radius:10px; border:1.5px solid var(--line); background:var(--surface); font-weight:700; font-size:16px; }
+.clsbtn.on{ background:var(--ok-soft); color:var(--ok); border-color:var(--ok); }
 .duty{ display:grid; grid-template-columns:8.5em 1fr; gap:4px 12px; align-items:baseline; padding:8px 10px; border-radius:10px; }
 .duty.me{ background:var(--brand-soft); }
 @media (max-width:520px){ .duty{ grid-template-columns:1fr; } }
@@ -373,6 +376,11 @@ html.ov-transparent body::before{ display:none; }
         <button class="btn btn-primary" v-if="fb.admin" @click="initFormal">建立正式資料</button>
         <div class="small" v-else>請系統管理員登入後建立。</div>
       </div>
+      <div v-if="supportMissing && fb.admin" class="card mb-4" style="border:2px solid var(--brand)">
+        <h2 class="h-sec">新增的後勤支援資料還沒建立</h2>
+        <p class="small muted my-2">器材組、醫護組、午餐組、環保組、體育闖關組、收禮組的功能已加入。按下面按鈕建立器材清單（依流程）、6 個闖關站點與午餐設定。</p>
+        <button class="btn btn-primary" @click="initSupport">建立後勤支援資料</button>
+      </div>
       <div v-if="FORMAL && fb.user && (fb.admin || ['record','control'].includes(fb.role))" class="card mb-5">
         <div class="flex justify-between items-center gap-2 flex-wrap mb-2"><h2 class="h-sec">各組裝置連線狀態</h2><span class="small muted">每 30 秒回報一次・{{ devicesOnline.length }} 台在線</span></div>
         <div class="grid gap-2" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr))">
@@ -391,6 +399,7 @@ html.ov-transparent body::before{ display:none; }
         <button class="card kpi text-left" @click="go('guests')"><div class="v num">{{ kpi.guestIn }}<span class="muted" style="font-size:24px">/{{ st.guests.length }}</span></div><div class="l">來賓已報到</div></button>
         <button class="card kpi text-left" @click="go('export')"><div class="v num">{{ allrunDone }}<span class="muted" style="font-size:24px">/{{ allrunClasses.length }}</span></div><div class="l">全員賽跑已填報</div></button>
         <button class="card kpi text-left" @click="go('live')"><div class="v" style="font-size:26px;font-weight:900;line-height:1.2" :style="st.live.on?'color:#C8102E':''">{{ st.live.on ? '● 直播中' : '○ 未開播' }}</div><div class="l">網路直播</div></button>
+        <button class="card kpi text-left" @click="rFilter='open'; go('reports')"><div class="v num" :style="openReports.length?'color:var(--bad)':''">{{ openReports.length }}</div><div class="l">現場通報待處理</div></button>
       </div>
 
       <div class="grid gap-5" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,480px),1fr))">
@@ -570,6 +579,9 @@ html.ov-transparent body::before{ display:none; }
       </div>
       <div class="grid gap-4" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))">
         <div class="card">
+          <div class="card-flat mb-3 small" v-if="lunchInfo.time">午餐：{{ lunchInfo.time }}・{{ lunchInfo.place }}　<b :style="st.lunch[tCls]?'color:var(--ok)':'color:var(--warn)'">{{ st.lunch[tCls] ? '✔ 本班已領 '+st.lunch[tCls].at : '○ 本班尚未領取' }}</b></div>
+          <div class="card-flat mb-3" v-if="st.stations.length"><div class="font-bold small mb-1">體育闖關站（即時）</div>
+            <div class="flex flex-wrap gap-2"><span v-for="x in st.stations" :key="x.id" :class="['chip', STA[x.status].cls]">{{ x.name.replace(/^第(\d+)關\s*/,'$1.') }} {{ STA[x.status].short }}</span></div></div>
           <h2 class="h-sec mb-2">本班出賽與檢錄</h2>
           <div v-if="!teacherEvents.length" class="muted small">本班沒有當天的團體賽項目。</div>
           <div v-for="x in teacherEvents" :key="x.ev.id" class="card-flat mb-2">
@@ -1168,6 +1180,161 @@ html.ov-transparent body::before{ display:none; }
       </fieldset>
     </section>
 
+    <!-- ===================== 現場通報 ===================== -->
+    <section v-if="page==='reports'" class="fade-up">
+      <div class="grid gap-4" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr))">
+        <div class="card flex flex-col gap-3">
+          <h2 class="h-sec">送出通報</h2>
+          <div><label class="lbl">類別</label><div class="seg"><button v-for="(t,k) in RTYPES" :key="k" :class="{on:rf.type===k}" @click="rf.type=k">{{ t.name }}</button></div></div>
+          <div><label class="lbl" for="rfPlace">地點</label><input id="rfPlace" class="inp" v-model.trim="rf.place" maxlength="20" placeholder="例：東側廁所、檢錄處、五年三班休息區"></div>
+          <div><label class="lbl" for="rfText">狀況</label><textarea id="rfText" class="inp" rows="2" v-model.trim="rf.text" maxlength="120" placeholder="例：衛生紙用完、接力棒少一支、學生跌倒擦傷"></textarea></div>
+          <label class="flex items-center gap-2"><input type="checkbox" id="rfUrgent" v-model="rf.urgent" style="width:22px;height:22px"> 緊急（醒目提醒負責組別）</label>
+          <label class="flex items-center gap-2" v-if="rf.urgent"><input type="checkbox" id="rfMc" v-model="rf.mc" style="width:22px;height:22px"> 同時請司儀廣播</label>
+          <button class="btn btn-primary btn-big" @click="submitReport" :disabled="!rf.text">送出通報</button>
+          <p class="small muted" v-if="rf.type==='medic'">學生受傷的詳細資料請醫護組登記在「醫護站」，這裡只要寫地點與大概狀況。</p>
+        </div>
+        <div class="card" style="min-width:0">
+          <div class="flex justify-between items-center gap-2 flex-wrap mb-2">
+            <h2 class="h-sec">通報清單</h2>
+            <div class="seg"><button :class="{on:rFilter==='mine'}" @click="rFilter='mine'">我這組要處理</button><button :class="{on:rFilter==='open'}" @click="rFilter='open'">未完成</button><button :class="{on:rFilter==='all'}" @click="rFilter='all'">全部</button></div>
+          </div>
+          <div v-if="!reportList.length" class="small muted">目前沒有通報。</div>
+          <div v-for="r in reportList" :key="r.id" class="card-flat mb-2" :style="r.urgent && r.status!=='done' ? 'border:2px solid var(--bad)' : ''">
+            <div class="flex justify-between gap-2 flex-wrap">
+              <div><span class="chip st-none">{{ RTYPES[r.type] ? RTYPES[r.type].name : r.type }}</span> <span v-if="r.urgent" class="chip" style="background:var(--bad);color:#fff">緊急</span> <b>{{ r.place }}</b></div>
+              <span :class="['chip', r.status==='done'?'st-published':r.status==='doing'?'st-running':'tag-todo']">{{ r.status==='done' ? '✔ 已完成 '+r.doneAt : r.status==='doing' ? '▶ 處理中' : '○ 待處理' }}</span>
+            </div>
+            <div class="mt-1">{{ r.text }}</div>
+            <div class="small muted">{{ r.at }}・{{ r.by }}<span v-if="r.handledBy">・處理：{{ r.handledBy }}</span></div>
+            <div class="flex gap-2 mt-2" v-if="r.status!=='done' && canHandle(r)">
+              <button class="btn btn-sm" v-if="r.status==='open'" @click="setReport(r,'doing')">處理中</button>
+              <button class="btn btn-sm btn-ok" @click="setReport(r,'done')">已完成</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== 醫護站（隱私：只有醫護組、總控、紀錄組） ===================== -->
+    <section v-if="page==='medical'" class="fade-up">
+      <div v-if="!can('medic')" class="card"><h2 class="h-sec">醫護資料受保護</h2><p class="small muted mt-1">學生傷病資料只有醫護組、總控、紀錄組看得到。發現學生受傷，請到「現場通報」選「醫護」通知醫護組。</p><button class="btn btn-primary mt-3" @click="rf.type='medic'; go('reports')">前往現場通報</button></div>
+      <div v-else class="grid gap-4" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr))">
+        <div class="card flex flex-col gap-3">
+          <h2 class="h-sec">登記傷病</h2>
+          <div class="grid gap-2" style="grid-template-columns:1fr 1fr">
+            <div><label class="lbl" for="mdCls">班級</label><select id="mdCls" class="inp" v-model="md.cls"><option value="">（不是學生）</option><option v-for="c in allrunClasses" :key="c" :value="c">{{ clsLabel(c) }}</option></select></div>
+            <div><label class="lbl" for="mdName">姓名</label><input id="mdName" class="inp" v-model.trim="md.name" maxlength="12"></div>
+          </div>
+          <div><label class="lbl" for="mdIssue">狀況</label><input id="mdIssue" class="inp" v-model.trim="md.issue" maxlength="60" placeholder="例：跑步跌倒膝蓋擦傷"></div>
+          <div><label class="lbl" for="mdCare">處理</label><input id="mdCare" class="inp" v-model.trim="md.care" maxlength="60" placeholder="例：清洗傷口、貼紗布、冰敷"></div>
+          <label class="flex items-center gap-2"><input type="checkbox" id="mdParent" v-model="md.parent" style="width:22px;height:22px"> 需要通知家長</label>
+          <button class="btn btn-primary btn-big" @click="addMedical" :disabled="!md.issue">登記</button>
+        </div>
+        <div class="card" style="min-width:0">
+          <div class="flex justify-between items-center gap-2 flex-wrap mb-2"><h2 class="h-sec">今日紀錄（{{ st.medical.length }}）</h2><button class="btn btn-sm" @click="downloadXlsx(medicalRows,'醫護紀錄')" :disabled="!st.medical.length">下載 Excel</button></div>
+          <div class="note mb-2" v-if="openMedicReports.length">有 {{ openMedicReports.length }} 則醫護通報待處理：<span v-for="r in openMedicReports" :key="r.id">{{ r.place }}（{{ r.text }}）　</span><button class="btn btn-sm ml-1" @click="rFilter='mine'; go('reports')">去處理</button></div>
+          <div v-if="!st.medical.length" class="small muted">尚無紀錄。</div>
+          <div v-for="m in st.medical.slice().reverse()" :key="m.id" class="card-flat mb-2">
+            <div class="flex justify-between gap-2 flex-wrap"><b>{{ m.at }}　{{ m.cls ? clsLabel(m.cls) : '' }} {{ m.name }}</b><span :class="['chip', m.status==='closed'?'st-published':'tag-todo']">{{ m.status==='closed' ? '✔ 結案' : '○ 處理中' }}</span></div>
+            <div class="small">狀況：{{ m.issue }}<span v-if="m.care">｜處理：{{ m.care }}</span></div>
+            <div class="small" v-if="m.parent" :style="m.notified?'color:var(--ok)':'color:var(--bad)'">{{ m.notified ? '✔ 已通知家長' : '！需要通知家長' }}</div>
+            <div class="flex gap-2 mt-2" v-if="m.status!=='closed'">
+              <button class="btn btn-sm" v-if="m.parent && !m.notified" @click="m.notified=true; log('醫護：已通知家長')">已通知家長</button>
+              <button class="btn btn-sm btn-ok" @click="m.status='closed'; log('醫護：結案一筆')">結案</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== 器材配送 ===================== -->
+    <section v-if="page==='equip'" class="fade-up">
+      <div class="card mb-4" v-if="nextEquip.length" style="border:2px solid var(--brand)">
+        <h2 class="h-sec mb-2">接下來要送的器材</h2>
+        <div v-for="x in nextEquip" :key="x.id" class="flex justify-between items-center gap-2 flex-wrap py-1" style="border-bottom:1px solid var(--line)">
+          <div><b>{{ x.item }}</b> × {{ x.qty }}　→ {{ x.place }}<div class="small muted">{{ tlLabel(x.tl) }}</div></div>
+          <button class="btn btn-sm btn-ok" @click="setEquip(x,'sent')">已送達</button>
+        </div>
+      </div>
+      <div class="flex gap-2 flex-wrap mb-3"><div class="seg"><button :class="{on:eqFilter==='todo'}" @click="eqFilter='todo'">未完成</button><button :class="{on:eqFilter==='all'}" @click="eqFilter='all'">全部</button></div></div>
+      <div class="grid gap-3" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,380px),1fr))">
+        <div v-for="g in equipGroups" :key="g.tl" class="card">
+          <div class="eyebrow">{{ g.time }}</div><h2 class="h-sec mb-2">{{ g.title }}</h2>
+          <div v-for="x in g.items" :key="x.id" class="flex justify-between items-center gap-2 py-1" style="border-bottom:1px solid var(--line)">
+            <div style="min-width:0"><b>{{ x.item }}</b> × {{ x.qty }}<div class="small muted">{{ x.place }}</div></div>
+            <div class="flex gap-1 items-center">
+              <span :class="['chip', x.status==='back'?'st-published':x.status==='sent'?'st-running':'tag-todo']">{{ x.status==='back' ? '✔ 已收回' : x.status==='sent' ? '▶ 已送達 '+x.at : '○ 待送' }}</span>
+              <button class="btn btn-sm" v-if="x.status==='todo'" @click="setEquip(x,'sent')">送達</button>
+              <button class="btn btn-sm" v-else-if="x.status==='sent'" @click="setEquip(x,'back')">收回</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card mt-4"><h2 class="h-sec mb-2">新增器材</h2>
+        <div class="grid gap-2" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
+          <select class="inp" id="neTl" v-model="ne.tl"><option v-for="t in st.timeline" :key="t.id" :value="t.id">{{ t.time }} {{ t.title }}</option></select>
+          <input class="inp" id="neItem" v-model.trim="ne.item" placeholder="器材名稱" maxlength="20">
+          <input class="inp num" id="neQty" type="number" min="1" v-model.number="ne.qty">
+          <input class="inp" id="nePlace" v-model.trim="ne.place" placeholder="送到哪裡" maxlength="20">
+          <button class="btn btn-primary" @click="addEquip" :disabled="!ne.item">新增</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== 午餐 ===================== -->
+    <section v-if="page==='lunch'" class="fade-up">
+      <div class="card mb-4 flex flex-wrap gap-3 items-end">
+        <div><label class="lbl" for="luTime">領餐時間</label><input id="luTime" class="inp num" type="time" style="width:140px" :value="lunchInfo.time" @change="setLunchInfo('time',$event.target.value)"></div>
+        <div style="flex:1 1 220px"><label class="lbl" for="luPlace">領餐地點</label><input id="luPlace" class="inp" :value="lunchInfo.place" @change="setLunchInfo('place',$event.target.value)" maxlength="30"></div>
+        <button class="btn btn-primary" @click="callLunch(false)">請司儀廣播領餐</button>
+        <button class="btn" @click="callLunch(true)" :disabled="!lunchMissing.length">廣播未領班級（{{ lunchMissing.length }}）</button>
+      </div>
+      <div class="card">
+        <div class="flex justify-between items-center gap-2 flex-wrap mb-2"><h2 class="h-sec">各班領餐（已領 {{ allrunClasses.length-lunchMissing.length }}／{{ allrunClasses.length }}）</h2><span class="small muted">點一下班級切換已領／未領</span></div>
+        <div class="bar mb-3"><i :style="{width:((allrunClasses.length-lunchMissing.length)/allrunClasses.length*100)+'%'}"></i></div>
+        <div class="gridcls">
+          <button v-for="c in allrunClasses" :key="c" :class="['clsbtn',{on:st.lunch[c]}]" @click="toggleLunch(c)">{{ st.lunch[c] ? '✔ ' : '' }}{{ clsLabel(c) }}<div class="small" v-if="st.lunch[c]">{{ st.lunch[c].at }}</div></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== 收禮芳名錄 ===================== -->
+    <section v-if="page==='gifts'" class="fade-up">
+      <div class="grid gap-4" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr))">
+        <div class="card flex flex-col gap-3">
+          <h2 class="h-sec">登記捐贈</h2>
+          <div><label class="lbl" for="gfDonor">捐贈單位／姓名</label><input id="gfDonor" class="inp" v-model.trim="gf.donor" maxlength="30" placeholder="例：家長會、○○商行"></div>
+          <div><label class="lbl" for="gfItem">禮品</label><input id="gfItem" class="inp" v-model.trim="gf.item" maxlength="40" placeholder="例：運動飲料 200 瓶"></div>
+          <div><label class="lbl" for="gfAmt">金額（可不填，不會公布）</label><input id="gfAmt" class="inp" v-model.trim="gf.amount" maxlength="12" inputmode="numeric"></div>
+          <button class="btn btn-primary btn-big" @click="addGift" :disabled="!gf.donor || !gf.item">登記</button>
+        </div>
+        <div class="card" style="min-width:0">
+          <div class="flex justify-between items-center gap-2 flex-wrap mb-2"><h2 class="h-sec">芳名錄（{{ st.gifts.length }}）</h2>
+            <div class="flex gap-2"><button class="btn btn-sm" @click="copy(giftText)" :disabled="!st.gifts.length">複製公告文字</button><button class="btn btn-sm" @click="downloadXlsx(giftRows,'捐贈芳名錄')" :disabled="!st.gifts.length">下載 Excel</button></div></div>
+          <div v-if="!st.gifts.length" class="small muted">尚無捐贈。</div>
+          <div v-for="g in st.gifts" :key="g.id" class="card-flat mb-2 flex justify-between items-center gap-2 flex-wrap">
+            <div style="min-width:0"><b>{{ g.donor }}</b>　{{ g.item }}<div class="small muted">{{ g.at }}<span v-if="g.amount && can('gift')">・金額 {{ g.amount }}</span></div></div>
+            <span v-if="g.announced" class="chip st-published">✔ 已公布感謝</span>
+            <button v-else class="btn btn-sm btn-primary" @click="announceGift(g)">公布感謝</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== 體育闖關 ===================== -->
+    <section v-if="page==='stations'" class="fade-up">
+      <div class="grid gap-3" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr))">
+        <div v-for="x in st.stations" :key="x.id" class="card flex flex-col gap-2">
+          <input class="inp" style="font-weight:900" :id="'sn_'+x.id" v-model="x.name" maxlength="20" :disabled="!can('quest')">
+          <input class="inp small" :id="'sp_'+x.id" v-model="x.place" maxlength="20" placeholder="地點" :disabled="!can('quest')">
+          <div class="flex items-center justify-between gap-2"><span :class="['chip', STA[x.status].cls]">{{ STA[x.status].label }}</span><span class="small muted">{{ x.at ? '更新 '+x.at : '' }}</span></div>
+          <div class="grid gap-2" style="grid-template-columns:repeat(4,1fr)">
+            <button v-for="(v,k) in STA" :key="k" :class="['btn btn-sm', x.status===k?'btn-primary':'']" @click="setStation(x,k)">{{ v.short }}</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- ===================== 看直播（所有人） ===================== -->
     <section v-if="page==='watch'" class="fade-up">
       <div class="grid gap-4" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr))">
@@ -1305,6 +1472,7 @@ html.ov-transparent body::before{ display:none; }
       <button class="btn btn-sm" @click="setDock(false)" aria-label="關閉即時動態">收起</button>
     </div>
     <div class="dock-sec" v-if="urgentBc.length" style="background:#B42318;color:#fff"><b>⚠ 緊急更正</b><div class="small">{{ urgentBc[0].text }}</div></div>
+    <div class="dock-sec" v-if="myOpenReports.length" style="border:2px solid var(--bad)"><div class="eyebrow" style="color:var(--bad)">我這組待處理通報（{{ myOpenReports.length }}）</div><div class="small" v-for="r in myOpenReports.slice(0,3)" :key="r.id">{{ r.urgent?'！':'・' }}{{ r.place }}：{{ r.text }}</div><button class="btn btn-sm mt-1" @click="rFilter='mine'; go('reports')">去處理</button></div>
     <div class="dock-sec"><div class="eyebrow">正在進行</div><b>{{ nowTl ? nowTl.title : '尚未開始' }}</b><div class="small muted" v-if="nextTl">下一項 {{ tlTime(nextTl) }} {{ nextTl.title }}</div></div>
     <div class="dock-sec" v-if="checkinEvents.length"><div class="eyebrow">檢錄呼叫中</div><div class="small" v-for="e in checkinEvents" :key="e.id">● {{ e.name }}</div></div>
     <div class="dock-sec" v-if="readyBatchObj"><div class="eyebrow">頒獎進行中</div><b>{{ shortTitle(readyBatchObj.title) }}</b><div class="small">頒獎人 {{ personText(presenterOf(readyBatchObj).p) }}・{{ readyBatchObj.place }}</div></div>
@@ -1383,7 +1551,7 @@ const PLAN_QUESTIONS = [
   '當天時程表：計畫書沒有，系統內是草案，請體育組修改',
 ];
 const STATUS = { none:'○ 未開始', checkin:'◐ 檢錄中', running:'▶ 比賽中', review:'⧗ 待審核', published:'✔ 已公布', awarded:'★ 已頒獎' };
-const BC = { urgent:'緊急更正', check:'檢錄', result:'成績宣布', guest:'來賓介紹', award:'頒獎', flow:'大會報告', insert:'插播' };
+const BC = { thanks:'感謝', urgent:'緊急更正', check:'檢錄', result:'成績宣布', guest:'來賓介紹', award:'頒獎', flow:'大會報告', insert:'插播' };
 const QUICK_BC = [
   { t:'找人', text:'大會報告：請 ○年○班 ○○○ 同學聽到廣播後，到司令台找老師。' },
   { t:'失物招領', text:'大會報告：司令台撿到 ○○ 一件，遺失的同學請到司令台認領。' },
@@ -1403,20 +1571,35 @@ const ROLES = [
   { id:'live',    name:'攝影組（直播）',  pages:['live','board'], duty:'直播網址與 QR Code、直播疊字畫面、標記精彩時刻' },
   { id:'doc',     name:'文書組',          pages:['export','guests','board'], duty:'下載獎狀名單套印、來賓名單' },
   { id:'teacher', name:'班級導師',        pages:['teacher','watch','board'], duty:'查本班出賽與得獎、填報全員賽跑名單' },
+  { id:'ceremony',name:'典禮組',          pages:['awards','mc','board'], duty:'開幕、運動員進退場、協助頒獎與典禮 PO 文' },
+  { id:'equip',   name:'器材組',          pages:['equip','reports','board'], duty:'依流程配送器材（接力棒、頭巾…）；開始檢錄時系統自動提醒' },
+  { id:'medic',   name:'醫護組',          pages:['medical','reports','board'], duty:'醫藥準備、傷病處理與紀錄（資料只有醫護組、總控、紀錄組看得到）' },
+  { id:'lunch',   name:'午餐組',          pages:['lunch','reports','board'], duty:'各班領餐登記、請司儀廣播領餐' },
+  { id:'env',     name:'環保組',          pages:['reports','board'], duty:'處理環境維護通報（垃圾、廁所、場地清潔）' },
+  { id:'quest',   name:'體育闖關組',      pages:['stations','reports','board'], duty:'管理各闖關站狀態（開放、人多、暫停）' },
+  { id:'gift',    name:'收禮組',          pages:['gifts','board'], duty:'登記捐贈芳名錄、公布感謝（看板跑馬燈＋司儀稿）' },
+  { id:'promo',   name:'文宣組',          pages:['export','watch','board'], duty:'取用成績公告與 PO 文' },
+  { id:'affairs', name:'事務・場地組',    pages:['reports','board'], duty:'處理場地、事務類通報' },
   { id:'public',  name:'家長・觀眾',      pages:['watch','board'], duty:'觀看直播與大會看板' },
 ];
 /* 權限：每個動作由哪些組別操作（正式版改由學校 Google 帳號判斷） */
 const PERMS = {
   flow:['control','record'], checkin:['checkin','sport','record'], score:['sport','record'], publish:['record'],
-  mc:['mc','control'], guest:['guest','doc','control','award','record'], award:['award','control','record'], live:['live','control'],
+  mc:['mc','control'], guest:['guest','doc','control','award','record'], award:['award','control','record','ceremony'], live:['live','control'],
   data:['record'], config:['record','sport'], allrun:['teacher','record'],
+  report:['control','record','sport','checkin','mc','guest','award','live','doc','ceremony','equip','medic','lunch','env','quest','gift','promo','affairs','teacher'],
+  equipH:['equip','control','record'], envH:['env','affairs','control','record'], lunchH:['lunch','control','record'], siteH:['affairs','control','record'],
+  medic:['medic','control','record'], gift:['gift','control','record'], quest:['quest','control','record'],
 };
-const PAGE_PERM = { home:'flow', checkin:'checkin', score:'score', review:'publish', mc:'mc', guests:'guest', awards:'award', live:'live', import:'data', config:'config', teacher:'allrun' };
+/* 通報類別：誰負責處理 */
+const RTYPES = { equip:{ name:'器材', perm:'equipH' }, env:{ name:'環境清潔', perm:'envH' }, lunch:{ name:'午餐', perm:'lunchH' }, medic:{ name:'醫護', perm:'medic' }, site:{ name:'場地事務', perm:'siteH' }, other:{ name:'其他', perm:'flow' } };
+const PAGE_PERM = { home:'flow', checkin:'checkin', score:'score', review:'publish', mc:'mc', guests:'guest', awards:'award', live:'live', import:'data', config:'config', teacher:'allrun', reports:'report', medical:'medic', equip:'equipH', lunch:'lunchH', gifts:'gift', stations:'quest' };
 const PAGES = [
   { id:'home', name:'總控台' }, { id:'board', name:'大會看板' }, { id:'teacher', name:'導師查詢' },
   { id:'checkin', name:'檢錄' }, { id:'score', name:'成績登錄' }, { id:'review', name:'審核公布' },
   { id:'mc', name:'司儀台' }, { id:'guests', name:'來賓・頒獎人' }, { id:'watch', name:'看直播' }, { id:'awards', name:'頒獎梯次' }, { id:'live', name:'直播' },
   { id:'export', name:'獎狀與公告' }, { id:'import', name:'資料匯入' }, { id:'config', name:'積分與設定' },
+  { id:'reports', name:'現場通報' }, { id:'medical', name:'醫護站' }, { id:'equip', name:'器材配送' }, { id:'lunch', name:'午餐' }, { id:'gifts', name:'收禮芳名錄' }, { id:'stations', name:'體育闖關' },
   { id:'feedback', name:'意見回饋' }, { id:'overlay', name:'直播疊字畫面' },
 ];
 /* 選單分組：依「比賽怎麼進行」排列 */
@@ -1425,11 +1608,12 @@ const PAGE_GROUPS = [
   { name:'比賽進行', pages:['checkin','score','review'] },
   { name:'現場通報', pages:['mc','guests','awards','live'] },
   { name:'公開查詢', pages:['board','watch','teacher'] },
+  { name:'後勤支援', pages:['reports','medical','equip','lunch','gifts','stations'] },
   { name:'資料管理', pages:['import','export','config','feedback'] },
 ];
 /* 成績登錄範本（含下拉選單的 Excel 檔，以 base64 內嵌；要更新範本請重新產生這一行） */
 const TEMPLATE_XLSX = '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';
-const SHORT = { watch:'看直播', export:'獎狀公告', config:'設定', import:'匯入', teacher:'導師', board:'看板', checkin:'檢錄', score:'登錄成績', review:'審核', guests:'來賓', awards:'頒獎', home:'總控台', mc:'司儀台', live:'直播' };
+const SHORT = { reports:'通報', medical:'醫護', equip:'器材', lunch:'午餐', gifts:'芳名錄', stations:'闖關', watch:'看直播', export:'獎狀公告', config:'設定', import:'匯入', teacher:'導師', board:'看板', checkin:'檢錄', score:'登錄成績', review:'審核', guests:'來賓', awards:'頒獎', home:'總控台', mc:'司儀台', live:'直播' };
 const OV_BG = [ {id:'green',name:'綠幕（去背用）',css:'#00B140'}, {id:'navy',name:'深藍',css:'#08304B'}, {id:'none',name:'透明',css:'transparent'} ];
 const OV_MODES = [ {id:'award',name:'頒獎進行中'}, {id:'result',name:'最新成績'}, {id:'flow',name:'目前流程'}, {id:'stand',name:'總錦標積分'} ];
 const TASK_DESC = {
@@ -1448,8 +1632,20 @@ const TASK_DESC = {
   teacher:'查本班出賽時間與得獎，填報全員賽跑名單。',
   home:'整場主控：按流程開始／完成，掌握各組進度與分工。',
   feedback:'試用後告訴紀錄組哪裡好用、哪裡要改。',
+  reports:'任何人發現狀況（器材、環境、午餐、受傷、場地）都能通報，負責的組別即時收到並回報處理。',
+  medical:'登記傷病與處理情形；只有醫護組、總控、紀錄組看得到。',
+  equip:'依當天流程列出每項比賽要送的器材；開始檢錄時，未送達的器材會自動提醒。',
+  lunch:'各班領餐登記，一鍵請司儀廣播領餐。',
+  gifts:'登記捐贈單位與禮品，按「公布感謝」上看板跑馬燈並送司儀稿。',
+  stations:'各闖關站即時狀態，導師與看板同步看得到哪一站人少。',
 };
 const HELP = {
+  reports:['選類別、填地點和狀況，按「送出通報」。','負責的組別會在這頁和右下角「即時動態」看到，按「處理中」「已完成」回報。','很急的狀況勾「緊急」，可同時請司儀廣播。'],
+  medical:['學生受傷或不舒服時登記：班級、姓名、狀況、處理方式。','需要通知家長的請勾選，處理完按「結案」。','為保護學生隱私，這頁資料只有醫護組、總控、紀錄組看得到。'],
+  equip:['清單依當天流程排列，最上面是「接下來要送的器材」。','送到後按「已送達」，比賽完收回按「已收回」。','總控按流程「開始」或檢錄組按「開始檢錄」時，還沒送達的器材會自動變成緊急通報。'],
+  lunch:['先設定領餐時間與地點。','各班領走後點一下班級變成 ✔。','還沒領的班級可以一鍵請司儀廣播。'],
+  gifts:['收到捐贈時登記單位、禮品（金額可不填）。','按「公布感謝」：大會看板跑馬燈出現感謝，司儀台收到感謝稿。','可下載芳名錄 Excel，賽後公布在校網。'],
+  stations:['每一站可改名稱與地點。','按「開放」「人多」「暫停」「結束」，導師頁與看板馬上看到。','建議每站關主用手機開這頁更新。'],
   home:['整場由「總控」在這頁按流程的「開始」「完成」，看板、司儀台、直播字卡都會同步，並自動產生大會報告稿。','上方數字卡片點一下就能前往對應的頁面。','流程延誤時按「流程延誤 +5 分」，未開始項目的時間會自動往後調。','右邊「各組分工」說明每一組負責什麼，藍底是你目前的身分。'],
   board:['每一組都能從左側選單（手機在底部列）點「大會看板」看到即時畫面；在自己的工作頁也可以按右下角「即時動態」看重點。','這頁是投影到司令台大螢幕或電視用的，按「投影模式」可隱藏選單。','成績一公布就會出現在「最新成績公布」，每 8 秒輪播。','積分排行依「積分與設定」的規則即時計算。'],
   teacher:['先選「我的班級」，系統會記住。','可以查看本班當天出賽與檢錄狀態、本班得獎名單。','全員賽跑結束後，填每組前三名並送出，就不用再交紙本。'],
@@ -1567,7 +1763,25 @@ function seed(){
 const FORMAL = !!(window.FIREBASE_CONFIG && window.FIREBASE_CONFIG.apiKey && window.firebase);
 function liveDefault(){ return { on:false, platform:'YouTube', url:'', title:'楠梓國小創校127週年校慶運動會 網路直播', startedAt:'', startTs:0, marks:[], overlayBg:'green', overlayModes:['award','result','flow','stand'] }; }
 /* 正式版開始前的空白畫面（資料由雲端載入） */
-function emptyState(){ return { v:1, settings:seed().settings, events:[], timeline:[], guests:[], batches:[], allrun:{}, broadcasts:[], live:liveDefault(), logs:[], delayMin:0 }; }
+/* 後勤支援的預設資料：器材清單（依流程）、闖關站點、午餐設定 */
+function supportDefaults(){
+  const E=(tl,item,qty,place)=>({ id:'q'+tl+'_'+item.replace(/[^\w一-鿿]/g,'').slice(0,8), tl, item, qty, place, status:'todo', at:'' });
+  const equip=[
+    E('t2','會旗、旗手手套',1,'司令台'), E('t2','麥克風與音響',1,'司令台'),
+    E('t4','頒獎台、獎盤',1,'司令台前頒獎台'), E('t4','獎狀與獎牌（個人項目）',1,'司令台前頒獎台'),
+    E('t5','終點線帶、名次牌（1～3）',1,'終點'), E('t5','碼錶',3,'終點'),
+    E('t6','終點線帶、名次牌（1～3）',1,'終點'), E('t6','碼錶',3,'終點'),
+    E('t7','接力棒',12,'起跑區'), E('t7','碼錶',6,'終點'),
+    E('t8','終點線帶、名次牌（1～3）',1,'終點'),
+    E('t9','接力棒',11,'起跑區'), E('t9','頭巾（各班顏色）',11,'檢錄處'),
+    E('t10','接力棒',12,'起跑區'), E('t10','頭巾（各班顏色）',12,'檢錄處'),
+    E('t11','接力棒',12,'起跑區'), E('t11','頭巾（各班顏色）',12,'檢錄處'),
+    E('t12','頒獎台、獎盤、錦旗',1,'司令台前頒獎台'),
+  ];
+  const stations=['投籃高手','跳繩挑戰','呼拉圈','平衡木','擲準大師','敏捷梯'].map((n,i)=>({ id:'s'+(i+1), name:'第'+(i+1)+'關　'+n, place:'操場周邊', status:'open', at:'' }));
+  return { equip, stations, lunch:{ _info:{ time:'11:50', place:'各班至午餐室領取' } } };
+}
+function emptyState(){ return { v:1, settings:seed().settings, events:[], timeline:[], guests:[], batches:[], allrun:{}, broadcasts:[], live:liveDefault(), logs:[], delayMin:0, reports:[], medical:[], equip:[], lunch:{}, gifts:[], stations:[] }; }
 /* 正式資料：依計畫書建項目與流程，不含範例學生 */
 function blankFormal(){
   const o=seed();
@@ -1577,11 +1791,19 @@ function blankFormal(){
   const tl={ b1:'t4', b2:'t4', b3:'t12', b4:'t12', b5:'t12' };
   o.batches.forEach(b=>{ b.status='todo'; b.presenter='p0'; b.backup='g0'; b.override=''; b.place='司令台前頒獎台'; b.tl=tl[b.id]||''; });
   o.allrun={}; o.broadcasts=[]; o.logs=[]; o.delayMin=0; o.live=liveDefault();
+  const sd=supportDefaults(); o.equip=sd.equip; o.stations=sd.stations; o.lunch=sd.lunch; o.reports=[]; o.medical=[]; o.gifts=[];
   return o;
 }
 function migrate(o){
   if(!o.live) o.live={ on:false, platform:'YouTube', url:'', title:'楠梓國小創校127週年校慶運動會 網路直播', startedAt:'', startTs:0, marks:[], overlayBg:'green', overlayModes:['award','result','flow','stand'] };
   o.events.forEach(e=>{ if(!e.scoreMode){ e.scoreMode='default'; e.customPoints=[]; } });
+  // 後勤支援（新增欄位）：正式版由雲端載入，體驗版補範例
+  ['reports','medical','equip','gifts','stations'].forEach(k=>{ if(!Array.isArray(o[k])) o[k]=[]; }); if(!o.lunch || typeof o.lunch!=='object') o.lunch={};
+  if(!FORMAL && !o.stations.length){ const sd=supportDefaults(); o.equip=sd.equip; o.stations=sd.stations; o.lunch=sd.lunch;
+    o.gifts=[{ id:'gf1', ts:Date.now()-3600000, at:'08:20', donor:'家長會', item:'運動飲料 200 瓶', amount:'', note:'範例', announced:true },{ id:'gf2', ts:Date.now()-1800000, at:'08:45', donor:'（範例）○○商行', item:'加油毛巾 100 條', amount:'', note:'範例', announced:false }];
+    o.reports=[{ id:'rp1', ts:Date.now()-900000, at:'09:10', type:'env', place:'東側廁所', text:'衛生紙用完了（範例）', urgent:false, status:'open', by:'班級導師', handledBy:'', doneAt:'' }];
+    o.equip.filter(x=>['t2','t4'].includes(x.tl)).forEach(x=>{ x.status='sent'; x.at='08:10'; });
+  }
   // 頒獎人：校內人員、家長會、來賓都放在同一份名單，加上「無法出席」（正式版不補範例）
   if(!FORMAL && !o.guests.some(g=>g.kind)){
     o.guests.forEach(g=>{ g.kind = g.org==='家長會' ? '家長會' : '來賓'; g.absent=false; });
@@ -1748,7 +1970,7 @@ createApp({
     const allrunMissing = computed(()=>allrunClasses.value.filter(c=>!st.value.allrun[c]));
     const totalClasses = computed(()=>[1,2,3,4,5,6].reduce((s,g)=>s+(+st.value.settings.classes[g]||0),0));
     const kpi = computed(()=>({ pub:preEvents.value.filter(isPub).length, preTotal:preEvents.value.length, review:reviewEvents.value.length, mc:pendingBc.value.length, guestIn:st.value.guests.filter(g=>g.arrived).length }));
-    function badge(p){ if(p==='review') return kpi.value.review; if(p==='mc') return kpi.value.mc + urgentBc.value.length; if(p==='guests') return st.value.guests.length-kpi.value.guestIn; if(p==='checkin') return checkinEvents.value.length; return 0; }
+    function badge(p){ if(p==='reports') return myOpenReports.value.length; if(p==='equip') return can('equipH') ? nextEquip.value.length : 0; if(p==='review') return kpi.value.review; if(p==='mc') return kpi.value.mc + urgentBc.value.length; if(p==='guests') return st.value.guests.length-kpi.value.guestIn; if(p==='checkin') return checkinEvents.value.length; return 0; }
     const preMissing = computed(()=>preEvents.value.filter(e=>e.status==='none'));
     const overLimit = computed(()=>{
       const m={}; st.value.events.filter(e=>!e.team).forEach(e=>e.entries.forEach(x=>{ if(!x.name) return; const k=x.cls+'|'+x.name; (m[k]=m[k]||{cls:x.cls,name:x.name,events:[]}).events.push(e.base); }));
@@ -1757,7 +1979,7 @@ createApp({
 
     /* ----- 流程 ----- */
     function tlTime(t){ if(t.status==='done' || !st.value.delayMin) return t.time; const [h,m]=t.time.split(':').map(Number); const d=new Date(2000,0,1,h,m+st.value.delayMin); return hhmm(d); }
-    function startTl(t){ if(!need('flow')) return;
+    function startTl(t){ if(!need('flow')) return; equipAlert(t.id);
       st.value.timeline.forEach(x=>{ if(x.status==='now') x.status='done'; }); t.status='now';
       const nx=st.value.timeline.find(x=>x.status==='todo');
       bc('flow','大會報告：現在進行「'+t.title+'」。'+(nx?'下一個項目是「'+nx.title+'」，請相關班級做好準備。':''));
@@ -1773,7 +1995,7 @@ createApp({
     const ckStat = computed(()=>{ const e=ckEv.value; if(!e) return {}; return { here:e.entries.filter(x=>x.present===true).length, away:e.entries.filter(x=>x.present===false).length, unk:e.entries.filter(x=>x.present===null).length }; });
     function isLocked(e){ return isPub(e); }
     function setPresent(e,v){ if(!need('checkin')) return; e.present = e.present===v ? null : v; }
-    function startCheckin(e){ if(!need('checkin')) return; e.status='checkin'; bc('check', e.name+' 開始檢錄，請參賽'+(e.team?'班級選手':'選手')+'到司令台旁檢錄處報到。'); log('開始檢錄：'+e.name); toast('已通知司儀廣播檢錄'); }
+    function startCheckin(e){ if(!need('checkin')) return; { const t=st.value.timeline.find(x=>(x.eventIds||[]).includes(e.id)); if(t) equipAlert(t.id); } e.status='checkin'; bc('check', e.name+' 開始檢錄，請參賽'+(e.team?'班級選手':'選手')+'到司令台旁檢錄處報到。'); log('開始檢錄：'+e.name); toast('已通知司儀廣播檢錄'); }
     function secondCall(e){ if(!need('checkin')) return; const miss=e.entries.filter(x=>x.present!==true).map(x=>clsLabel(x.cls)+(e.team?'':' '+x.name)); const uniq=[...new Set(miss)]; bc('check','第二次檢錄：'+e.name+'，請 '+uniq.slice(0,12).join('、')+(uniq.length>12?' 等':'')+' 盡快到檢錄處報到。'); if(e.status==='none') e.status='checkin'; log('第二次檢錄：'+e.name); toast('已請司儀廣播第二次檢錄'); }
     function finishCheckin(e){ if(!need('checkin')) return; e.status='running'; log('檢錄完成：'+e.name+'（到 '+ckStat.value.here+'）'); toast('檢錄完成，已交給裁判'); }
 
@@ -1811,7 +2033,7 @@ createApp({
     const mcText = ref('');
     function doneBc(b){ if(!need('mc')) return; b.done=true; b.doneAt=hhmm(); if(b.guestId){ const g=st.value.guests.find(x=>x.id===b.guestId); if(g) g.introduced=true; } toast('已標記播報'); }
     function addInsert(){ if(!need('mc')) return; bc('insert', mcText.value.trim()); log('新增插播'); mcText.value=''; toast('已加入，排在最前面'); }
-    function bcStyle(t){ return { urgent:'background:#B42318;color:#fff', check:'background:var(--warn-soft);color:var(--warn)', result:'background:var(--ok-soft);color:var(--ok)', guest:'background:#FFF4CC;color:#6B4E00', award:'background:#FFF4CC;color:#6B4E00', flow:'background:var(--brand-soft);color:var(--brand)', insert:'background:var(--bad-soft);color:var(--bad)' }[t]; }
+    function bcStyle(t){ return { thanks:'background:var(--ok-soft);color:var(--ok)', urgent:'background:#B42318;color:#fff', check:'background:var(--warn-soft);color:var(--warn)', result:'background:var(--ok-soft);color:var(--ok)', guest:'background:#FFF4CC;color:#6B4E00', award:'background:#FFF4CC;color:#6B4E00', flow:'background:var(--brand-soft);color:var(--brand)', insert:'background:var(--bad-soft);color:var(--bad)' }[t]; }
 
     /* ----- 來賓・頒獎人 ----- */
     const gFilter = ref('all'); const gKind = ref('全部');
@@ -2057,7 +2279,7 @@ createApp({
     /* ----- 看板輪播與時鐘 ----- */
     const boardIdx = ref(0);
     const boardEvent = computed(()=>latestPublished.value[boardIdx.value % Math.max(1,latestPublished.value.length)] || null);
-    const tickerText = computed(()=>{ const items=[]; checkinEvents.value.forEach(e=>items.push('【檢錄】'+e.name+' 請到檢錄處報到')); if(nextTl.value) items.push('【下一項】'+tlTime(nextTl.value)+' '+nextTl.value.title); st.value.broadcasts.filter(b=>b.done && (b.type==='flow'||b.type==='insert')).slice(-3).forEach(b=>items.push('【大會報告】'+b.text.replace(/^大會報告：/,''))); items.push('楠梓國小創校127週年　活力躍動　魅力楠梓'); return items.join('　　◆　　'); });
+    const tickerText = computed(()=>{ const items=[]; st.value.gifts.filter(g=>g.announced).slice(-3).forEach(g=>items.push('【感謝】'+g.donor+' 捐贈 '+g.item)); checkinEvents.value.forEach(e=>items.push('【檢錄】'+e.name+' 請到檢錄處報到')); if(nextTl.value) items.push('【下一項】'+tlTime(nextTl.value)+' '+nextTl.value.title); st.value.broadcasts.filter(b=>b.done && (b.type==='flow'||b.type==='insert')).slice(-3).forEach(b=>items.push('【大會報告】'+b.text.replace(/^大會報告：/,''))); items.push('楠梓國小創校127週年　活力躍動　魅力楠梓'); return items.join('　　◆　　'); });
     setInterval(()=>{ clock.value=hhmm(); },10000);
     setInterval(()=>{ if(page.value==='board' && latestPublished.value.length) boardIdx.value=(boardIdx.value+1)%latestPublished.value.length; },8000);
     function toggleBoardMode(){ boardMode.value=!boardMode.value; }
@@ -2093,6 +2315,41 @@ createApp({
     const marksText = computed(()=>'【精彩時刻清單】\n'+st.value.live.marks.map(m=>m.at+(m.offset?'（直播第 '+m.offset+'）':'')+'　'+m.item+(m.note?'｜'+m.note:'')).join('\n'));
     const dockOpen = ref((()=>{ try{ return localStorage.getItem(KEY+'-dock')==='1'; }catch(e){ return false; } })());
     function setDock(v){ dockOpen.value=v; try{ localStorage.setItem(KEY+'-dock', v?'1':'0'); }catch(e){} }
+    /* ----- 後勤支援：現場通報、醫護、器材、午餐、收禮、闖關 ----- */
+    const STA = { open:{ label:'● 開放中', short:'開放', cls:'st-published' }, busy:{ label:'人多請稍候', short:'人多', cls:'tag-todo' }, pause:{ label:'暫停', short:'暫停', cls:'st-none' }, closed:{ label:'已結束', short:'結束', cls:'st-none' } };
+    const rf = reactive({ type:'env', place:'', text:'', urgent:false, mc:false }); const rFilter = ref('mine');
+    function canHandle(r){ const t=RTYPES[r.type]; return t ? can(t.perm) : can('flow'); }
+    const openReports = computed(()=>st.value.reports.filter(r=>r.status!=='done'));
+    const myOpenReports = computed(()=>openReports.value.filter(r=>canHandle(r) && !(FORMAL && fb.admin && role.value==='record' && false)).sort((a,b)=>(b.urgent?1:0)-(a.urgent?1:0)||(a.ts||0)-(b.ts||0)));
+    const reportList = computed(()=>{ const a=st.value.reports.slice().sort((x,y)=>(y.ts||0)-(x.ts||0)); if(rFilter.value==='open') return a.filter(r=>r.status!=='done'); if(rFilter.value==='mine') return a.filter(r=>r.status!=='done' && canHandle(r)); return a; });
+    const openMedicReports = computed(()=>openReports.value.filter(r=>r.type==='medic'));
+    function newReport(o){ st.value.reports.push(Object.assign({ id:'r'+Date.now()+uid(), ts:Date.now(), at:hhmm(), by:roleObj.value.name, status:'open', handledBy:'', doneAt:'', urgent:false, place:'', text:'' }, o)); }
+    function submitReport(){ if(!need('report')) return; newReport({ type:rf.type, place:rf.place, text:rf.text, urgent:rf.urgent }); if(rf.urgent && rf.mc) bc('insert','大會報告：'+(rf.place?rf.place+'，':'')+rf.text+'，請相關人員協助處理。'); log('現場通報：'+RTYPES[rf.type].name+' '+rf.place+' '+rf.text); toast('已送出，'+RTYPES[rf.type].name+'負責組別會即時收到'); rf.place=''; rf.text=''; rf.urgent=false; rf.mc=false; }
+    function setReport(r,stt){ if(!canHandle(r)){ need(RTYPES[r.type]?RTYPES[r.type].perm:'flow'); return; } r.status=stt; r.handledBy=roleObj.value.name; if(stt==='done') r.doneAt=hhmm(); log('通報'+(stt==='done'?'完成':'處理中')+'：'+r.place+' '+r.text); }
+    const md = reactive({ cls:'', name:'', issue:'', care:'', parent:false });
+    function addMedical(){ if(!need('medic')) return; st.value.medical.push({ id:'m'+Date.now()+uid(), ts:Date.now(), at:hhmm(), cls:md.cls, name:md.name, issue:md.issue, care:md.care, parent:md.parent, notified:false, status:'open', by:roleObj.value.name }); log('醫護：登記一筆'); toast('已登記'); md.name=''; md.issue=''; md.care=''; md.parent=false; }
+    const medicalRows = computed(()=>[['時間','班級','姓名','狀況','處理','通知家長','狀態']].concat(st.value.medical.map(m=>[m.at, m.cls?clsLabel(m.cls):'', m.name, m.issue, m.care, m.parent?(m.notified?'已通知':'需通知'):'', m.status==='closed'?'結案':'處理中'])));
+    const eqFilter = ref('todo'); const ne = reactive({ tl:'t7', item:'', qty:1, place:'' });
+    function tlLabel(id){ const t=st.value.timeline.find(x=>x.id===id); return t ? tlTime(t)+' '+t.title : ''; }
+    const equipGroups = computed(()=>{ const out=[]; st.value.timeline.forEach(t=>{ const items=st.value.equip.filter(x=>x.tl===t.id && (eqFilter.value==='all' || x.status!=='back')); if(items.length) out.push({ tl:t.id, time:tlTime(t), title:t.title, items }); }); const orphan=st.value.equip.filter(x=>!st.value.timeline.some(t=>t.id===x.tl)); if(orphan.length) out.push({ tl:'_', time:'', title:'其他', items:orphan }); return out; });
+    const nextEquip = computed(()=>{ const ids=st.value.timeline.filter(t=>t.status!=='done').slice(0,3).map(t=>t.id); return st.value.equip.filter(x=>ids.includes(x.tl) && x.status==='todo'); });
+    function setEquip(x,stt){ if(!need('equipH')) return; x.status=stt; x.at=hhmm(); st.value.reports.forEach(r=>{ if(r.type==='equip' && r.equipTl===x.tl && r.status!=='done' && !st.value.equip.some(e=>e.tl===x.tl && e.status==='todo')){ r.status='done'; r.doneAt=hhmm(); r.handledBy='器材組'; } }); }
+    function addEquip(){ if(!need('equipH')) return; st.value.equip.push({ id:'q'+Date.now()+uid(), tl:ne.tl, item:ne.item, qty:ne.qty||1, place:ne.place, status:'todo', at:'' }); ne.item=''; ne.place=''; toast('已新增器材'); }
+    /* 器材自動提醒：流程開始或開始檢錄時，該項目還沒送達的器材變成緊急通報 */
+    function equipAlert(tlId){ if(!tlId) return; const miss=st.value.equip.filter(x=>x.tl===tlId && x.status==='todo'); if(!miss.length) return; if(st.value.reports.some(r=>r.type==='equip' && r.equipTl===tlId && r.status!=='done')) return;
+      newReport({ type:'equip', urgent:true, equipTl:tlId, place:[...new Set(miss.map(x=>x.place))].join('、'), text:'請送：'+miss.map(x=>x.item+'×'+x.qty).join('、')+'（'+tlLabel(tlId)+'）', by:'系統自動提醒' }); }
+    const lunchInfo = computed(()=>st.value.lunch._info || { time:'', place:'' });
+    const lunchMissing = computed(()=>allrunClasses.value.filter(c=>!st.value.lunch[c]));
+    function setLunchInfo(k,v){ if(!need('lunchH')) return; st.value.lunch._info=Object.assign({}, lunchInfo.value, { [k]:v }); }
+    function toggleLunch(c){ if(!need('lunchH')) return; if(st.value.lunch[c]) delete st.value.lunch[c]; else st.value.lunch[c]={ at:hhmm() }; }
+    function callLunch(onlyMissing){ if(!need('lunchH')) return; const i=lunchInfo.value; bc('insert', onlyMissing ? '大會報告：請 '+lunchMissing.value.slice(0,15).map(clsLabel).join('、')+(lunchMissing.value.length>15?' 等班級':'')+' 的午餐值日生，到'+i.place+'領取午餐。' : '大會報告：現在開始領取午餐，請各班午餐值日生到'+i.place+'領取。'); toast('已送到司儀台'); }
+    const gf = reactive({ donor:'', item:'', amount:'' });
+    function addGift(){ if(!need('gift')) return; st.value.gifts.push({ id:'gf'+Date.now()+uid(), ts:Date.now(), at:hhmm(), donor:gf.donor, item:gf.item, amount:gf.amount, note:'', announced:false }); log('收禮登記：'+gf.donor); toast('已登記'); gf.donor=''; gf.item=''; gf.amount=''; }
+    function announceGift(g){ if(!need('gift')) return; g.announced=true; bc('thanks','大會報告：感謝 '+g.donor+' 熱心捐贈 '+g.item+'，讓我們以熱烈的掌聲表達感謝！'); log('公布感謝：'+g.donor); toast('已上看板跑馬燈，司儀台收到感謝稿'); }
+    const giftRows = computed(()=>[['時間','捐贈單位／姓名','禮品','金額']].concat(st.value.gifts.map(g=>[g.at,g.donor,g.item,g.amount||''])));
+    const giftText = computed(()=>'【感謝芳名錄】楠梓國小'+st.value.settings.title+'\n感謝以下單位與個人熱心捐贈：\n'+st.value.gifts.map(g=>'・'+g.donor+'　'+g.item).join('\n')+'\n謹致謝忱！');
+    function setStation(x,k){ if(!need('quest')) return; x.status=k; x.at=hhmm(); }
+
     const ovIdx = ref(0);
     const ovSlide = computed(()=>{
       const modes = st.value.live.overlayModes.length ? st.value.live.overlayModes : ['flow'];
@@ -2122,10 +2379,10 @@ createApp({
        ・斷線時先存在這台裝置，恢復後自動補送；畫面顯示延遲與未送出筆數
        ・權限由雲端規則（firestore.rules）再檢查一次，畫面上的限制只是第一道
        ===================================================================== */
-    const ARR_COLS=['events','timeline','guests','batches','broadcasts','logs'];
+    const ARR_COLS=['events','timeline','guests','batches','broadcasts','logs','reports','medical','equip','gifts','stations'];
     const fb = reactive({ on:FORMAL, user:null, email:'', admin:false, role:'public', ready:false, empty:false, online:true, pending:0, latency:null, lastAck:'', err:'', devices:[], roles:[], seen:{} });
     let fdb=null, fauth=null; const fUnsubs=[];
-    const remoteSer={ events:{}, timeline:{}, guests:{}, batches:{}, broadcasts:{}, logs:{}, allrun:{}, meta:{} };
+    const remoteSer={ events:{}, timeline:{}, guests:{}, batches:{}, broadcasts:{}, logs:{}, allrun:{}, meta:{}, reports:{}, medical:{}, equip:{}, gifts:{}, stations:{}, lunch:{} };
     const deviceId=(()=>{ try{ let d=localStorage.getItem(KEY+'-device'); if(!d){ d='d'+uid()+uid(); localStorage.setItem(KEY+'-device',d); } return d; }catch(e){ return 'd'+uid(); } })();
     function canon(v){ if(Array.isArray(v)) return '['+v.map(canon).join(',')+']'; if(v && typeof v==='object') return '{'+Object.keys(v).filter(k=>v[k]!==undefined).sort().map(k=>JSON.stringify(k)+':'+canon(v[k])).join(',')+'}'; return JSON.stringify(v===undefined?null:v); }
     function fref(col,id){ return fdb.collection(col).doc(String(id)); }
@@ -2173,6 +2430,8 @@ createApp({
       if(!FORMAL || !fb.ready || !fb.user) return;
       ARR_COLS.forEach(c=>(st.value[c]||[]).forEach(it=>{ if(it && it.id) fbWrite(c,it.id,it); }));
       Object.keys(st.value.allrun||{}).forEach(k=>fbWrite('allrun',k,st.value.allrun[k]));
+      Object.keys(st.value.lunch||{}).forEach(k=>fbWrite('lunch',k,st.value.lunch[k]));
+      Object.keys(remoteSer.lunch).forEach(k=>{ if(!(k in st.value.lunch)) fbDelete('lunch',k); });
       fbWrite('meta','settings',st.value.settings); fbWrite('meta','live',st.value.live); fbWrite('meta','flow',{ delayMin:st.value.delayMin||0 });
     }
     function subscribeAll(){
@@ -2182,6 +2441,10 @@ createApp({
       fUnsubs.push(listenArr('timeline', fdb.collection('timeline')));
       fUnsubs.push(listenArr('batches', fdb.collection('batches')));
       fUnsubs.push(listenArr('guests', fdb.collection('guests')));
+      fUnsubs.push(listenArr('gifts', fdb.collection('gifts')));
+      fUnsubs.push(listenArr('stations', fdb.collection('stations')));
+      if(fb.user){ fUnsubs.push(listenArr('reports', fdb.collection('reports').orderBy('ts','desc').limit(300))); fUnsubs.push(listenArr('equip', fdb.collection('equip'))); fUnsubs.push(listenMap('lunch', fdb.collection('lunch'), (id,d)=>{ if(d) st.value.lunch[id]=d; else delete st.value.lunch[id]; })); }
+      if(fb.user && (fb.admin || ['medic','control','record'].includes(fb.role))) fUnsubs.push(listenArr('medical', fdb.collection('medical')));
       fUnsubs.push(listenArr('broadcasts', fdb.collection('broadcasts').orderBy('ts','desc').limit(200)));
       fUnsubs.push(listenMap('meta', fdb.collection('meta'), (id,d)=>{ if(!d) return; if(id==='settings') st.value.settings=d; else if(id==='live') st.value.live=Object.assign(liveDefault(), d); else if(id==='flow') st.value.delayMin=d.delayMin||0; }));
       if(fb.user) fUnsubs.push(listenMap('allrun', fdb.collection('allrun'), (id,d)=>{ if(d) st.value.allrun[id]=d; else delete st.value.allrun[id]; }));
@@ -2226,8 +2489,13 @@ createApp({
       const o=blankFormal(), batch=fdb.batch(); const add=(c,id,d)=>batch.set(fref(c,id), JSON.parse(JSON.stringify(d)));
       o.events.forEach(e=>add('events',e.id,e)); o.timeline.forEach(t=>add('timeline',t.id,t)); o.guests.forEach(g=>add('guests',g.id,g)); o.batches.forEach(b=>add('batches',b.id,b));
       add('meta','settings',o.settings); add('meta','live',o.live); add('meta','flow',{ delayMin:0 });
+      o.equip.forEach(x=>add('equip',x.id,x)); o.stations.forEach(x=>add('stations',x.id,x)); Object.keys(o.lunch).forEach(k=>add('lunch',k,o.lunch[k]));
       try{ await batch.commit(); toast('已建立正式資料！接著到「資料匯入」匯入會前賽成績與名單'); log('建立正式資料'); }catch(e){ toast('建立失敗：'+((e&&e.code)||e.message),true); }
     }
+    const supportMissing = computed(()=>FORMAL && fb.ready && !fb.empty && fb.seen.stations && !st.value.stations.length && !st.value.equip.length);
+    async function initSupport(){ if(!fb.admin) return; const sd=supportDefaults(), batch=fdb.batch(); const add=(c,id,d)=>batch.set(fref(c,id), JSON.parse(JSON.stringify(d)));
+      sd.equip.forEach(x=>add('equip',x.id,x)); sd.stations.forEach(x=>add('stations',x.id,x)); Object.keys(sd.lunch).forEach(k=>add('lunch',k,sd.lunch[k]));
+      try{ await batch.commit(); toast('已建立器材清單、闖關站點與午餐設定'); log('建立後勤支援資料'); }catch(e){ toast('建立失敗：'+((e&&e.code)||''),true); } }
     const roleForm = reactive({ email:'', role:'sport' });
     function setRole(){ const em=roleForm.email.toLowerCase().trim(); if(window.SCHOOL_DOMAIN && !em.endsWith('@'+window.SCHOOL_DOMAIN)){ toast('請輸入學校帳號（@'+window.SCHOOL_DOMAIN+'）',true); return; } fref('roles',em).set({ role:roleForm.role, by:fb.email, ts:Date.now() }).then(()=>{ toast('已設定 '+em); roleForm.email=''; log('設定權限：'+em+' → '+roleForm.role); }).catch(e=>toast('設定失敗：'+((e&&e.code)||''),true)); }
     function removeRole(em){ fref('roles',em).delete().then(()=>toast('已移除 '+em)).catch(e=>toast('移除失敗：'+((e&&e.code)||''),true)); }
@@ -2250,6 +2518,7 @@ createApp({
       rvTab, rvNote, publish, sendBack, askReopen,
       mcText, doneBc, addInsert, bcStyle,
       FORMAL, fb, signIn, signOut, initFormal, roleForm, setRole, removeRole, isOnline, devicesSorted, devicesOnline, addTl, removeTl, removeGuest,
+      RTYPES, STA, rf, rFilter, canHandle, openReports, myOpenReports, reportList, openMedicReports, submitReport, setReport, md, addMedical, medicalRows, eqFilter, ne, tlLabel, equipGroups, nextEquip, setEquip, addEquip, lunchInfo, lunchMissing, setLunchInfo, toggleLunch, callLunch, gf, addGift, announceGift, giftRows, giftText, setStation, supportMissing, initSupport,
       dockOpen, setDock, qa, quickAssign, person, useBackup, restorePrimary, eventPoints, setCustomPts, baseNames, bulk, applyBulk,
       gFilter, gKind, guestList, ng, arrive, addGuest, personText, personMark, shortTitle, batchesOf, presenterOf, toggleAbsent, readyBatchObj, batchTime, winnersOf, winnerGroups, awardIssues, teacherCalls, sync, toggleCloud, canEmbed, embedUrl,
       batchInfo, readyBatch, doneBatch,

@@ -12,13 +12,13 @@ service cloud.firestore {
         ? get(/databases/$(db)/documents/roles/$(email())).data.role : 'teacher';
     }
     function hasRole(list) { return isAdmin() || (isSchool() && myRole() in list); }
-    function staff() { return hasRole(['control','record','sport','checkin','mc','guest','award','live','doc']); }
+    function staff() { return hasRole(['control','record','sport','checkin','mc','guest','award','live','doc','ceremony','equip','medic','lunch','env','quest','gift','promo','affairs']); }
 
     // 公開可看（大會看板、看直播）；修改需對應組別
     match /meta/{id}       { allow read: if true; allow write: if hasRole(['record','sport','control','live']); }
     match /events/{id}     { allow read: if true; allow write: if hasRole(['record','sport','checkin']); }
     match /timeline/{id}   { allow read: if true; allow write: if hasRole(['control','record']); }
-    match /batches/{id}    { allow read: if true; allow write: if hasRole(['award','control','record']); }
+    match /batches/{id}    { allow read: if true; allow write: if hasRole(['award','control','record','ceremony']); }
     match /guests/{id}     { allow read: if true; allow write: if hasRole(['guest','doc','control','award','record']); }
     match /broadcasts/{id} { allow read: if true; allow write: if staff(); }
     // 學校帳號才能看／填
@@ -26,5 +26,12 @@ service cloud.firestore {
     match /logs/{id}       { allow read: if hasRole(['record','control']); allow create: if isSchool(); }
     match /devices/{id}    { allow read: if hasRole(['record','control']); allow write: if isSchool(); }
     match /roles/{e}       { allow read: if isSchool(); allow write: if isAdmin(); }
+    // 後勤支援
+    match /reports/{id}    { allow read, create: if isSchool(); allow update: if isSchool(); }
+    match /medical/{id}    { allow read, write: if hasRole(['medic','control','record']); }  // 學生傷病資料：只限醫護組、總控、紀錄組
+    match /equip/{id}      { allow read: if isSchool(); allow write: if hasRole(['equip','control','record']); }
+    match /lunch/{id}      { allow read: if isSchool(); allow write: if hasRole(['lunch','control','record']); }
+    match /gifts/{id}      { allow read: if true; allow write: if hasRole(['gift','control','record']); }
+    match /stations/{id}   { allow read: if true; allow write: if hasRole(['quest','control','record']); }
   }
 }
