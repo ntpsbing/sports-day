@@ -2516,6 +2516,8 @@ createApp({
         fauth.onAuthStateChanged(async u=>{
           const dom=window.SCHOOL_DOMAIN;
           if(u && dom && !String(u.email||'').toLowerCase().endsWith('@'+dom)){ toast('請用學校帳號（@'+dom+'）登入',true); await fauth.signOut(); return; }
+          if(u && window.STAFF_PATTERN){ const em=String(u.email||'').toLowerCase(); const adm=(window.ADMIN_EMAILS||[]).map(x=>String(x).toLowerCase()).includes(em);
+            if(!adm && !new RegExp(window.STAFF_PATTERN,'i').test(em)){ let ok=false; try{ ok=(await fref('roles',em).get()).exists; }catch(e){} if(!ok){ toast('本系統限教職員帳號登入（學生帳號無法使用），家長觀眾請直接看大會看板',true); await fauth.signOut(); return; } } }
           fb.user=u?{ email:u.email, name:u.displayName }:null; fb.email=u?u.email:''; await loadRole(); subscribeAll(); beat();
         });
       }catch(e){ fb.err='正式版連線設定有誤：'+e.message; }

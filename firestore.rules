@@ -5,7 +5,8 @@ service cloud.firestore {
   match /databases/{db}/documents {
     function signedIn() { return request.auth != null; }
     function email() { return request.auth.token.email.lower(); }
-    function isSchool() { return signedIn() && email().matches('.*@e1[.]ntps[.]kh[.]edu[.]tw$'); }
+    // 只有教職員：tc 開頭＋數字的學校帳號，或管理員設定過組別的帳號（學生帳號一律擋下）
+    function isSchool() { return signedIn() && (email().matches('tc[0-9]+@e1[.]ntps[.]kh[.]edu[.]tw$') || isAdmin() || exists(/databases/$(db)/documents/roles/$(email()))); }
     function isAdmin() { return signedIn() && email() in ['bing5201314@e1.ntps.kh.edu.tw']; }
     // 一個帳號可以兼任多個組別（roles 清單）；沒設定的人是班級導師
     function myRoles() {
@@ -27,7 +28,7 @@ service cloud.firestore {
     match /allrun/{cls}    { allow read, write: if isSchool(); }
     match /logs/{id}       { allow read: if hasRole(['record','control']); allow create: if isSchool(); }
     match /devices/{id}    { allow read: if hasRole(['record','control']); allow write: if isSchool(); }
-    match /roles/{e}       { allow read: if isSchool(); allow write: if isAdmin(); }
+    match /roles/{e}       { allow read: if isSchool() || (signedIn() && e == email()); allow write: if isAdmin(); }
     match /users/{e}       { allow read: if isAdmin(); allow write: if isSchool() && e == email(); }   // 登入姓名，供管理員對照組別
     match /roster/{id}     { allow read, write: if isAdmin(); }   // 工作分配名單（姓名→組別）
     // 後勤支援

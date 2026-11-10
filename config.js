@@ -14,4 +14,6 @@ window.FIREBASE_CONFIG = {
   appId: "1:1078770805752:web:243d0617cb6c655b36c40d"
 };
 window.SCHOOL_DOMAIN = "e1.ntps.kh.edu.tw";
+// 只有教職員帳號（tc 開頭＋數字）能登入；學生帳號會被擋下。例外帳號請由管理員在「帳號權限」設定組別即可登入
+window.STAFF_PATTERN = "^tc[0-9]+@";
 window.ADMIN_EMAILS = ["bing5201314@e1.ntps.kh.edu.tw"];
