@@ -1127,6 +1127,22 @@ html.ov-transparent body::before{ display:none; }
               <div class="small mt-1" v-if="roleBulkRows.length"><b style="color:var(--ok)">✔ 可設定 {{ roleBulkRows.filter(r=>r.ok).length }} 位</b>　<b v-if="roleBulkRows.some(r=>!r.ok)" style="color:var(--bad)">✗ {{ roleBulkRows.filter(r=>!r.ok).length }} 列有問題：{{ roleBulkRows.filter(r=>!r.ok).map(r=>r.msg).join('；') }}</b></div>
               <button class="btn btn-primary mt-2" @click="applyRoleBulk" :disabled="!roleBulkRows.some(r=>r.ok)">一次設定 {{ roleBulkRows.filter(r=>r.ok).length }} 位</button>
             </details>
+            <div class="card-flat mb-3">
+              <div class="flex justify-between items-center gap-2 flex-wrap"><b>登入自動對照（不用輸入帳號）</b>
+                <label class="flex items-center gap-2 small"><input type="checkbox" id="rfAuto" :checked="fb.rosterAuto" @change="setRosterAuto($event.target.checked)" style="width:20px;height:20px"> 對得到名單就自動套用</label></div>
+              <p class="small muted my-1">老師用學校帳號登入一次，系統用帳號上的姓名對照「工作分配名單」，自動設定組別。名單共 {{ Object.keys(rosterMap).length }} 人。</p>
+              <div class="small mb-2"><b>已登入 {{ loginMatches.length }} 位</b>：對到名單 {{ loginMatches.filter(x=>x.hit).length }} 位、待套用 <b style="color:var(--warn)">{{ pendingMatches.length }}</b> 位、名單沒有 {{ loginMatches.filter(x=>!x.hit && !x.has).length }} 位（自動當導師）</div>
+              <button class="btn btn-primary btn-sm" v-if="pendingMatches.length" @click="applyMatches()">全部套用 {{ pendingMatches.length }} 位</button>
+              <div class="tblwrap mt-2" style="max-height:220px;overflow:auto" v-if="loginMatches.length"><table class="tbl small"><tbody>
+                <tr v-for="x in loginMatches" :key="x.email"><td style="word-break:break-all">{{ x.email }}</td><td>{{ x.gname || '—' }}</td>
+                  <td>{{ x.hit ? x.hit.name+'：'+x.hit.roles.map(id=>(ROLES.find(r=>r.id===id)||{}).name||id).join('、') : '名單沒有（導師）' }}</td>
+                  <td>{{ x.has ? '✔ 已設定' : x.hit ? '⧗ 待套用' : '' }}</td></tr>
+              </tbody></table></div>
+              <details class="mt-2"><summary class="font-bold cursor-pointer small" style="min-height:36px">工作分配名單（姓名＋組別，一行一人）</summary>
+                <textarea class="inp mt-1" id="rfRoster" rows="8" v-model="rosterDraft" @input="onRosterInput" placeholder="王小明 器材組、環保組"></textarea>
+                <button class="btn btn-sm btn-primary mt-1" @click="saveRoster">儲存名單</button>
+              </details>
+            </div>
             <div class="tblwrap" style="max-height:260px;overflow:auto"><table class="tbl small"><tbody>
               <tr v-for="r in fb.roles" :key="r.email"><td style="word-break:break-all">{{ r.email }}</td><td>{{ r.roles.map(id=>(ROLES.find(x=>x.id===id)||{}).name||id).join('、') }}</td><td class="flex gap-1"><button class="btn btn-sm" @click="editRole(r)">修改</button><button class="btn btn-sm" @click="removeRole(r.email)">移除</button></td></tr>
             </tbody></table></div>
@@ -2396,7 +2412,7 @@ createApp({
        ・權限由雲端規則（firestore.rules）再檢查一次，畫面上的限制只是第一道
        ===================================================================== */
     const ARR_COLS=['events','timeline','guests','batches','broadcasts','logs','reports','medical','equip','gifts','stations'];
-    const fb = reactive({ on:FORMAL, user:null, email:'', admin:false, role:'public', myRoles:[], ready:false, empty:false, online:true, pending:0, latency:null, lastAck:'', err:'', devices:[], roles:[], seen:{} });
+    const fb = reactive({ on:FORMAL, user:null, email:'', admin:false, role:'public', myRoles:[], ready:false, empty:false, online:true, pending:0, latency:null, lastAck:'', err:'', devices:[], roles:[], users:[], roster:'', rosterAuto:true, seen:{} });
     let fdb=null, fauth=null; const fUnsubs=[];
     const remoteSer={ events:{}, timeline:{}, guests:{}, batches:{}, broadcasts:{}, logs:{}, allrun:{}, meta:{}, reports:{}, medical:{}, equip:{}, gifts:{}, stations:{}, lunch:{} };
     const deviceId=(()=>{ try{ let d=localStorage.getItem(KEY+'-device'); if(!d){ d='d'+uid()+uid(); localStorage.setItem(KEY+'-device',d); } return d; }catch(e){ return 'd'+uid(); } })();
@@ -2468,6 +2484,10 @@ createApp({
         fUnsubs.push(listenArr('logs', fdb.collection('logs').orderBy('ts','desc').limit(300)));
         fUnsubs.push(fdb.collection('devices').onSnapshot(s=>{ fb.devices=s.docs.map(d=>{ const x=d.data(); return Object.assign({ id:d.id }, x, { tsMs: x.ts && x.ts.toMillis ? x.ts.toMillis() : 0 }); }); }, ()=>{}));
       }
+      if(fb.user && fb.admin){
+        fUnsubs.push(fdb.collection('users').onSnapshot(s=>{ fb.users=s.docs.map(d=>d.data()); }, ()=>{}));
+        fUnsubs.push(fref('roster','main').onSnapshot(d=>{ const x=d.exists?d.data():{}; fb.roster=x.text||''; fb.rosterAuto=x.auto!==false; if(!rosterDraftTouched) rosterDraft.value=fb.roster; }, ()=>{}));
+      }
       if(fb.user && fb.admin) fUnsubs.push(fdb.collection('roles').onSnapshot(s=>{ fb.roles=s.docs.map(d=>{ const x=d.data(); return { email:d.id, roles: Array.isArray(x.roles)&&x.roles.length ? x.roles : (x.role?[x.role]:[]) }; }); }, ()=>{}));
     }
     const nowTick=ref(Date.now()); setInterval(()=>{ nowTick.value=Date.now(); },10000);
@@ -2484,6 +2504,7 @@ createApp({
       if(!fb.admin){ try{ const d=await fref('roles',fb.email.toLowerCase()).get(); if(d.exists){ const x=d.data(); rs=Array.isArray(x.roles)&&x.roles.length ? x.roles.slice() : (x.role?[x.role]:[]); } }catch(e){} }
       if(!rs.includes('teacher')) rs.push('teacher'); // 每位學校帳號都保有導師功能（全員賽跑填報）
       fb.myRoles=rs; fb.role=rs[0]; role.value=rs[0];
+      try{ fref('users',fb.email.toLowerCase()).set({ email:fb.email.toLowerCase(), name:(fb.user&&fb.user.name)||'', at:Date.now() }); }catch(e){}
     }
     function fbInit(){
       try{
@@ -2534,6 +2555,26 @@ createApp({
         log('批次設定權限 '+rows.length+' 位'); toast('已設定 '+rows.length+' 位老師的組別'); roleBulk.value=''; }
       catch(e){ toast('設定失敗：'+((e&&e.code)||''),true); }
     }
+    /* 工作分配名單（姓名→組別）與登入自動對照：老師用學校帳號登入一次，系統用帳號姓名對照名單 */
+    const rosterDraft = ref(''); let rosterDraftTouched=false;
+    function onRosterInput(){ rosterDraftTouched=true; }
+    const rosterMap = computed(()=>{ const m={}; String(fb.roster||'').split(/\r?\n/).forEach(l=>{ const parts=l.trim().split(/[\s、,，;；\t\/／]+/).filter(Boolean); if(parts.length<2) return; const name=parts[0].replace(/[^一-鿿]/g,''); const ids=[]; parts.slice(1).forEach(p=>{ const id=roleIdOf(p); if(id && !ids.includes(id)) ids.push(id); }); if(name && ids.length) m[name]=ids; }); return m; });
+    function nameKeys(n){ const s=String(n||'').replace(/teacher|老師|教師/gi,'').replace(/[^一-鿿]/g,''); if(!s) return []; const k=[s]; if(s.length>=3){ k.push(s.slice(-1)+s.slice(0,-1)); k.push(s.slice(-2)+s.slice(0,-2)); } return k; }
+    function matchName(n){ const m=rosterMap.value; const key=nameKeys(n).find(k=>m[k]); return key ? { name:key, roles:m[key] } : null; }
+    const loginMatches = computed(()=>{ const set=new Set(fb.roles.map(r=>r.email)); const admins=(window.ADMIN_EMAILS||[]).map(x=>String(x).toLowerCase());
+      return fb.users.filter(u=>u.email && !admins.includes(u.email)).map(u=>({ email:u.email, gname:u.name, hit:matchName(u.name), has:set.has(u.email) })).sort((a,b)=>(a.has?1:0)-(b.has?1:0) || (a.hit?0:1)-(b.hit?0:1)); });
+    const pendingMatches = computed(()=>loginMatches.value.filter(x=>x.hit && !x.has));
+    async function saveRoster(){ const t=rosterDraft.value.trim(); try{ await fref('roster','main').set({ text:t, auto:fb.rosterAuto, by:fb.email, ts:Date.now() }); rosterDraftTouched=false; toast('已儲存工作分配名單（'+Object.keys(rosterMap.value).length+' 人）'); log('更新工作分配名單'); }catch(e){ toast('儲存失敗：'+((e&&e.code)||''),true); } }
+    async function setRosterAuto(v){ fb.rosterAuto=v; try{ await fref('roster','main').set({ text:fb.roster, auto:v, by:fb.email, ts:Date.now() }); }catch(e){} }
+    let applyingMatches=false;
+    async function applyMatches(list, quiet){
+      const rows=(list||pendingMatches.value).filter(x=>x.hit); if(!rows.length || applyingMatches) return; applyingMatches=true;
+      try{ const batch=fdb.batch(); rows.forEach(x=>batch.set(fref('roles',x.email), { role:x.hit.roles[0], roles:x.hit.roles, name:x.hit.name, by:fb.email+'（名單對照）', ts:Date.now() })); await batch.commit();
+        log('名單對照套用 '+rows.length+' 位：'+rows.map(x=>x.hit.name).join('、')); toast((quiet?'自動對照：':'')+'已設定 '+rows.map(x=>x.hit.name).join('、')+' 的組別'); }
+      catch(e){ toast('套用失敗：'+((e&&e.code)||''),true); } finally{ applyingMatches=false; }
+    }
+    // 管理員開著系統時，新登入且名單對得到的人自動套用
+    watch(()=>pendingMatches.value.map(x=>x.email).join(','), v=>{ if(v && FORMAL && fb.admin && fb.rosterAuto) setTimeout(()=>applyMatches(null,true),800); });
     function editRole(r){ roleForm.email=r.email; roleForm.roles=r.roles.slice(); window.scrollTo({ top:0, behavior:'smooth' }); }
     function setRole(){ const em=roleForm.email.toLowerCase().trim(); if(window.SCHOOL_DOMAIN && !em.endsWith('@'+window.SCHOOL_DOMAIN)){ toast('請輸入學校帳號（@'+window.SCHOOL_DOMAIN+'）',true); return; } const rs=roleForm.roles.slice(); fref('roles',em).set({ role:rs[0], roles:rs, by:fb.email, ts:Date.now() }).then(()=>{ toast('已設定 '+em+'：'+rs.length+' 個組別'); roleForm.email=''; roleForm.roles=[]; log('設定權限：'+em+' → '+rs.join('、')); }).catch(e=>toast('設定失敗：'+((e&&e.code)||''),true)); }
     function removeRole(em){ fref('roles',em).delete().then(()=>toast('已移除 '+em)).catch(e=>toast('移除失敗：'+((e&&e.code)||''),true)); }
@@ -2555,7 +2596,7 @@ createApp({
       scEvId, scEv, scRows, scShake, scIssues, needsMark, markWarn, submitReview,
       rvTab, rvNote, publish, sendBack, askReopen,
       mcText, doneBc, addInsert, bcStyle,
-      FORMAL, fb, signIn, signOut, initFormal, roleForm, setRole, editRole, removeRole, roleBulk, roleBulkRows, applyRoleBulk, isOnline, devicesSorted, devicesOnline, addTl, removeTl, removeGuest,
+      FORMAL, fb, signIn, signOut, initFormal, roleForm, setRole, editRole, removeRole, roleBulk, roleBulkRows, applyRoleBulk, rosterDraft, onRosterInput, rosterMap, loginMatches, pendingMatches, saveRoster, setRosterAuto, applyMatches, isOnline, devicesSorted, devicesOnline, addTl, removeTl, removeGuest,
       RTYPES, STA, rf, rFilter, canHandle, openReports, myOpenReports, reportList, openMedicReports, submitReport, setReport, md, addMedical, medicalRows, eqFilter, ne, tlLabel, equipGroups, nextEquip, setEquip, addEquip, lunchInfo, lunchMissing, setLunchInfo, toggleLunch, callLunch, gf, addGift, announceGift, giftRows, giftText, setStation, supportMissing, initSupport,
       dockOpen, setDock, qa, quickAssign, person, useBackup, restorePrimary, eventPoints, setCustomPts, baseNames, bulk, applyBulk,
       gFilter, gKind, guestList, ng, arrive, addGuest, personText, personMark, shortTitle, batchesOf, presenterOf, toggleAbsent, readyBatchObj, batchTime, winnersOf, winnerGroups, awardIssues, teacherCalls, sync, toggleCloud, canEmbed, embedUrl,

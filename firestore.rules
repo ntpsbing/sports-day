@@ -28,6 +28,8 @@ service cloud.firestore {
     match /logs/{id}       { allow read: if hasRole(['record','control']); allow create: if isSchool(); }
     match /devices/{id}    { allow read: if hasRole(['record','control']); allow write: if isSchool(); }
     match /roles/{e}       { allow read: if isSchool(); allow write: if isAdmin(); }
+    match /users/{e}       { allow read: if isAdmin(); allow write: if isSchool() && e == email(); }   // 登入姓名，供管理員對照組別
+    match /roster/{id}     { allow read, write: if isAdmin(); }   // 工作分配名單（姓名→組別）
     // 後勤支援
     match /reports/{id}    { allow read, create: if isSchool(); allow update: if isSchool(); }
     match /medical/{id}    { allow read, write: if hasRole(['medic','control','record']); }  // 學生傷病資料：只限醫護組、總控、紀錄組
