@@ -1122,8 +1122,8 @@ html.ov-transparent body::before{ display:none; }
             </div>
             <details class="card-flat mb-3">
               <summary class="font-bold cursor-pointer" style="min-height:40px">批次設定（從 Excel 貼上名單）</summary>
-              <p class="small muted my-2">一列一位：帳號、組別（多個組別用「、」分開）。例：<span class="num">abc@e1.ntps.kh.edu.tw　器材組、環保組</span></p>
-              <textarea class="inp" id="rfBulk" rows="5" v-model="roleBulk" placeholder="帳號[Tab]組別"></textarea>
+              <p class="small muted my-2">一列一位：帳號、姓名、組別（多個組別用「、」分開）。例：<span class="num">tc001@e1.ntps.kh.edu.tw　王小明　器材組、環保組</span></p>
+              <textarea class="inp" id="rfBulk" rows="5" v-model="roleBulk" placeholder="帳號　姓名　組別"></textarea>
               <div class="small mt-1" v-if="roleBulkRows.length"><b style="color:var(--ok)">✔ 可設定 {{ roleBulkRows.filter(r=>r.ok).length }} 位</b>　<b v-if="roleBulkRows.some(r=>!r.ok)" style="color:var(--bad)">✗ {{ roleBulkRows.filter(r=>!r.ok).length }} 列有問題：{{ roleBulkRows.filter(r=>!r.ok).map(r=>r.msg).join('；') }}</b></div>
               <button class="btn btn-primary mt-2" @click="applyRoleBulk" :disabled="!roleBulkRows.some(r=>r.ok)">一次設定 {{ roleBulkRows.filter(r=>r.ok).length }} 位</button>
             </details>
@@ -1143,8 +1143,9 @@ html.ov-transparent body::before{ display:none; }
                 <button class="btn btn-sm btn-primary mt-1" @click="saveRoster">儲存名單</button>
               </details>
             </div>
-            <div class="tblwrap" style="max-height:260px;overflow:auto"><table class="tbl small"><tbody>
-              <tr v-for="r in fb.roles" :key="r.email"><td style="word-break:break-all">{{ r.email }}</td><td>{{ r.roles.map(id=>(ROLES.find(x=>x.id===id)||{}).name||id).join('、') }}</td><td class="flex gap-1"><button class="btn btn-sm" @click="editRole(r)">修改</button><button class="btn btn-sm" @click="removeRole(r.email)">移除</button></td></tr>
+            <div class="flex gap-2 items-center flex-wrap mb-2"><b>已設定 {{ fb.roles.length }} 位</b><input class="inp" id="rfQ" v-model="roleQ" placeholder="搜尋姓名、組別或帳號" style="max-width:260px"></div>
+            <div class="tblwrap" style="max-height:420px;overflow:auto"><table class="tbl small"><thead><tr><th>姓名</th><th>組別</th><th></th></tr></thead><tbody>
+              <tr v-for="r in roleRowsShown" :key="r.email"><td><b style="font-size:1.05em">{{ r.name || '（未填姓名）' }}</b><div class="muted" style="word-break:break-all;font-size:.8em">{{ r.email }}</div></td><td>{{ r.roles.map(id=>(ROLES.find(x=>x.id===id)||{}).name||id).join('、') }}</td><td class="flex gap-1"><button class="btn btn-sm" @click="editRole(r)">修改</button><button class="btn btn-sm" @click="removeRole(r.email)">移除</button></td></tr>
             </tbody></table></div>
           </div>
           <div class="card">
@@ -2488,7 +2489,7 @@ createApp({
         fUnsubs.push(fdb.collection('users').onSnapshot(s=>{ fb.users=s.docs.map(d=>d.data()); }, ()=>{}));
         fUnsubs.push(fref('roster','main').onSnapshot(d=>{ const x=d.exists?d.data():{}; fb.roster=x.text||''; fb.rosterAuto=x.auto!==false; if(!rosterDraftTouched) rosterDraft.value=fb.roster; }, ()=>{}));
       }
-      if(fb.user && fb.admin) fUnsubs.push(fdb.collection('roles').onSnapshot(s=>{ fb.roles=s.docs.map(d=>{ const x=d.data(); return { email:d.id, roles: Array.isArray(x.roles)&&x.roles.length ? x.roles : (x.role?[x.role]:[]) }; }); }, ()=>{}));
+      if(fb.user && fb.admin) fUnsubs.push(fdb.collection('roles').onSnapshot(s=>{ fb.roles=s.docs.map(d=>{ const x=d.data(); return { email:d.id, name:x.name||'', roles: Array.isArray(x.roles)&&x.roles.length ? x.roles : (x.role?[x.role]:[]) }; }); }, ()=>{}));
     }
     const nowTick=ref(Date.now()); setInterval(()=>{ nowTick.value=Date.now(); },10000);
     function isOnline(d){ return d.tsMs && nowTick.value-d.tsMs < 75000; }
@@ -2540,20 +2541,25 @@ createApp({
     /* 批次設定權限：組別名稱用關鍵字對應（例：「器材」→器材組、「司儀」→廣播組） */
     const ROLE_KEYS=[['control',['總控','司令台','總幹事']],['record',['紀錄']],['sport',['體育組','裁判','競賽']],['checkin',['檢錄']],['mc',['廣播','司儀']],['guest',['招待','交安']],['award',['頒獎','獎品']],['live',['攝影','直播']],['doc',['文書']],['ceremony',['典禮']],['equip',['器材']],['medic',['醫護']],['lunch',['午餐']],['env',['環保']],['quest',['闖關','體闖']],['gift',['收禮']],['promo',['文宣']],['affairs',['事務','場地']],['teacher',['導師']]];
     function roleIdOf(name){ const n=String(name).trim(); if(!n) return null; const hit=ROLE_KEYS.find(([id,keys])=>keys.some(k=>n.includes(k))); return hit?hit[0]:null; }
-    const roleBulk = ref('');
+    const roleBulk = ref(''); const roleQ = ref('');
+    const roleRowsShown = computed(()=>{ const q=roleQ.value.trim().toLowerCase();
+      return fb.roles.map(r=>({ ...r, gtxt:r.roles.map(id=>(ROLES.find(x=>x.id===id)||{}).name||id).join('、') }))
+        .filter(r=>!q || (r.name+' '+r.email+' '+r.gtxt).toLowerCase().includes(q))
+        .sort((a,b)=>(a.name||'~').localeCompare(b.name||'~','zh-Hant')); });
     const roleBulkRows = computed(()=>roleBulk.value.split(/\r?\n/).map(l=>l.trim()).filter(Boolean).map((l,i)=>{
       const m=l.match(/[\w.+-]+@[\w.-]+/); const row={ ok:false, msg:'' };
       if(!m){ row.msg='第'+(i+1)+'列找不到帳號'; return row; }
       const em=m[0].toLowerCase(); if(window.SCHOOL_DOMAIN && !em.endsWith('@'+window.SCHOOL_DOMAIN)){ row.msg=em+' 不是學校帳號'; return row; }
       const parts=l.replace(m[0],'').split(/[、,，;；\t\/／\s]+/).filter(Boolean); const ids=[], bad=[];
-      parts.forEach(p=>{ const id=roleIdOf(p); if(id){ if(!ids.includes(id)) ids.push(id); } else bad.push(p); });
+      let name='';
+      parts.forEach(p=>{ const id=roleIdOf(p); if(id){ if(!ids.includes(id)) ids.push(id); } else if(!name && /^[\u4e00-\u9fff]{2,4}$/.test(p)) name=p; else bad.push(p); });
       if(!ids.length){ row.msg=em+' 沒有可辨識的組別'; return row; }
       if(bad.length){ row.msg=em+' 看不懂「'+bad.join('、')+'」'; return row; }
-      return { ok:true, email:em, roles:ids };
+      return { ok:true, email:em, roles:ids, name };
     }));
     async function applyRoleBulk(){
       const rows=roleBulkRows.value.filter(r=>r.ok); if(!rows.length) return;
-      try{ const batch=fdb.batch(); rows.forEach(r=>batch.set(fref('roles',r.email), { role:r.roles[0], roles:r.roles, by:fb.email, ts:Date.now() })); await batch.commit();
+      try{ const batch=fdb.batch(); rows.forEach(r=>batch.set(fref('roles',r.email), { role:r.roles[0], roles:r.roles, name:r.name||((fb.roles.find(x=>x.email===r.email)||{}).name||''), by:fb.email, ts:Date.now() })); await batch.commit();
         log('批次設定權限 '+rows.length+' 位'); toast('已設定 '+rows.length+' 位老師的組別'); roleBulk.value=''; }
       catch(e){ toast('設定失敗：'+((e&&e.code)||''),true); }
     }
@@ -2578,7 +2584,7 @@ createApp({
     // 管理員開著系統時，新登入且名單對得到的人自動套用
     watch(()=>pendingMatches.value.map(x=>x.email).join(','), v=>{ if(v && FORMAL && fb.admin && fb.rosterAuto) setTimeout(()=>applyMatches(null,true),800); });
     function editRole(r){ roleForm.email=r.email; roleForm.roles=r.roles.slice(); window.scrollTo({ top:0, behavior:'smooth' }); }
-    function setRole(){ const em=roleForm.email.toLowerCase().trim(); if(window.SCHOOL_DOMAIN && !em.endsWith('@'+window.SCHOOL_DOMAIN)){ toast('請輸入學校帳號（@'+window.SCHOOL_DOMAIN+'）',true); return; } const rs=roleForm.roles.slice(); fref('roles',em).set({ role:rs[0], roles:rs, by:fb.email, ts:Date.now() }).then(()=>{ toast('已設定 '+em+'：'+rs.length+' 個組別'); roleForm.email=''; roleForm.roles=[]; log('設定權限：'+em+' → '+rs.join('、')); }).catch(e=>toast('設定失敗：'+((e&&e.code)||''),true)); }
+    function setRole(){ const em=roleForm.email.toLowerCase().trim(); if(window.SCHOOL_DOMAIN && !em.endsWith('@'+window.SCHOOL_DOMAIN)){ toast('請輸入學校帳號（@'+window.SCHOOL_DOMAIN+'）',true); return; } const rs=roleForm.roles.slice(); fref('roles',em).set({ role:rs[0], roles:rs, name:((fb.roles.find(x=>x.email===em)||{}).name||''), by:fb.email, ts:Date.now() }).then(()=>{ toast('已設定 '+em+'：'+rs.length+' 個組別'); roleForm.email=''; roleForm.roles=[]; log('設定權限：'+em+' → '+rs.join('、')); }).catch(e=>toast('設定失敗：'+((e&&e.code)||''),true)); }
     function removeRole(em){ fref('roles',em).delete().then(()=>toast('已移除 '+em)).catch(e=>toast('移除失敗：'+((e&&e.code)||''),true)); }
     /* 流程表編輯、刪除人員（兩種版本都可用） */
     function addTl(){ if(!need('flow')) return; const last=st.value.timeline[st.value.timeline.length-1]; st.value.timeline.push({ id:'t'+Date.now(), time:last?last.time:'08:00', title:'新的流程項目', kind:'other', eventIds:[], status:'todo' }); }
@@ -2598,7 +2604,7 @@ createApp({
       scEvId, scEv, scRows, scShake, scIssues, needsMark, markWarn, submitReview,
       rvTab, rvNote, publish, sendBack, askReopen,
       mcText, doneBc, addInsert, bcStyle,
-      FORMAL, fb, signIn, signOut, initFormal, roleForm, setRole, editRole, removeRole, roleBulk, roleBulkRows, applyRoleBulk, rosterDraft, onRosterInput, rosterMap, loginMatches, pendingMatches, saveRoster, setRosterAuto, applyMatches, isOnline, devicesSorted, devicesOnline, addTl, removeTl, removeGuest,
+      FORMAL, fb, signIn, signOut, initFormal, roleForm, setRole, editRole, removeRole, roleBulk, roleBulkRows, applyRoleBulk, roleQ, roleRowsShown, rosterDraft, onRosterInput, rosterMap, loginMatches, pendingMatches, saveRoster, setRosterAuto, applyMatches, isOnline, devicesSorted, devicesOnline, addTl, removeTl, removeGuest,
       RTYPES, STA, rf, rFilter, canHandle, openReports, myOpenReports, reportList, openMedicReports, submitReport, setReport, md, addMedical, medicalRows, eqFilter, ne, tlLabel, equipGroups, nextEquip, setEquip, addEquip, lunchInfo, lunchMissing, setLunchInfo, toggleLunch, callLunch, gf, addGift, announceGift, giftRows, giftText, setStation, supportMissing, initSupport,
       dockOpen, setDock, qa, quickAssign, person, useBackup, restorePrimary, eventPoints, setCustomPts, baseNames, bulk, applyBulk,
       gFilter, gKind, guestList, ng, arrive, addGuest, personText, personMark, shortTitle, batchesOf, presenterOf, toggleAbsent, readyBatchObj, batchTime, winnersOf, winnerGroups, awardIssues, teacherCalls, sync, toggleCloud, canEmbed, embedUrl,
