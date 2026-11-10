@@ -7,11 +7,13 @@ service cloud.firestore {
     function email() { return request.auth.token.email.lower(); }
     function isSchool() { return signedIn() && email().matches('.*@e1[.]ntps[.]kh[.]edu[.]tw$'); }
     function isAdmin() { return signedIn() && email() in ['bing5201314@e1.ntps.kh.edu.tw']; }
-    function myRole() {
+    // 一個帳號可以兼任多個組別（roles 清單）；沒設定的人是班級導師
+    function myRoles() {
       return exists(/databases/$(db)/documents/roles/$(email()))
-        ? get(/databases/$(db)/documents/roles/$(email())).data.role : 'teacher';
+        ? get(/databases/$(db)/documents/roles/$(email())).data.get('roles', [get(/databases/$(db)/documents/roles/$(email())).data.get('role', 'teacher')])
+        : ['teacher'];
     }
-    function hasRole(list) { return isAdmin() || (isSchool() && myRole() in list); }
+    function hasRole(list) { return isAdmin() || (isSchool() && myRoles().hasAny(list)); }
     function staff() { return hasRole(['control','record','sport','checkin','mc','guest','award','live','doc','ceremony','equip','medic','lunch','env','quest','gift','promo','affairs']); }
 
     // 公開可看（大會看板、看直播）；修改需對應組別

@@ -381,7 +381,7 @@ html.ov-transparent body::before{ display:none; }
         <p class="small muted my-2">器材組、醫護組、午餐組、環保組、體育闖關組、收禮組的功能已加入。按下面按鈕建立器材清單（依流程）、6 個闖關站點與午餐設定。</p>
         <button class="btn btn-primary" @click="initSupport">建立後勤支援資料</button>
       </div>
-      <div v-if="FORMAL && fb.user && (fb.admin || ['record','control'].includes(fb.role))" class="card mb-5">
+      <div v-if="FORMAL && fb.user && (fb.admin || fb.myRoles.some(r=>['record','control'].includes(r)))" class="card mb-5">
         <div class="flex justify-between items-center gap-2 flex-wrap mb-2"><h2 class="h-sec">各組裝置連線狀態</h2><span class="small muted">每 30 秒回報一次・{{ devicesOnline.length }} 台在線</span></div>
         <div class="grid gap-2" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr))">
           <div v-for="d in devicesSorted" :key="d.id" class="card-flat small">
@@ -1114,11 +1114,21 @@ html.ov-transparent body::before{ display:none; }
             <p class="small muted mb-3">用學校 Google 帳號登入。沒有設定的人一律是「班級導師」。</p>
             <div class="grid gap-2 mb-3" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
               <input class="inp" id="rfEmail" v-model.trim="roleForm.email" placeholder="帳號（例：xxx@e1.ntps.kh.edu.tw）" inputmode="email">
-              <select class="inp" id="rfRole" v-model="roleForm.role"><option v-for="r in ROLES.filter(x=>x.id!=='public')" :key="r.id" :value="r.id">{{ r.name }}</option></select>
-              <button class="btn btn-primary" @click="setRole" :disabled="!roleForm.email">設定</button>
+              <button class="btn btn-primary" @click="setRole" :disabled="!roleForm.email || !roleForm.roles.length">{{ fb.roles.some(r=>r.email===roleForm.email.toLowerCase().trim()) ? '更新權限' : '設定權限' }}</button>
             </div>
+            <div class="lbl">負責組別（可以勾選多個；每位學校帳號都保有導師功能）</div>
+            <div class="flex flex-wrap gap-2 mb-3">
+              <label v-for="r in ROLES.filter(x=>!['public','teacher'].includes(x.id))" :key="r.id" class="btn btn-sm" :class="roleForm.roles.includes(r.id)?'btn-primary':''"><input type="checkbox" class="sr-only" :value="r.id" v-model="roleForm.roles">{{ roleForm.roles.includes(r.id) ? '✔ ' : '' }}{{ r.name }}</label>
+            </div>
+            <details class="card-flat mb-3">
+              <summary class="font-bold cursor-pointer" style="min-height:40px">批次設定（從 Excel 貼上名單）</summary>
+              <p class="small muted my-2">一列一位：帳號、組別（多個組別用「、」分開）。例：<span class="num">abc@e1.ntps.kh.edu.tw　器材組、環保組</span></p>
+              <textarea class="inp" id="rfBulk" rows="5" v-model="roleBulk" placeholder="帳號[Tab]組別"></textarea>
+              <div class="small mt-1" v-if="roleBulkRows.length"><b style="color:var(--ok)">✔ 可設定 {{ roleBulkRows.filter(r=>r.ok).length }} 位</b>　<b v-if="roleBulkRows.some(r=>!r.ok)" style="color:var(--bad)">✗ {{ roleBulkRows.filter(r=>!r.ok).length }} 列有問題：{{ roleBulkRows.filter(r=>!r.ok).map(r=>r.msg).join('；') }}</b></div>
+              <button class="btn btn-primary mt-2" @click="applyRoleBulk" :disabled="!roleBulkRows.some(r=>r.ok)">一次設定 {{ roleBulkRows.filter(r=>r.ok).length }} 位</button>
+            </details>
             <div class="tblwrap" style="max-height:260px;overflow:auto"><table class="tbl small"><tbody>
-              <tr v-for="r in fb.roles" :key="r.email"><td style="word-break:break-all">{{ r.email }}</td><td>{{ (ROLES.find(x=>x.id===r.role)||{}).name || r.role }}</td><td><button class="btn btn-sm" @click="removeRole(r.email)">移除</button></td></tr>
+              <tr v-for="r in fb.roles" :key="r.email"><td style="word-break:break-all">{{ r.email }}</td><td>{{ r.roles.map(id=>(ROLES.find(x=>x.id===id)||{}).name||id).join('、') }}</td><td class="flex gap-1"><button class="btn btn-sm" @click="editRole(r)">修改</button><button class="btn btn-sm" @click="removeRole(r.email)">移除</button></td></tr>
             </tbody></table></div>
           </div>
           <div class="card">
@@ -1885,13 +1895,19 @@ createApp({
     function readHash(){ const h=(location.hash||'').slice(1); if(validPage(h)) page.value=h; }
     window.addEventListener('hashchange', readHash);
 
-    const roleObj = computed(()=>ROLES.find(r=>r.id===role.value)||ROLES[1]);
+    const roleObj = computed(()=>{
+      const one=ROLES.find(r=>r.id===role.value)||ROLES[1];
+      if(!(FORMAL && fb.user && !fb.admin && fb.myRoles.length>1)) return one;
+      const rs=fb.myRoles.map(id=>ROLES.find(r=>r.id===id)).filter(Boolean); const work=rs.filter(r=>r.id!=='teacher');
+      const pages=[]; rs.forEach(r=>r.pages.forEach(p=>{ if(!pages.includes(p)) pages.push(p); }));
+      return { id:role.value, name:(work.length?work:rs).map(r=>r.name).join('＋')+(work.length?'（兼導師）':''), pages, duty:rs.map(r=>r.duty).join('；') };
+    });
     const pageObj = computed(()=>PAGES.find(p=>p.id===page.value)||PAGES[0]);
     const pageGroupName = computed(()=>{ const g=PAGE_GROUPS.find(g=>g.pages.includes(page.value)); return g ? g.name : '直播'; });
     const navGroups = computed(()=>PAGE_GROUPS.map(g=>({ name:g.name, pages:g.pages.filter(id=>navMode.value==='all' || roleObj.value.pages.includes(id) || id==='feedback').map(id=>PAGES.find(p=>p.id===id)) })).filter(g=>g.pages.length));
     const tabItems = computed(()=>roleObj.value.pages.filter(id=>id!=='overlay').slice(0,4).map(id=>PAGES.find(p=>p.id===id)));
     /* 權限：can＝這個身分能不能做；need＝不能做時跳出說明 */
-    function can(a){ if(FORMAL && fb.admin) return true; /* 系統管理員全部可操作 */ return (PERMS[a]||[]).includes(role.value); }
+    function can(a){ if(FORMAL && fb.admin) return true; /* 系統管理員全部可操作 */ const list=PERMS[a]||[]; if(FORMAL && fb.myRoles.length) return fb.myRoles.some(r=>list.includes(r)); return list.includes(role.value); }
     function whoCan(a){ return (PERMS[a]||[]).map(id=>(ROLES.find(r=>r.id===id)||{}).name).join('、'); }
     function need(a){ if(can(a)) return true; toast('這個動作由「'+whoCan(a)+'」負責；想體驗請在右上角切換身分',true); return false; }
     const canPrint = (()=>{ try{ return window.self===window.top; }catch(e){ return false; } })();
@@ -2380,7 +2396,7 @@ createApp({
        ・權限由雲端規則（firestore.rules）再檢查一次，畫面上的限制只是第一道
        ===================================================================== */
     const ARR_COLS=['events','timeline','guests','batches','broadcasts','logs','reports','medical','equip','gifts','stations'];
-    const fb = reactive({ on:FORMAL, user:null, email:'', admin:false, role:'public', ready:false, empty:false, online:true, pending:0, latency:null, lastAck:'', err:'', devices:[], roles:[], seen:{} });
+    const fb = reactive({ on:FORMAL, user:null, email:'', admin:false, role:'public', myRoles:[], ready:false, empty:false, online:true, pending:0, latency:null, lastAck:'', err:'', devices:[], roles:[], seen:{} });
     let fdb=null, fauth=null; const fUnsubs=[];
     const remoteSer={ events:{}, timeline:{}, guests:{}, batches:{}, broadcasts:{}, logs:{}, allrun:{}, meta:{}, reports:{}, medical:{}, equip:{}, gifts:{}, stations:{}, lunch:{} };
     const deviceId=(()=>{ try{ let d=localStorage.getItem(KEY+'-device'); if(!d){ d='d'+uid()+uid(); localStorage.setItem(KEY+'-device',d); } return d; }catch(e){ return 'd'+uid(); } })();
@@ -2444,15 +2460,15 @@ createApp({
       fUnsubs.push(listenArr('gifts', fdb.collection('gifts')));
       fUnsubs.push(listenArr('stations', fdb.collection('stations')));
       if(fb.user){ fUnsubs.push(listenArr('reports', fdb.collection('reports').orderBy('ts','desc').limit(300))); fUnsubs.push(listenArr('equip', fdb.collection('equip'))); fUnsubs.push(listenMap('lunch', fdb.collection('lunch'), (id,d)=>{ if(d) st.value.lunch[id]=d; else delete st.value.lunch[id]; })); }
-      if(fb.user && (fb.admin || ['medic','control','record'].includes(fb.role))) fUnsubs.push(listenArr('medical', fdb.collection('medical')));
+      if(fb.user && (fb.admin || fb.myRoles.some(r=>['medic','control','record'].includes(r)))) fUnsubs.push(listenArr('medical', fdb.collection('medical')));
       fUnsubs.push(listenArr('broadcasts', fdb.collection('broadcasts').orderBy('ts','desc').limit(200)));
       fUnsubs.push(listenMap('meta', fdb.collection('meta'), (id,d)=>{ if(!d) return; if(id==='settings') st.value.settings=d; else if(id==='live') st.value.live=Object.assign(liveDefault(), d); else if(id==='flow') st.value.delayMin=d.delayMin||0; }));
       if(fb.user) fUnsubs.push(listenMap('allrun', fdb.collection('allrun'), (id,d)=>{ if(d) st.value.allrun[id]=d; else delete st.value.allrun[id]; }));
-      if(fb.user && (fb.admin || ['record','control'].includes(fb.role))){
+      if(fb.user && (fb.admin || fb.myRoles.some(r=>['record','control'].includes(r)))){
         fUnsubs.push(listenArr('logs', fdb.collection('logs').orderBy('ts','desc').limit(300)));
         fUnsubs.push(fdb.collection('devices').onSnapshot(s=>{ fb.devices=s.docs.map(d=>{ const x=d.data(); return Object.assign({ id:d.id }, x, { tsMs: x.ts && x.ts.toMillis ? x.ts.toMillis() : 0 }); }); }, ()=>{}));
       }
-      if(fb.user && fb.admin) fUnsubs.push(fdb.collection('roles').onSnapshot(s=>{ fb.roles=s.docs.map(d=>({ email:d.id, role:d.data().role })); }, ()=>{}));
+      if(fb.user && fb.admin) fUnsubs.push(fdb.collection('roles').onSnapshot(s=>{ fb.roles=s.docs.map(d=>{ const x=d.data(); return { email:d.id, roles: Array.isArray(x.roles)&&x.roles.length ? x.roles : (x.role?[x.role]:[]) }; }); }, ()=>{}));
     }
     const nowTick=ref(Date.now()); setInterval(()=>{ nowTick.value=Date.now(); },10000);
     function isOnline(d){ return d.tsMs && nowTick.value-d.tsMs < 75000; }
@@ -2462,11 +2478,12 @@ createApp({
     if(FORMAL) setInterval(beat,30000);
     async function loadRole(){
       const admins=(window.ADMIN_EMAILS||[]).map(x=>String(x).toLowerCase());
-      if(!fb.user){ fb.admin=false; fb.role='public'; role.value='public'; return; }
+      if(!fb.user){ fb.admin=false; fb.role='public'; fb.myRoles=[]; role.value='public'; return; }
       fb.admin=admins.includes(fb.email.toLowerCase());
-      let r=fb.admin?'record':'teacher';
-      if(!fb.admin){ try{ const d=await fref('roles',fb.email.toLowerCase()).get(); if(d.exists && d.data().role) r=d.data().role; }catch(e){} }
-      fb.role=r; role.value=r;
+      let rs=fb.admin?['record']:[];
+      if(!fb.admin){ try{ const d=await fref('roles',fb.email.toLowerCase()).get(); if(d.exists){ const x=d.data(); rs=Array.isArray(x.roles)&&x.roles.length ? x.roles.slice() : (x.role?[x.role]:[]); } }catch(e){} }
+      if(!rs.includes('teacher')) rs.push('teacher'); // 每位學校帳號都保有導師功能（全員賽跑填報）
+      fb.myRoles=rs; fb.role=rs[0]; role.value=rs[0];
     }
     function fbInit(){
       try{
@@ -2496,8 +2513,29 @@ createApp({
     async function initSupport(){ if(!fb.admin) return; const sd=supportDefaults(), batch=fdb.batch(); const add=(c,id,d)=>batch.set(fref(c,id), JSON.parse(JSON.stringify(d)));
       sd.equip.forEach(x=>add('equip',x.id,x)); sd.stations.forEach(x=>add('stations',x.id,x)); Object.keys(sd.lunch).forEach(k=>add('lunch',k,sd.lunch[k]));
       try{ await batch.commit(); toast('已建立器材清單、闖關站點與午餐設定'); log('建立後勤支援資料'); }catch(e){ toast('建立失敗：'+((e&&e.code)||''),true); } }
-    const roleForm = reactive({ email:'', role:'sport' });
-    function setRole(){ const em=roleForm.email.toLowerCase().trim(); if(window.SCHOOL_DOMAIN && !em.endsWith('@'+window.SCHOOL_DOMAIN)){ toast('請輸入學校帳號（@'+window.SCHOOL_DOMAIN+'）',true); return; } fref('roles',em).set({ role:roleForm.role, by:fb.email, ts:Date.now() }).then(()=>{ toast('已設定 '+em); roleForm.email=''; log('設定權限：'+em+' → '+roleForm.role); }).catch(e=>toast('設定失敗：'+((e&&e.code)||''),true)); }
+    const roleForm = reactive({ email:'', roles:[] });
+    /* 批次設定權限：組別名稱用關鍵字對應（例：「器材」→器材組、「司儀」→廣播組） */
+    const ROLE_KEYS=[['control',['總控','司令台','總幹事']],['record',['紀錄']],['sport',['體育組','裁判','競賽']],['checkin',['檢錄']],['mc',['廣播','司儀']],['guest',['招待','交安']],['award',['頒獎','獎品']],['live',['攝影','直播']],['doc',['文書']],['ceremony',['典禮']],['equip',['器材']],['medic',['醫護']],['lunch',['午餐']],['env',['環保']],['quest',['闖關','體闖']],['gift',['收禮']],['promo',['文宣']],['affairs',['事務','場地']],['teacher',['導師']]];
+    function roleIdOf(name){ const n=String(name).trim(); if(!n) return null; const hit=ROLE_KEYS.find(([id,keys])=>keys.some(k=>n.includes(k))); return hit?hit[0]:null; }
+    const roleBulk = ref('');
+    const roleBulkRows = computed(()=>roleBulk.value.split(/\r?\n/).map(l=>l.trim()).filter(Boolean).map((l,i)=>{
+      const m=l.match(/[\w.+-]+@[\w.-]+/); const row={ ok:false, msg:'' };
+      if(!m){ row.msg='第'+(i+1)+'列找不到帳號'; return row; }
+      const em=m[0].toLowerCase(); if(window.SCHOOL_DOMAIN && !em.endsWith('@'+window.SCHOOL_DOMAIN)){ row.msg=em+' 不是學校帳號'; return row; }
+      const parts=l.replace(m[0],'').split(/[、,，;；\t\/／\s]+/).filter(Boolean); const ids=[], bad=[];
+      parts.forEach(p=>{ const id=roleIdOf(p); if(id){ if(!ids.includes(id)) ids.push(id); } else bad.push(p); });
+      if(!ids.length){ row.msg=em+' 沒有可辨識的組別'; return row; }
+      if(bad.length){ row.msg=em+' 看不懂「'+bad.join('、')+'」'; return row; }
+      return { ok:true, email:em, roles:ids };
+    }));
+    async function applyRoleBulk(){
+      const rows=roleBulkRows.value.filter(r=>r.ok); if(!rows.length) return;
+      try{ const batch=fdb.batch(); rows.forEach(r=>batch.set(fref('roles',r.email), { role:r.roles[0], roles:r.roles, by:fb.email, ts:Date.now() })); await batch.commit();
+        log('批次設定權限 '+rows.length+' 位'); toast('已設定 '+rows.length+' 位老師的組別'); roleBulk.value=''; }
+      catch(e){ toast('設定失敗：'+((e&&e.code)||''),true); }
+    }
+    function editRole(r){ roleForm.email=r.email; roleForm.roles=r.roles.slice(); window.scrollTo({ top:0, behavior:'smooth' }); }
+    function setRole(){ const em=roleForm.email.toLowerCase().trim(); if(window.SCHOOL_DOMAIN && !em.endsWith('@'+window.SCHOOL_DOMAIN)){ toast('請輸入學校帳號（@'+window.SCHOOL_DOMAIN+'）',true); return; } const rs=roleForm.roles.slice(); fref('roles',em).set({ role:rs[0], roles:rs, by:fb.email, ts:Date.now() }).then(()=>{ toast('已設定 '+em+'：'+rs.length+' 個組別'); roleForm.email=''; roleForm.roles=[]; log('設定權限：'+em+' → '+rs.join('、')); }).catch(e=>toast('設定失敗：'+((e&&e.code)||''),true)); }
     function removeRole(em){ fref('roles',em).delete().then(()=>toast('已移除 '+em)).catch(e=>toast('移除失敗：'+((e&&e.code)||''),true)); }
     /* 流程表編輯、刪除人員（兩種版本都可用） */
     function addTl(){ if(!need('flow')) return; const last=st.value.timeline[st.value.timeline.length-1]; st.value.timeline.push({ id:'t'+Date.now(), time:last?last.time:'08:00', title:'新的流程項目', kind:'other', eventIds:[], status:'todo' }); }
@@ -2517,7 +2555,7 @@ createApp({
       scEvId, scEv, scRows, scShake, scIssues, needsMark, markWarn, submitReview,
       rvTab, rvNote, publish, sendBack, askReopen,
       mcText, doneBc, addInsert, bcStyle,
-      FORMAL, fb, signIn, signOut, initFormal, roleForm, setRole, removeRole, isOnline, devicesSorted, devicesOnline, addTl, removeTl, removeGuest,
+      FORMAL, fb, signIn, signOut, initFormal, roleForm, setRole, editRole, removeRole, roleBulk, roleBulkRows, applyRoleBulk, isOnline, devicesSorted, devicesOnline, addTl, removeTl, removeGuest,
       RTYPES, STA, rf, rFilter, canHandle, openReports, myOpenReports, reportList, openMedicReports, submitReport, setReport, md, addMedical, medicalRows, eqFilter, ne, tlLabel, equipGroups, nextEquip, setEquip, addEquip, lunchInfo, lunchMissing, setLunchInfo, toggleLunch, callLunch, gf, addGift, announceGift, giftRows, giftText, setStation, supportMissing, initSupport,
       dockOpen, setDock, qa, quickAssign, person, useBackup, restorePrimary, eventPoints, setCustomPts, baseNames, bulk, applyBulk,
       gFilter, gKind, guestList, ng, arrive, addGuest, personText, personMark, shortTitle, batchesOf, presenterOf, toggleAbsent, readyBatchObj, batchTime, winnersOf, winnerGroups, awardIssues, teacherCalls, sync, toggleCloud, canEmbed, embedUrl,
