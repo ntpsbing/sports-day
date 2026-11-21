@@ -144,6 +144,21 @@ body::before{ content:""; position:fixed; inset:0 0 auto; height:env(safe-area-i
 @media (max-width:420px){ .brand .t2{ font-size:18px; } .logo, .logo-img{ width:40px; height:40px; } }
 .drawer-close{ display:flex; justify-content:flex-end; }
 
+/* 手機：頁首縮小、表格可以左右滑動不擠成一字一行、即時動態縮成圓鈕 */
+@media (max-width:640px){
+  .pagehead{ gap:8px; padding-bottom:10px; margin-bottom:14px; }
+  .ph-ico{ width:40px; height:40px; font-size:22px; border-radius:12px; }
+  .pagehead .h-page{ font-size:23px; }
+  .pagehead .muted.small{ font-size:15px; line-height:1.45; }
+  .pagehead > .flex .btn{ min-height:40px; padding:0 12px; font-size:15px; }
+  .dockbtn{ width:52px; height:52px; padding:0 !important; border-radius:50% !important; justify-content:center; }
+  .dockbtn .dock-l{ display:none; }
+  .b-head .b-label{ display:none; }
+}
+.dock-i{ display:none; font-size:22px; }
+@media (max-width:640px){ .dock-i{ display:inline; } .dockbtn .badge{ position:absolute; top:-4px; right:-4px; } }
+.tblwrap .tbl:not(.cards) th, .tblwrap .tbl:not(.cards) td{ white-space:nowrap; }
+.res-h h2{ word-break:keep-all; }
 /* 頁首：只有頁名、一句說明、「怎麼用」與「更多」 */
 .pagehead{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; padding-bottom:14px; margin-bottom:18px; border-bottom:2px dashed var(--line); }
 .ph-l{ display:flex; align-items:center; gap:14px; min-width:0; flex:1 1 260px; }
@@ -209,7 +224,7 @@ label.lbl{ display:block; font-size:16px; font-weight:700; color:var(--ink2); ma
 .rtab-n{ min-width:24px; height:24px; padding:0 7px; border-radius:999px; background:var(--surface2); color:var(--ink2); font-size:13px; font-weight:900; display:inline-grid; place-items:center; }
 .rtab.on .rtab-n{ background:rgba(255,255,255,.25); color:inherit; }
 .res-grid{ display:grid; gap:16px; grid-template-columns:repeat(auto-fill,minmax(min(100%,440px),1fr)); align-items:start; }
-.res-h{ display:flex; justify-content:space-between; align-items:flex-start; gap:8px; padding-bottom:10px; margin-bottom:4px; border-bottom:3px solid var(--track); }
+.res-h{ display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-start; gap:8px; padding-bottom:10px; margin-bottom:4px; border-bottom:3px solid var(--track); }
 .rtbl{ width:100%; border-collapse:collapse; font-size:17px; }
 .rtbl th{ text-align:left; font-size:14px; color:var(--ink2); font-weight:700; padding:8px 6px; border-bottom:1px solid var(--line); }
 .rtbl td{ padding:7px 6px; border-bottom:1px solid var(--line); vertical-align:middle; }
@@ -707,7 +722,7 @@ html.ov-transparent body::before{ display:none; }
 
     <!-- ===================== 總控台 ===================== -->
     <section v-if="page==='home'" class="fade-up">
-      <div v-if="FORMAL && !fb.user" class="note note-info mb-4">請先按右上角「學校帳號登入」。未登入只能看大會看板與直播。</div>
+      
       <div v-if="FORMAL && fb.ready && fb.empty" class="card mb-4" style="border:2px solid var(--brand)">
         <h2 class="h-sec">正式資料庫還是空的</h2>
         <p class="small muted my-2">按下面按鈕，會依計畫書建立 37 組比賽項目、當天流程草案、5 個頒獎梯次（不含範例學生）。之後到「資料匯入」匯入會前賽成績、選手與來賓名單。</p>
@@ -1133,7 +1148,7 @@ html.ov-transparent body::before{ display:none; }
             <table class="tbl mt-2">
               <tbody><tr v-for="x in ranked(e).filter(x=>x.place && x.place<=e.awardTop)" :key="x.e.id">
                 <td style="width:3em"><span :class="['place','p'+x.place]">{{ x.place }}</span></td>
-                <td>{{ clsLabel(x.e.cls) }}</td><td>{{ x.e.name }}</td><td class="num" style="text-align:right">{{ fmtMark(e,x.e) }}</td>
+                <td style="white-space:nowrap">{{ clsLabel(x.e.cls) }}</td><td style="white-space:nowrap">{{ x.e.name }}</td><td class="num" style="text-align:right;white-space:nowrap">{{ fmtMark(e,x.e) }}</td>
               </tr></tbody>
             </table>
             <div class="small muted mt-1" v-if="ranked(e).some(x=>!x.place)">另有 {{ ranked(e).filter(x=>!x.place).length }} 筆無成績或棄權</div>
@@ -1752,7 +1767,7 @@ html.ov-transparent body::before{ display:none; }
       <div class="grid gap-4" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr))">
         <div style="grid-column:span 2;min-width:0" class="watch-main">
           <div v-if="!validUrl(st.live.url)" class="sky" style="padding:40px 24px 54px"><div class="b-label">網路直播</div><div class="b-big mt-2">直播尚未開始</div><p class="mt-2">攝影組按下「開始直播」後，這裡就會出現影片，右上角按鈕也會變成紅色「● 看直播」。</p>
-            <div class="mt-4 card-flat no-print" style="color:var(--ink)" v-if="!FORMAL"><b>體驗版想看效果？</b>請先把右上角身分切換成「攝影組（直播）」，到「直播」頁貼上任何一個 YouTube 網址並按「開始直播」，再切回「家長・觀眾」就能看到。
+            <div class="mt-4 card-flat no-print" style="color:var(--ink)" v-if="!FORMAL"><b>體驗版想看效果？</b>請先在選單最上方把身分切換成「攝影組（直播）」，到「直播」頁貼上任何一個 YouTube 網址並按「開始直播」，再切回「家長・觀眾」就能看到。
               <div class="mt-2"><button class="btn btn-sm btn-primary" @click="role='live'; go('live')">切換成攝影組去開播</button></div></div></div>
           <div v-else-if="canEmbed && embedUrl" class="video"><iframe :src="embedUrl" title="運動會直播" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>
           <div v-else class="sky" style="padding:28px 24px 50px">
@@ -1845,7 +1860,7 @@ html.ov-transparent body::before{ display:none; }
       <div class="grid gap-4" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr))">
         <div class="card flex flex-col gap-3">
           <div><label class="lbl" for="fbName">您的稱呼（可不填）</label><input id="fbName" class="inp" v-model.trim="fbk.name" maxlength="12" placeholder="例：體育組 林老師"></div>
-          <div><label class="lbl">您的組別</label><div class="small font-bold">{{ roleObj.name }}（右上角可切換）</div></div>
+          <div><label class="lbl">您的組別</label><div class="small font-bold">{{ roleObj.name }}</div></div>
           <div>
             <label class="lbl">試用了哪些頁面</label>
             <div class="flex flex-wrap gap-2">
@@ -1866,7 +1881,6 @@ html.ov-transparent body::before{ display:none; }
         <div class="card">
           <h2 class="h-sec mb-2">預覽</h2>
           <pre class="card-flat small" style="white-space:pre-wrap;font-family:var(--f-body)">{{ fbText }}</pre>
-          <p class="small muted mt-3">若您有 Claude 帳號，也可以直接在這個頁面上按右上角留言。</p>
         </div>
       </div>
     </section>
@@ -1877,7 +1891,7 @@ html.ov-transparent body::before{ display:none; }
 
   <!-- 即時動態小視窗：任何頁面都能看看板重點 -->
   <button class="dockbtn no-print" v-if="page!=='overlay' && page!=='board' && page!=='start' && page!=='results' && page!=='accounts' && !dockOpen" @click="setDock(true)" aria-label="打開即時動態">
-    <span class="syncdot"></span>即時動態<span class="badge" v-if="urgentBc.length" style="background:#B42318;color:#fff">!</span>
+    <span class="syncdot dock-l"></span><span class="dock-i" aria-hidden="true">📣</span><span class="dock-l">即時動態</span><span class="badge" v-if="urgentBc.length" style="background:#B42318;color:#fff">!</span>
   </button>
   <aside class="dock no-print" v-if="dockOpen && page!=='overlay' && page!=='board' && page!=='start' && page!=='results'" aria-label="即時動態">
     <div class="flex items-center justify-between gap-2 mb-2">
@@ -2469,7 +2483,7 @@ createApp({
       copy(url); }
     const moreEl = ref(null);
     /* 只在螢幕上看的頁面不需要列印（大會看板、看直播、首頁） */
-    const NO_PRINT = ['board','watch','start','overlay'];
+    const NO_PRINT = ['board','watch','start','overlay','feedback','accounts'];
     const printHere = computed(()=>canPrint && !NO_PRINT.includes(page.value));
     /* 分享只放在家長會看的頁面（大會看板、成績查詢、看直播）；工作人員頁面分享出去對方也打不開 */
     const shareHere = computed(()=>PUBLIC_PAGES.includes(page.value));
@@ -2483,7 +2497,7 @@ createApp({
       if(previewing.value) return list.includes(role.value);
       if(FORMAL && fb.myRoles.length) return fb.myRoles.some(r=>list.includes(r)); return list.includes(role.value); }
     function whoCan(a){ return (PERMS[a]||[]).map(id=>(ROLES.find(r=>r.id===id)||{}).name).join('、'); }
-    function need(a){ if(can(a)) return true; toast('這個動作由「'+whoCan(a)+'」負責；想體驗請在右上角切換身分',true); return false; }
+    function need(a){ if(can(a)) return true; toast('這個動作由「'+whoCan(a)+'」負責'+(FORMAL?'':'；想體驗請在選單最上方切換身分'),true); return false; }
     const canPrint = (()=>{ try{ return window.self===window.top; }catch(e){ return false; } })();
     function doPrint(mode){ document.documentElement.classList.toggle('print-color', mode==='color'); setTimeout(()=>window.print(),60); }
     const myPages = computed(()=>roleObj.value.pages);
