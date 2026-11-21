@@ -114,6 +114,7 @@ body::before{ content:""; position:fixed; inset:0 0 auto; height:env(safe-area-i
 .sitem.start{ background:var(--track-soft); color:var(--ink); font-weight:900; }
 .sitem.start.on{ background:var(--track); color:var(--track-ink); }
 .sitem.start.on::before{ display:none; }
+.sdiv{ height:1px; background:var(--line); margin:10px 8px; }
 .sother{ margin-top:10px; border-top:1px solid var(--line); padding-top:4px; }
 .sother > summary{ list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:space-between; min-height:46px; padding:0 12px; border-radius:12px; font-size:16px; font-weight:700; color:var(--ink2); }
 .sother > summary::-webkit-details-marker{ display:none; }
@@ -443,7 +444,7 @@ html.ov-transparent body::before{ display:none; }
   <header class="topbar no-print">
     <div class="topin">
       <button class="menubtn lg-hide" @click="drawer=true" aria-label="開啟選單"><span aria-hidden="true" style="font-size:22px">☰</span></button>
-      <button class="brand" @click="go('start')" title="回到首頁">
+      <button class="brand" @click="go(homePage)" title="回到首頁">
         <img v-if="logoOk" :src="LOGO" alt="楠梓國小校徽" class="logo-img" @error="logoOk=false">
         <span v-else class="logo" aria-hidden="true">楠</span>
         <span class="brand-t">
@@ -477,7 +478,7 @@ html.ov-transparent body::before{ display:none; }
         <button v-if="FORMAL && fb.user" class="btn btn-sm w-full mt-2 lg-hide" @click="signOut">登出 {{ fb.email }}</button>
       </div>
 
-      <button :class="['sitem start',{on:page==='start'}]" @click="go('start')"><span class="ico">🏠</span><span class="sname">首頁</span></button>
+      <button v-if="!isPublicView" :class="['sitem start',{on:page==='start'}]" @click="go('start')"><span class="ico">🏠</span><span class="sname">首頁</span></button>
 
       <template v-if="myWork.length">
         <div class="sgroup">我的工作</div>
@@ -488,7 +489,7 @@ html.ov-transparent body::before{ display:none; }
         </button>
       </template>
 
-      <div class="sgroup">大家都會用</div>
+      <div class="sdiv" v-if="myWork.length"></div>
       <button v-for="p in commonPages" :key="p.id" :class="['sitem',{on:page===p.id}]" @click="go(p.id)">
         <span class="ico">{{ ICON[p.id] }}</span><span class="sname">{{ p.name }}</span>
         <span class="badge" v-if="badge(p.id)">{{ badge(p.id) }}</span>
@@ -534,7 +535,7 @@ html.ov-transparent body::before{ display:none; }
         </div>
       </div>
       <div class="flex gap-2 items-center no-print">
-        <button class="btn btn-sm" v-if="HELP[page] && !gate" @click="helpOpen=!helpOpen" :aria-expanded="helpOpen">{{ helpOpen ? '收起說明' : '？這頁怎麼用' }}</button>
+        <button class="btn btn-sm" v-if="HELP[page] && !gate && !isPublicView" @click="helpOpen=!helpOpen" :aria-expanded="helpOpen">{{ helpOpen ? '收起說明' : '？這頁怎麼用' }}</button>
         <details class="more" ref="moreEl">
           <summary class="btn btn-sm" aria-label="更多功能">⋯ 更多</summary>
           <div class="more-menu">
@@ -665,7 +666,7 @@ html.ov-transparent body::before{ display:none; }
             <input id="resQ" class="inp" v-model.trim="resQ" placeholder="例如 503、五年三班、壘球" maxlength="20">
           </div>
         </div>
-        <div class="res-legend mt-2">已公布 {{ publishedEvents.length }} 個項目・<span v-if="maskOn">學生姓名依個資保護顯示為「王○明」・</span>NM＝無有效成績　DNS＝未出賽　DNF＝未跑完　DQ＝犯規</div>
+        <div class="res-legend mt-2">已公布 {{ publishedEvents.length }} 個項目・<b v-if="!fullResults">每項公布前 6 名得獎名單・</b><span v-else>你是工作人員，可以看完整成績（家長只看得到前 6 名）・</span><span v-if="maskOn">學生姓名依個資保護顯示為「王○明」・</span><span v-if="fullResults">NM＝無有效成績　DNS＝未出賽　DNF＝未跑完　DQ＝犯規</span></div>
       </div>
       <div v-if="!resultsShown.length" class="card text-center muted" style="padding:40px 16px">{{ publishedEvents.length ? '找不到符合的項目，換個關鍵字試試。' : '目前還沒有公布的成績，公布後這裡會即時出現。' }}</div>
       <div class="res-grid">
@@ -688,7 +689,7 @@ html.ov-transparent body::before{ display:none; }
               </tr>
             </tbody>
           </table>
-          <button v-if="ranked(ev).length>ev.awardTop" class="res-more" @click="resOpen[ev.id]=!resOpen[ev.id]">{{ resOpen[ev.id] ? '只看得獎名次 ▲' : '看完整成績（'+ranked(ev).length+' 人）▼' }}</button>
+          <button v-if="fullResults && ranked(ev).length>ev.awardTop" class="res-more" @click="resOpen[ev.id]=!resOpen[ev.id]">{{ resOpen[ev.id] ? '只看得獎名次 ▲' : '看完整成績（'+ranked(ev).length+' 人）▼' }}</button>
         </article>
       </div>
     </section>
@@ -847,7 +848,7 @@ html.ov-transparent body::before{ display:none; }
     <!-- ===================== 大會看板 ===================== -->
     <section v-if="page==='board'">
       <div class="flex flex-wrap gap-2 justify-end mb-3 no-print">
-        <button class="btn btn-sm" @click="toggleBoardMode">{{ boardMode ? '離開投影模式' : '投影模式（隱藏選單）' }}</button>
+        <button class="btn btn-sm" v-if="!isPublicView" @click="toggleBoardMode">{{ boardMode ? '離開投影模式' : '投影模式（隱藏選單）' }}</button>
         <button class="btn btn-sm" @click="fullscreen">全螢幕</button>
       </div>
       <div class="sky">
@@ -1472,14 +1473,7 @@ html.ov-transparent body::before{ display:none; }
             <label class="flex gap-2 items-center"><input type="checkbox" id="ci" v-model="st.settings.scoring.countInd" style="width:22px;height:22px"> 個人田徑賽</label>
             <label class="flex gap-2 items-center"><input type="checkbox" id="cr" v-model="st.settings.scoring.countRelay" style="width:22px;height:22px"> 4×100 與大隊接力</label>
           </div>
-          <label class="lbl mt-3" for="tieRule">同名次（成績相同）怎麼給分</label>
-          <select id="tieRule" class="inp" :value="st.settings.scoring.tieRule||'split'" @change="st.settings.scoring.tieRule=$event.target.value">
-            <option value="split">平分佔用名次的分數（建議，大型運動會慣例）</option>
-            <option value="full">每人都給該名次的分數</option>
-          </select>
-          <p class="small muted mt-1">名次一律照運動會規則：兩人並列第 2 名，下一位是第 4 名（沒有第 3 名），兩人都拿第 2 名獎狀。
-            <span v-if="(st.settings.scoring.tieRule||'split')==='split'">積分：兩人各得（{{ st.settings.scoring.points[1] }}＋{{ st.settings.scoring.points[2] }}）÷2＝{{ ((+st.settings.scoring.points[1]||0)+(+st.settings.scoring.points[2]||0))/2 }} 分。</span>
-            <span v-else>積分：兩人各得第 2 名的 {{ st.settings.scoring.points[1] }} 分。</span></p>
+          <div class="card-flat mt-3 small"><b>同名次（成績相同）：</b>兩人並列第 2 名，<b>兩人都拿第 2 名的 {{ st.settings.scoring.points[1] }} 分</b>和第 2 名獎狀；下一位是第 4 名（沒有第 3 名）。</div>
           <div class="card-flat mt-4 small">
             <b>試算：</b>一位學生個人項目第一名得 {{ st.settings.scoring.points[0] }} 分；大隊接力第一名得 {{ (st.settings.scoring.points[0]||0)*st.settings.scoring.relayMult }} 分。
           </div>
@@ -1873,9 +1867,10 @@ html.ov-transparent body::before{ display:none; }
 
   <!-- 手機底部快速列：開始＋你這組的頁面＋選單 -->
   <nav class="tabbar lg-hide no-print" aria-label="快速切換" v-if="page!=='overlay' && !(boardMode && page==='board')">
-    <button :class="['tab',{on:page==='start'}]" @click="go('start')"><span class="ti">🏠</span>首頁</button>
+    <button v-if="!isPublicView" :class="['tab',{on:page==='start'}]" @click="go('start')"><span class="ti">🏠</span>首頁</button>
     <button v-for="p in tabItems" :key="p.id" :class="['tab',{on:page===p.id}]" @click="go(p.id)"><span class="tab-dot" v-if="badge(p.id)">{{ badge(p.id) }}</span><span class="ti">{{ ICON[p.id] }}</span>{{ SHORT[p.id] || p.name }}</button>
-    <button class="tab" @click="drawer=true"><span class="ti">☰</span>選單</button>
+    <button v-if="FORMAL && !fb.user" class="tab" @click="signIn"><span class="ti">🔑</span>登入</button>
+    <button v-else class="tab" @click="drawer=true"><span class="ti">☰</span>選單</button>
   </nav>
 
   <!-- 通知 -->
@@ -2005,7 +2000,7 @@ const PAGE_GROUPS = [
 const ICON = { start:'🏠', results:'🏆', accounts:'🔑', home:'🎛️', board:'📺', teacher:'🧑‍🏫', checkin:'📋', score:'⏱️', review:'✅', mc:'🎤', guests:'🤝', watch:'🎥', awards:'🏅', live:'📡',
   export:'🖨️', import:'📥', config:'⚙️', reports:'🚨', medical:'🩹', equip:'📦', lunch:'🍱', gifts:'🎁', stations:'🎯', feedback:'💬', overlay:'🖥️' };
 /* 左側選單「我的工作」每項底下的一行小字（越短越好） */
-const SDESC = { results:'各項目完整成績', accounts:'誰負責哪一組', home:'按流程開始／完成', board:'投影到大螢幕', teacher:'本班出賽與得獎', checkin:'點名到／缺', score:'輸入成績自動排名', review:'確認後公布成績',
+const SDESC = { results:'各項目得獎名單', accounts:'誰負責哪一組', home:'按流程開始／完成', board:'投影到大螢幕', teacher:'本班出賽與得獎', checkin:'點名到／缺', score:'輸入成績自動排名', review:'確認後公布成績',
   mc:'照稿播報', guests:'來賓報到', watch:'手機看直播', awards:'頒獎人與集合', live:'開播與 QR Code', export:'獎狀名單與公告', import:'Excel 貼上匯入',
   config:'積分辦法與班級', reports:'處理現場通報', medical:'傷病登記', equip:'器材送達確認', lunch:'各班領餐', gifts:'捐贈登記', stations:'各站即時狀態', feedback:'告訴我們哪裡要改' };
 /* 首頁卡片上的按鈕文字：寫清楚要做的動作 */
@@ -2025,9 +2020,9 @@ const ROLE_CATS = [
   { name:'其他', ids:['teacher','public'] },
 ];
 /* 「大家都會用」的頁面（不在自己工作裡時才出現） */
-const COMMON = ['results','board','watch','reports'];
+const COMMON = ['board','results','watch','reports'];
 /* 不用登入就能看的頁面（家長、觀眾） */
-const PUBLIC_PAGES = ['start','results','board','watch'];
+const PUBLIC_PAGES = ['board','results','watch'];
 /* 校徽圖檔：在 config.js 設定 SCHOOL_LOGO；找不到圖檔時自動顯示「楠」字圓章 */
 const LOGO = window.SCHOOL_LOGO || 'logo.svg';
 /* 成績登錄範本（含下拉選單的 Excel 檔，以 base64 內嵌；要更新範本請重新產生這一行） */
@@ -2037,7 +2032,7 @@ const OV_BG = [ {id:'green',name:'綠幕（去背用）',css:'#00B140'}, {id:'na
 const OV_MODES = [ {id:'award',name:'頒獎進行中'}, {id:'result',name:'最新成績'}, {id:'flow',name:'目前流程'}, {id:'stand',name:'總錦標積分'} ];
 const TASK_DESC = {
   start:'即時現況與你這組負責的工作。',
-  results:'所有已公布的正式成績，可依年級篩選、輸入班級查詢。',
+  results:'各項目得獎名單（前 6 名），可依年級篩選、輸入班級查詢。',
   accounts:'設定每個學校帳號負責哪一組；家長不用登入，老師登入後自動得到身分。',
   review:'裁判送來的成績確認無誤後按「公布」，全部畫面同步更新。',
   import:'會前賽成績、選手名單、來賓名單，從 Excel 貼上就能匯入。',
@@ -2050,7 +2045,7 @@ const TASK_DESC = {
   watch:'所有人都能看的直播頁，旁邊同步顯示進行中項目、頒獎與最新成績。',
   awards:'每梯次設定主要、備援頒獎人與集合地點；公布後看板、導師頁、司儀同步。',
   live:'設定直播網址、產生 QR Code、直播疊字畫面、標記精彩時刻。',
-  board:'投影到大螢幕：進行中項目、最新成績、積分排行、直播 QR Code。',
+  board:'運動會即時看板：進行中項目、最新成績、頒獎、積分排行。',
   teacher:'查本班出賽時間與得獎，填報全員賽跑名單。',
   home:'整場主控：按流程開始／完成，掌握各組進度與分工。',
   feedback:'試用後告訴紀錄組哪裡好用、哪裡要改。',
@@ -2329,7 +2324,8 @@ createApp({
     const pg = id => PAGES.find(p=>p.id===id);
     /* 正式版：未登入只看公開頁；登入後看自己組別的頁面；管理員、總控、紀錄組看全部。體驗版全部可看（方便試用） */
     function canSee(id){
-      if(!FORMAL || PUBLIC_PAGES.includes(id) || id==='start') return true;
+      if(id==='start') return !isPublicView.value; // 家長觀眾不需要首頁，直接看大會看板
+      if(!FORMAL || PUBLIC_PAGES.includes(id)) return true;
       if(!fb.user) return false;
       if(fb.admin || fb.myRoles.some(r=>['control','record'].includes(r))) return true;
       if(id==='feedback' || id==='teacher') return true;
@@ -2337,13 +2333,16 @@ createApp({
       if(id==='overlay') return roleObj.value.pages.includes('live');
       return roleObj.value.pages.includes(id);
     }
-    const gate = computed(()=>!canSee(page.value));
+    const gate = computed(()=>!canSee(page.value) && page.value!=='start');
+    /* 起始頁：家長觀眾＝大會看板，登入的工作人員＝首頁 */
+    const homePage = computed(()=>isPublicView.value ? 'board' : 'start');
+    let hashGiven=false; try{ hashGiven=!!(location.hash||'').slice(1); }catch(e){}
     const myWork = computed(()=>roleObj.value.pages.filter(id=>!['board','watch','results','overlay'].includes(id)).map(pg));
     const commonPages = computed(()=>COMMON.filter(id=>!myWork.value.some(p=>p.id===id) && (id!=='reports' || can('report')) && canSee(id)).map(pg));
     const otherGroups = computed(()=>{ const used=new Set([...myWork.value, ...commonPages.value].map(p=>p.id)); used.add('feedback');
       return PAGE_GROUPS.map(g=>({ name:g.name, pages:g.pages.filter(id=>!used.has(id) && canSee(id)).map(pg) })).filter(g=>g.pages.length); });
     const otherCount = computed(()=>otherGroups.value.reduce((n,g)=>n+g.pages.length,0));
-    const tabItems = computed(()=>[...myWork.value, ...commonPages.value].slice(0,3));
+    const tabItems = computed(()=>[...myWork.value, ...commonPages.value].slice(0, isPublicView.value ? 4 : 3));
     const roleName = id => (ROLES.find(r=>r.id===id)||{}).name || id;
     const isPublicView = computed(()=>FORMAL ? !fb.user : role.value==='public');
     const whoName = computed(()=>FORMAL && !fb.user ? '家長・觀眾' : roleObj.value.name);
@@ -2360,9 +2359,12 @@ createApp({
     const qNorm=q=>String(q||'').replace(/\s|[-－]/g,'');
     function resHit(e){ const q=qNorm(resQ.value); if(!q) return false; const c=String(e.cls||''); return [c.replace('-',''), c.replace('-0','').replace('-',''), clsLabel(c)].some(k=>k && k.includes(q)); }
     const resultsShown=computed(()=>{ const q=qNorm(resQ.value);
-      return publishedEvents.value.filter(ev=>(resGrade.value==='all' || ev.grade===resGrade.value) && (!q || qNorm(ev.name).includes(q) || ev.entries.some(resHit)))
+      return publishedEvents.value.filter(ev=>(resGrade.value==='all' || ev.grade===resGrade.value) && (!q || qNorm(ev.name).includes(q) || (fullResults.value ? ev.entries.some(resHit) : ranked(ev).some(x=>isAward(ev,x) && resHit(x.e)))))
         .slice().sort((a,b)=>a.grade-b.grade || a.order-b.order); });
-    function resRows(ev){ const all=ranked(ev); if(resOpen[ev.id]) return all; return all.filter(x=>(x.place && x.place<=ev.awardTop) || resHit(x.e)); }
+    /* 公開（家長觀眾）只公布得獎名次，沒得獎、DNS、NM 都不公開，避免孩子被比較或取笑；登入的工作人員才看得到完整成績 */
+    const fullResults = computed(()=>!isPublicView.value);
+    const isAward = (ev,x) => x.place && x.place<=ev.awardTop;
+    function resRows(ev){ const all=ranked(ev); if(!fullResults.value) return all.filter(x=>isAward(ev,x)); if(resOpen[ev.id]) return all; return all.filter(x=>isAward(ev,x) || resHit(x.e)); }
     function pnAlways(n){ return st.value.settings.maskNames!==false ? maskName(n) : n; }
     /* 首頁卡片：工作人員＝我的工作（不足 3 張用常用頁面補）；家長觀眾＝看板、直播、闖關站 */
     const startCards = computed(()=>{
@@ -2450,11 +2452,8 @@ createApp({
       st.value.events.forEach(ev=>{
         if(!isPub(ev) || !sc.grades.includes(ev.grade)) return;
         const P=eventPoints(ev); if(!P.length) return;
-        /* 同名次：平分（大型運動會慣例，例：兩人並列第 2 → 各得 (第2名+第3名)÷2）；或都給該名次的分數 */
-        const R=ranked(ev).filter(x=>x.place), cnt={}; R.forEach(x=>{ cnt[x.place]=(cnt[x.place]||0)+1; });
-        R.forEach(x=>{ if(x.place>P.length) return; const k=cnt[x.place]; let v;
-          if(k>1 && sc.tieRule!=='full'){ let sum=0; for(let i=0;i<k;i++) sum+=(+P[x.place-1+i]||0); v=sum/k; } else v=+P[x.place-1]||0;
-          pts[x.e.cls]=(pts[x.e.cls]||0)+v; });
+        /* 同名次：每人都拿該名次的分數（學校慣例，整數不平分）。例：兩人並列第 2 → 各得第 2 名的分數，下一位是第 4 名 */
+        ranked(ev).forEach(x=>{ if(x.place && x.place<=P.length) pts[x.e.cls]=(pts[x.e.cls]||0)+(+P[x.place-1]||0); });
       });
       const out={};
       for(let g=1; g<=6; g++){ const arr=[]; for(let c=1;c<=(st.value.settings.classes[g]||0);c++){ const id=clsId(g,c); arr.push({ cls:id, pts:Math.round((pts[id]||0)*10)/10 }); } arr.sort((a,b)=>b.pts-a.pts); out[g]=arr; }
@@ -3092,10 +3091,12 @@ createApp({
     function removeTl(t){ if(!need('flow')) return; ask('確定刪除流程「'+t.title+'」嗎？', ()=>{ const i=st.value.timeline.indexOf(t); if(i>=0) st.value.timeline.splice(i,1); if(FORMAL) fbDelete('timeline',t.id); log('刪除流程：'+t.title); }); }
     function removeGuest(g){ if(!need('data')) return; ask('確定從名單刪除「'+personText(g)+'」嗎？他負責的頒獎梯次會改由遞補的人。', ()=>{ st.value.batches.forEach(b=>{ ['presenter','backup','override'].forEach(k=>{ if(b[k]===g.id) b[k]=''; }); }); const i=st.value.guests.indexOf(g); if(i>=0) st.value.guests.splice(i,1); if(FORMAL) fbDelete('guests',g.id); log('刪除人員：'+personText(g)); }); }
 
-    onMounted(()=>{ readHash(); loadDraft(); syncLiveDraft(); renderQR(); if(FORMAL) fbInit(); else initCloud(); });
+    watch(()=>[isPublicView.value, page.value], ()=>{ if(page.value==='start' && isPublicView.value) page.value='board'; });
+    watch(()=>fb.user, (u,old)=>{ if(u && !old && !hashGiven && page.value==='board') go('start'); }); // 剛登入：帶到自己的首頁
+    onMounted(()=>{ readHash(); if(!hashGiven && isPublicView.value) page.value='board'; loadDraft(); syncLiveDraft(); renderQR(); if(FORMAL) fbInit(); else initCloud(); });
 
     return { st, role, page, helpOpen, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
-      SHORT, gate, canSee, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
+      SHORT, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
       drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
       roleObj, myPages, navPages, myTasks, dateLabel, go, badge, kpi, ask, modalOk, clsLabel,
