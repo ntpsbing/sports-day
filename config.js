@@ -17,6 +17,6 @@ window.SCHOOL_DOMAIN = "e1.ntps.kh.edu.tw";
 // 只有教職員帳號（tc 開頭＋數字）能登入；學生帳號會被擋下。例外帳號請由管理員在「帳號權限」設定組別即可登入
 window.STAFF_PATTERN = "^tc[0-9]+@";
 window.ADMIN_EMAILS = ["bing5201314@e1.ntps.kh.edu.tw"];
-// 校徽：把學校校徽圖檔（建議正方形 PNG，透明背景，至少 200×200）命名為 logo.png，放在和 index.html 同一個資料夾即可。
+// 校徽：校徽圖檔（SVG 最清楚；PNG 也可，建議正方形、透明背景、至少 200×200）放在和 index.html 同一個資料夾。
 // 檔名不同就改這裡；找不到圖檔時，左上角會自動顯示「楠」字圓章。
-window.SCHOOL_LOGO = "logo.png";
+window.SCHOOL_LOGO = "logo.svg";
