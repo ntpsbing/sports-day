@@ -3,13 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" href="logo.svg" type="image/svg+xml">
 </head>
 <body>
 <title>楠小運動會通報系統</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Huninn&family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
 <script src="https://cdn.tailwindcss.com/3.4.17"></script>
 <script>
   /* Tailwind 只用來排版（格線、間距）；顏色一律用下方 :root 的色票，方便統一修改 */
@@ -25,31 +26,35 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 /* =========================================================
-   楠梓國小 校慶運動會 即時通報及成績公布系統（體驗版）
-   版面概念：工作人員頁＝商業風（清楚、俐落）；
-            大會看板與導師頁＝港都晴空（藍天漸層＋跑道線）。
+   楠梓國小 校慶運動會 即時通報及成績公布系統
+   版面概念：國小運動會——藍天、三角彩旗、紅土跑道、草地。
+            字型：標題用圓體（Huninn），內文用思源黑體。
    ▶ 接手的老師：要換顏色，只要改這一段色票即可。
    ========================================================= */
 :root{
-  --bg:#F1F5F9; --surface:#FFFFFF; --surface2:#E9EFF5; --ink:#0E2132; --ink2:#46596B; --line:#D2DCE6;
-  --brand:#0B62A4; --brand-ink:#FFFFFF; --brand-soft:#DDEBF7;
-  --sky-a:#08304B; --sky-b:#0B62A4; --sun:#F2B705; --track:#B4441A;
+  /* 運動會配色：天空藍（主色）、跑道橘、草地綠、陽光黃 */
+  --bg:#F5F3EC; --surface:#FFFFFF; --surface2:#EEF1EC; --ink:#13263A; --ink2:#4A5B6B; --line:#DBE1DA;
+  --brand:#1565B5; --brand-ink:#FFFFFF; --brand-soft:#E1EEFA;
+  --sky-a:#0E4D8C; --sky-b:#1C80CF; --sun:#FFC21A; --track:#C44A1A; --track-ink:#FFFFFF; --track-soft:#FCE9DF; --grass:#2E8A45; --grass-soft:#E2F3E6;
   --ok:#157A3A; --ok-soft:#DCF1E3; --warn:#9A5400; --warn-soft:#FAEBD1; --bad:#B42318; --bad-soft:#FBE2DF;
   --gold:#A87C00; --silver:#5F6E7E; --bronze:#94552A;
   --f-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --f-head:"Huninn","Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
   --f-num:"Barlow Condensed","Noto Sans TC","Arial Narrow",sans-serif;
-  --r:14px;
+  --r:16px; --shadow:0 1px 2px rgba(19,38,58,.05), 0 4px 14px rgba(19,38,58,.05);
 }
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
-  --bg:#0A1520; --surface:#111F2C; --surface2:#172A3A; --ink:#E5EDF5; --ink2:#9BB0C3; --line:#26394B;
-  --brand:#4DB0EE; --brand-ink:#04121C; --brand-soft:#123349;
-  --track:#EE7A4B; --ok:#4ADE80; --ok-soft:#10301E; --warn:#F5B94A; --warn-soft:#332410; --bad:#F87171; --bad-soft:#3A1717;
-  --gold:#E2B93B; --silver:#A9B6C4; --bronze:#D49463; color-scheme:dark; } }
+  --bg:#0B1520; --surface:#122030; --surface2:#182B3C; --ink:#E5EDF5; --ink2:#9DB1C3; --line:#28394A;
+  --brand:#5AB4F0; --brand-ink:#04121C; --brand-soft:#123349;
+  --track:#F08A5D; --track-ink:#1A0A03; --track-soft:#3A2016; --grass:#5ACB78; --grass-soft:#10301E;
+  --ok:#4ADE80; --ok-soft:#10301E; --warn:#F5B94A; --warn-soft:#332410; --bad:#F87171; --bad-soft:#3A1717;
+  --gold:#E2B93B; --silver:#A9B6C4; --bronze:#D49463; --shadow:none; color-scheme:dark; } }
 :root[data-theme="dark"]{
-  --bg:#0A1520; --surface:#111F2C; --surface2:#172A3A; --ink:#E5EDF5; --ink2:#9BB0C3; --line:#26394B;
-  --brand:#4DB0EE; --brand-ink:#04121C; --brand-soft:#123349;
-  --track:#EE7A4B; --ok:#4ADE80; --ok-soft:#10301E; --warn:#F5B94A; --warn-soft:#332410; --bad:#F87171; --bad-soft:#3A1717;
-  --gold:#E2B93B; --silver:#A9B6C4; --bronze:#D49463; color-scheme:dark; }
+  --bg:#0B1520; --surface:#122030; --surface2:#182B3C; --ink:#E5EDF5; --ink2:#9DB1C3; --line:#28394A;
+  --brand:#5AB4F0; --brand-ink:#04121C; --brand-soft:#123349;
+  --track:#F08A5D; --track-ink:#1A0A03; --track-soft:#3A2016; --grass:#5ACB78; --grass-soft:#10301E;
+  --ok:#4ADE80; --ok-soft:#10301E; --warn:#F5B94A; --warn-soft:#332410; --bad:#F87171; --bad-soft:#3A1717;
+  --gold:#E2B93B; --silver:#A9B6C4; --bronze:#D49463; --shadow:none; color-scheme:dark; }
 
 html{ -webkit-text-size-adjust:100%; }
 body{ background:var(--bg); color:var(--ink); font-family:var(--f-body); font-size:18px; line-height:1.6; }
@@ -57,6 +62,7 @@ body{ background:var(--bg); color:var(--ink); font-family:var(--f-body); font-si
 .wrap{ max-width:1280px; margin:0 auto; padding-left:max(16px, env(safe-area-inset-left,0px)); padding-right:max(16px, env(safe-area-inset-right,0px)); }
 .num{ font-family:var(--f-num); font-variant-numeric:tabular-nums; letter-spacing:.01em; }
 h1,h2,h3{ text-wrap:balance; line-height:1.3; }
+h1,h2,.h-page,.h-sec,.b-big{ font-family:var(--f-head); letter-spacing:.01em; }
 .h-page{ font-size:28px; font-weight:900; }
 .h-sec{ font-size:21px; font-weight:700; }
 .muted{ color:var(--ink2); }
@@ -64,48 +70,96 @@ h1,h2,h3{ text-wrap:balance; line-height:1.3; }
 
 /* ---------- 頂欄、左側選單（電腦）／抽屜選單＋底部列（手機） ---------- */
 body::before{ content:""; position:fixed; inset:0 0 auto; height:env(safe-area-inset-top,0px); z-index:10; background:var(--sky-a); }
-.topbar{ position:sticky; top:env(safe-area-inset-top,0px); z-index:30; background:linear-gradient(100deg,var(--sky-a),var(--sky-b)); color:#fff; box-shadow:0 2px 12px rgba(0,0,0,.18); }
-.topin{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; min-height:64px; padding-block:8px; padding-left:max(16px, env(safe-area-inset-left,0px)); padding-right:max(16px, env(safe-area-inset-right,0px)); }
-.brand{ display:flex; align-items:center; gap:12px; min-width:0; flex:1 1 200px; }
-.logo{ width:44px; height:44px; border-radius:12px; background:#fff; color:var(--sky-b); display:grid; place-items:center; font-weight:900; font-size:24px; flex:none; }
-.brand .t1{ font-size:14px; opacity:.85; }
-.brand .t2{ font-size:19px; font-weight:900; display:flex; align-items:center; gap:8px; flex-wrap:wrap; line-height:1.3; }
-.demo-chip{ background:var(--sun); color:#1D1500; border-radius:999px; padding:1px 9px; font-size:13px; font-weight:900; }
-.rolebox{ display:flex; align-items:center; gap:8px; font-size:16px; }
-.rolebox select{ background:#fff; color:#0E2132; border-radius:10px; min-height:44px; padding:0 10px; font-size:17px; font-weight:700; border:0; }
-.menubtn{ min-height:44px; padding:0 12px; border-radius:10px; background:rgba(255,255,255,.16); color:#fff; font-weight:700; display:flex; gap:6px; align-items:center; }
-.badge{ min-width:24px; height:24px; border-radius:999px; background:var(--sun); color:#1D1500; font-size:14px; font-weight:900; display:inline-grid; place-items:center; padding:0 6px; }
+.topbar{ position:sticky; top:env(safe-area-inset-top,0px); z-index:30; background:linear-gradient(100deg,var(--sky-a),var(--sky-b)); color:#fff; }
+/* 招牌細節：頂欄下緣的三角彩旗 */
+.topbar::after{ content:""; position:absolute; left:0; right:0; top:100%; height:13px; pointer-events:none;
+  background:repeating-linear-gradient(90deg,#E8452C 0 26px,#FFC21A 26px 52px,#2E8A45 52px 78px,#1C80CF 78px 104px,#FFFFFF 104px 130px);
+  -webkit-mask:conic-gradient(from -45deg at 50% 100%,#000 90deg,transparent 0) 0 0/26px 13px repeat-x;
+          mask:conic-gradient(from -45deg at 50% 100%,#000 90deg,transparent 0) 0 0/26px 13px repeat-x;
+  filter:drop-shadow(0 2px 2px rgba(0,0,0,.12)); }
+.topin{ display:flex; align-items:center; gap:10px; min-height:64px; padding-block:8px; padding-left:max(16px, env(safe-area-inset-left,0px)); padding-right:max(16px, env(safe-area-inset-right,0px)); }
+/* 校徽＋系統名稱：整塊可以點，回到「今天要做的事」 */
+.brand{ display:flex; align-items:center; gap:12px; min-width:0; flex:1 1 auto; color:#fff; text-align:left; border-radius:14px; padding:4px 8px 4px 4px; margin-left:-4px; transition:background .15s; }
+.brand:hover{ background:rgba(255,255,255,.12); }
+.logo, .logo-img{ width:46px; height:46px; border-radius:50%; flex:none; background:#fff; box-shadow:0 0 0 3px rgba(255,255,255,.35); }
+.logo{ color:var(--sky-a); display:grid; place-items:center; font-weight:900; font-size:24px; font-family:var(--f-head); }
+.logo-img{ object-fit:contain; padding:3px; }
+.brand-t{ display:flex; flex-direction:column; min-width:0; }
+.brand .t1{ font-size:14px; opacity:.9; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.brand .t2{ font-size:20px; font-weight:900; font-family:var(--f-head); display:flex; align-items:center; gap:8px; line-height:1.25; white-space:nowrap; min-width:0; }
+.brand .t2-x{ overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.demo-chip{ background:var(--sun); color:#1D1500; border-radius:999px; padding:1px 9px; font-size:13px; font-weight:900; font-family:var(--f-body); }
+.menubtn{ min-height:46px; min-width:46px; padding:0 12px; border-radius:12px; background:rgba(255,255,255,.16); color:#fff; font-weight:700; display:flex; gap:6px; align-items:center; justify-content:center; flex:none; white-space:nowrap; }
+.menubtn:hover{ background:rgba(255,255,255,.26); }
+.topwho{ max-width:34vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; background:#fff; color:var(--sky-a); border-radius:999px; padding:6px 12px; font-size:15px; font-weight:900; flex:none; }
+.badge{ min-width:24px; height:24px; border-radius:999px; background:var(--sun); color:#1D1500; font-size:14px; font-weight:900; display:inline-grid; place-items:center; padding:0 6px; flex:none; }
 .shell{ display:block; }
+
+/* ---------- 左側選單：我是誰 → 今天要做的事 → 我的工作 → 大家都會用 → 其他頁面 ---------- */
 .side{ background:var(--surface); }
-.sgroup{ font-size:13px; letter-spacing:.14em; color:var(--ink2); font-weight:700; padding:16px 12px 6px; }
-.sitem{ display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%; min-height:46px; padding:0 12px; border-radius:10px; font-size:17px; color:var(--ink); text-align:left; transition:background .15s; }
+.whoami{ background:linear-gradient(135deg,var(--grass-soft),var(--brand-soft)); border-radius:14px; padding:12px; margin:6px 2px 10px; }
+.whoami .who-l{ font-size:14px; color:var(--ink2); font-weight:700; }
+.whoami .who-n{ font-size:19px; font-weight:900; font-family:var(--f-head); line-height:1.3; margin:2px 0 8px; }
+.whoami select{ min-height:44px; font-size:16px; font-weight:700; }
+.sgroup{ font-size:14px; letter-spacing:.1em; color:var(--ink2); font-weight:700; padding:14px 12px 6px; }
+.sitem{ display:flex; align-items:center; gap:10px; width:100%; min-height:48px; padding:6px 10px; border-radius:12px; font-size:17px; color:var(--ink); text-align:left; transition:background .15s; position:relative; }
 .sitem:hover{ background:var(--surface2); }
 .sitem.on{ background:var(--brand-soft); color:var(--brand); font-weight:900; }
-.mine-dot{ width:9px; height:9px; border-radius:50%; background:var(--sun); flex:none; }
-.side-foot{ margin:18px 4px 0; padding-top:14px; border-top:1px solid var(--line); }
-.scrim{ position:fixed; inset:0; background:rgba(5,15,25,.45); z-index:55; }
+.sitem.on::before{ content:""; position:absolute; left:-2px; top:10px; bottom:10px; width:4px; border-radius:4px; background:var(--track); }
+.sitem .ico{ width:28px; text-align:center; font-size:20px; flex:none; line-height:1; }
+.sitem .stext{ display:flex; flex-direction:column; min-width:0; flex:1; line-height:1.3; }
+.sitem .stext small{ font-size:14px; color:var(--ink2); font-weight:400; }
+.sitem .sname{ flex:1; min-width:0; }
+.step{ width:26px; height:26px; border-radius:50%; background:var(--track); color:var(--track-ink); font-size:14px; font-weight:900; display:grid; place-items:center; flex:none; font-family:var(--f-num); }
+.sitem.start{ background:var(--track-soft); color:var(--ink); font-weight:900; }
+.sitem.start.on{ background:var(--track); color:var(--track-ink); }
+.sitem.start.on::before{ display:none; }
+.sother{ margin-top:10px; border-top:1px solid var(--line); padding-top:4px; }
+.sother > summary{ list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:space-between; min-height:46px; padding:0 12px; border-radius:12px; font-size:16px; font-weight:700; color:var(--ink2); }
+.sother > summary::-webkit-details-marker{ display:none; }
+.sother > summary::after{ content:"▾"; transition:transform .2s; }
+.sother[open] > summary::after{ transform:rotate(180deg); }
+.sother > summary:hover{ background:var(--surface2); }
+.sother .sgroup{ padding-top:10px; font-size:13px; }
+.sother .sitem{ min-height:44px; font-size:16px; }
+.side-foot{ margin:14px 4px 0; padding-top:12px; border-top:1px solid var(--line); }
+.scrim{ position:fixed; inset:0; background:rgba(5,15,25,.45); z-index:55; animation:fadeIn .2s; }
+@keyframes fadeIn{ from{ opacity:0 } }
 .tabbar{ position:fixed; left:0; right:0; bottom:0; z-index:40; background:var(--surface); border-top:1px solid var(--line); display:grid; grid-auto-flow:column; grid-auto-columns:1fr; padding:0 env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px); box-shadow:0 -4px 16px rgba(0,0,0,.06); }
-.tab{ min-height:58px; font-size:15px; font-weight:700; color:var(--ink2); position:relative; padding:0 4px; line-height:1.25; }
-.tab.on{ color:var(--brand); box-shadow:inset 0 3px 0 var(--brand); }
-.tab-dot{ position:absolute; top:5px; right:6px; min-width:20px; height:20px; border-radius:999px; background:var(--sun); color:#1D1500; font-size:12px; font-weight:900; display:grid; place-items:center; padding:0 5px; }
+.tab{ min-height:60px; font-size:14px; font-weight:700; color:var(--ink2); position:relative; padding:4px 2px; line-height:1.2; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; }
+.tab .ti{ font-size:21px; line-height:1; }
+.tab.on{ color:var(--brand); box-shadow:inset 0 3px 0 var(--track); }
+.tab-dot{ position:absolute; top:4px; left:calc(50% + 6px); min-width:20px; height:20px; border-radius:999px; background:var(--sun); color:#1D1500; font-size:12px; font-weight:900; display:grid; place-items:center; padding:0 5px; }
 @media (min-width:1024px){
-  .shell{ display:grid; grid-template-columns:252px minmax(0,1fr); align-items:start; }
-  .side{ position:sticky; top:calc(env(safe-area-inset-top,0px) + 64px); height:calc(100vh - 64px - env(safe-area-inset-top,0px)); overflow-y:auto; border-right:1px solid var(--line); padding:8px 10px 24px max(10px, env(safe-area-inset-left,0px)); }
+  .shell{ display:grid; grid-template-columns:268px minmax(0,1fr); align-items:start; }
+  .side{ position:sticky; top:calc(env(safe-area-inset-top,0px) + 64px); height:calc(100vh - 64px - env(safe-area-inset-top,0px)); overflow-y:auto; border-right:1px solid var(--line); padding:18px 10px 24px max(10px, env(safe-area-inset-left,0px)); }
   .lg-hide{ display:none !important; }
 }
 @media (max-width:1023.98px){
-  .side{ position:fixed; z-index:60; top:0; bottom:0; left:0; width:min(300px,86vw); transform:translateX(-105%); visibility:hidden; transition:transform .25s ease, visibility .25s; overflow-y:auto; padding:calc(14px + env(safe-area-inset-top,0px)) 10px calc(24px + env(safe-area-inset-bottom,0px)) max(10px, env(safe-area-inset-left,0px)); box-shadow:4px 0 30px rgba(0,0,0,.25); }
+  .side{ position:fixed; z-index:60; top:0; bottom:0; left:0; width:min(320px,88vw); transform:translateX(-105%); visibility:hidden; transition:transform .25s ease, visibility .25s; overflow-y:auto; padding:calc(10px + env(safe-area-inset-top,0px)) 10px calc(24px + env(safe-area-inset-bottom,0px)) max(10px, env(safe-area-inset-left,0px)); box-shadow:4px 0 30px rgba(0,0,0,.25); }
   .side.open{ transform:none; visibility:visible; }
-  .sm-hide{ display:none; }
+  .sm-hide{ display:none !important; }
 }
-.pagehead{ display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:12px; padding-bottom:14px; margin-bottom:18px; border-bottom:1px solid var(--line); }
+@media (max-width:420px){ .brand .t2{ font-size:18px; } .logo, .logo-img{ width:40px; height:40px; } }
+.drawer-close{ display:flex; justify-content:flex-end; }
+
+/* 頁首：只有頁名、一句說明、「怎麼用」與「更多」 */
+.pagehead{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; padding-bottom:14px; margin-bottom:18px; border-bottom:2px dashed var(--line); }
+.ph-l{ display:flex; align-items:center; gap:14px; min-width:0; flex:1 1 260px; }
+.ph-ico{ width:52px; height:52px; border-radius:16px; background:var(--surface); box-shadow:var(--shadow); border:1px solid var(--line); display:grid; place-items:center; font-size:28px; flex:none; }
 .eyebrow{ font-size:14px; letter-spacing:.14em; color:var(--brand); font-weight:700; }
+.more{ position:relative; }
+.more > summary{ list-style:none; }
+.more > summary::-webkit-details-marker{ display:none; }
+.more-menu{ position:absolute; right:0; top:calc(100% + 6px); z-index:20; background:var(--surface); border:1px solid var(--line); border-radius:14px; box-shadow:0 10px 30px rgba(0,0,0,.15); padding:6px; min-width:180px; display:flex; flex-direction:column; animation:fadeUp .18s ease-out; }
+.more-menu button{ min-height:46px; text-align:left; padding:0 12px; border-radius:10px; font-size:16px; font-weight:700; }
+.more-menu button:hover{ background:var(--surface2); }
 fieldset{ min-width:0; }
 
 /* ---------- 通用元件 ---------- */
 .main{ padding-block:20px 110px; padding-left:max(16px, env(safe-area-inset-left,0px)); padding-right:max(16px, env(safe-area-inset-right,0px)); max-width:1260px; min-width:0; }
 @media (min-width:1024px){ .main{ padding-left:28px; padding-right:max(28px, env(safe-area-inset-right,0px)); padding-bottom:60px; } }
-.card{ background:var(--surface); border:1px solid var(--line); border-radius:var(--r); padding:18px; min-width:0; }
+.card{ background:var(--surface); border:1px solid var(--line); border-radius:var(--r); padding:18px; min-width:0; box-shadow:var(--shadow); }
 .card-flat{ background:var(--surface2); border-radius:var(--r); padding:14px 16px; min-width:0; }
 .btn{ min-height:48px; padding:0 18px; border-radius:12px; font-weight:700; font-size:17px; display:inline-flex; align-items:center; justify-content:center; gap:8px; border:1px solid var(--line); background:var(--surface); color:var(--ink); transition:transform .15s, background .18s, box-shadow .18s; cursor:pointer; white-space:nowrap; }
 .btn:hover{ box-shadow:0 2px 10px rgba(11,98,164,.15); }
@@ -138,6 +192,89 @@ label.lbl{ display:block; font-size:16px; font-weight:700; color:var(--ink2); ma
 .note{ border-left:4px solid var(--warn); background:var(--warn-soft); padding:10px 14px; border-radius:0 10px 10px 0; font-size:16px; }
 .note-info{ border-left-color:var(--brand); background:var(--brand-soft); }
 .grid-auto{ display:grid; gap:14px; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); }
+/* 總控台數字卡：電腦 4 欄、手機 2 欄，排得整整齊齊 */
+.kpis{ display:grid; gap:12px; grid-template-columns:repeat(2,minmax(0,1fr)); }
+@media (min-width:768px){ .kpis{ grid-template-columns:repeat(4,minmax(0,1fr)); } }
+.kpi{ transition:transform .15s, box-shadow .15s; }
+.kpi:hover{ transform:translateY(-2px); box-shadow:0 6px 18px rgba(19,38,58,.1); }
+.kpi.hot{ border:2px solid var(--bad); }
+
+/* ---------- 成績查詢：一般運動會成績公告樣式（名次・班級・姓名・成績） ---------- */
+.res-grid{ display:grid; gap:16px; grid-template-columns:repeat(auto-fill,minmax(min(100%,440px),1fr)); align-items:start; }
+.res-h{ display:flex; justify-content:space-between; align-items:flex-start; gap:8px; padding-bottom:10px; margin-bottom:4px; border-bottom:3px solid var(--track); }
+.rtbl{ width:100%; border-collapse:collapse; font-size:17px; }
+.rtbl th{ text-align:left; font-size:14px; color:var(--ink2); font-weight:700; padding:8px 6px; border-bottom:1px solid var(--line); }
+.rtbl td{ padding:7px 6px; border-bottom:1px solid var(--line); vertical-align:middle; }
+.rtbl .r{ text-align:right; }
+.rtbl tr.win td{ background:color-mix(in srgb, var(--sun) 8%, transparent); }
+/* 前三名整列：金、銀、銅淡色底＋左側色條，名字加粗 */
+.rtbl tr.r1{ background:linear-gradient(90deg, rgba(247,198,58,.32), rgba(247,198,58,.04)); }
+.rtbl tr.r2{ background:linear-gradient(90deg, rgba(160,174,190,.34), rgba(160,174,190,.04)); }
+.rtbl tr.r3{ background:linear-gradient(90deg, rgba(208,138,75,.30), rgba(208,138,75,.04)); }
+.rtbl tr.r1 td, .rtbl tr.r2 td, .rtbl tr.r3 td{ background:transparent; }
+.rtbl tr.r1.hit td, .rtbl tr.r2.hit td, .rtbl tr.r3.hit td{ background:color-mix(in srgb, var(--brand-soft) 60%, transparent); }
+.rtbl tr.r1 td:first-child{ box-shadow:inset 4px 0 #E3A90C; } .rtbl tr.r2 td:first-child{ box-shadow:inset 4px 0 #8C9AAA; } .rtbl tr.r3 td:first-child{ box-shadow:inset 4px 0 #B86E32; }
+.rtbl tr.r1 td, .rtbl tr.r2 td, .rtbl tr.r3 td{ font-weight:700; }
+.rtbl tr.r1 td{ padding-block:10px; font-size:18px; }
+.rtbl tr.hit td{ background:var(--brand-soft); font-weight:900; }
+.rtbl tr.out td{ color:var(--ink2); }
+.medal-svg{ display:inline-block; vertical-align:middle; flex:none; filter:drop-shadow(0 2px 3px rgba(60,40,0,.25)); transition:transform .2s; }
+.medal-svg svg{ display:block; overflow:visible; }
+.medal-svg .mnum{ font-family:var(--f-num); font-weight:800; font-size:15px; }
+.mm1 .rb1{ fill:#E8452C } .mm1 .rb2{ fill:#B8231A } .mm1 .rim{ stroke:#A0700A; stroke-width:1.2 } .mm1 .mnum{ fill:#5A3D00 }
+.mm2 .rb1{ fill:#2B8BDB } .mm2 .rb2{ fill:#0E4D8C } .mm2 .rim{ stroke:#6E7C8C; stroke-width:1.2 } .mm2 .mnum{ fill:#25313E }
+.mm3 .rb1{ fill:#38A055 } .mm3 .rb2{ fill:#1E6B32 } .mm3 .rim{ stroke:#7A3F16; stroke-width:1.2 } .mm3 .mnum{ fill:#3D1D06 }
+/* 閃光：每隔幾秒掃過一次，金牌最明顯 */
+.medal-svg .shine{ animation:mshine 3.6s ease-in-out infinite; }
+.mm2 .shine{ animation-delay:.5s; } .mm3 .shine{ animation-delay:1s; }
+@keyframes mshine{ 0%,62%{ transform:translateX(0) rotate(20deg); } 85%,100%{ transform:translateX(46px) rotate(20deg); } }
+.medal-svg .shine{ transform-box:fill-box; }
+tr:hover .medal-svg, .pod:hover .medal-svg{ transform:translateY(-2px) rotate(-6deg); }
+.medal{ width:32px; height:32px; border-radius:50%; display:inline-grid; place-items:center; font-family:var(--f-num); font-weight:800; font-size:18px; background:var(--surface2); color:var(--ink); }
+.medal.m1{ background:#F5C542; color:#3A2A00; } .medal.m2{ background:#CBD3DC; color:#1F2A35; } .medal.m3{ background:#DDA06A; color:#3A1E06; }
+.res-more{ width:100%; min-height:44px; margin-top:8px; border-radius:10px; font-weight:700; color:var(--brand); }
+.res-more:hover{ background:var(--surface2); }
+.res-legend{ font-size:14px; color:var(--ink2); }
+@media (max-width:640px){ .res-grades button{ padding:0 10px; } }
+
+/* ---------- 今天要做的事（開始頁） ---------- */
+.hero{ padding:20px 20px 46px; }
+.hero-top{ display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; font-size:16px; }
+.live-pill{ display:inline-flex; align-items:center; gap:8px; background:rgba(255,255,255,.16); border-radius:999px; padding:4px 12px; font-weight:700; }
+.live-pill i{ width:10px; height:10px; border-radius:50%; background:#5CF08A; box-shadow:0 0 0 0 rgba(92,240,138,.7); animation:ping 1.6s infinite; }
+@keyframes ping{ 70%{ box-shadow:0 0 0 8px rgba(92,240,138,0) } 100%{ box-shadow:0 0 0 0 rgba(92,240,138,0) } }
+.hero-grid{ display:grid; gap:14px; margin-top:12px; grid-template-columns:1fr; }
+@media (min-width:860px){ .hero-grid{ grid-template-columns:1.3fr 1fr; align-items:stretch; } }
+.hero-act{ display:flex; gap:10px; flex-wrap:wrap; margin-top:16px; }
+@media (max-width:640px){
+  .hero{ padding:14px 14px 38px; }
+  .hero .b-big{ font-size:24px; }
+  .hero .glass{ padding:10px 12px; }
+  .hero-act{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
+  .hero-act .btn{ min-height:52px; font-size:15px; padding:0 6px; white-space:normal; line-height:1.25; }
+}
+.btn-white{ background:#fff; color:var(--sky-a); border:0; }
+.btn-ghost{ background:rgba(255,255,255,.14); color:#fff; border:1px solid rgba(255,255,255,.35); }
+.taskgrid{ display:grid; gap:14px; grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr)); }
+.task{ display:flex; flex-direction:column; align-items:flex-start; gap:6px; text-align:left; position:relative; padding:18px; transition:transform .18s, box-shadow .18s, border-color .18s; border-top:5px solid var(--grass); }
+.task:nth-child(4n+2){ border-top-color:var(--brand); } .task:nth-child(4n+3){ border-top-color:var(--track); } .task:nth-child(4n+4){ border-top-color:var(--sun); }
+.task:hover{ transform:translateY(-3px); box-shadow:0 10px 26px rgba(19,38,58,.12); }
+.task:active{ transform:scale(.98); }
+.task .t-head{ display:flex; align-items:center; gap:10px; width:100%; }
+.task .t-ico{ font-size:30px; line-height:1; }
+.task .t-name{ font-size:21px; font-weight:900; font-family:var(--f-head); flex:1; }
+.task .t-desc{ font-size:16px; color:var(--ink2); line-height:1.5; }
+.task .t-status{ font-size:15px; font-weight:700; color:var(--ok); }
+.task .t-status.hot{ color:var(--bad); }
+.task .t-status.wait{ color:var(--warn); }
+.task .t-go{ margin-top:auto; padding-top:8px; display:inline-flex; align-items:center; gap:6px; min-height:44px; padding-inline:16px; border-radius:999px; background:var(--brand); color:var(--brand-ink); font-weight:900; font-size:17px; }
+.task:hover .t-go{ gap:10px; }
+.stagger > *{ animation:fadeUp .3s ease-out both; }
+.stagger > *:nth-child(2){ animation-delay:.05s } .stagger > *:nth-child(3){ animation-delay:.1s } .stagger > *:nth-child(4){ animation-delay:.15s } .stagger > *:nth-child(5){ animation-delay:.2s } .stagger > *:nth-child(n+6){ animation-delay:.25s }
+.quick{ display:grid; gap:8px; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); }
+.quick .btn{ white-space:normal; }
+.share-row{ display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+.bump{ animation:pop .35s ease-out; }
 .kpi .v{ font-family:var(--f-num); font-size:44px; font-weight:800; line-height:1; }
 .kpi .l{ font-size:16px; color:var(--ink2); }
 .bar{ height:10px; border-radius:99px; background:var(--surface2); overflow:hidden; }
@@ -183,7 +320,9 @@ label.lbl{ display:block; font-size:16px; font-weight:700; color:var(--ink2); ma
 .podium{ display:grid; grid-template-columns:1fr 1.15fr 1fr; align-items:end; gap:10px; margin-top:10px; }
 .pod{ text-align:center; min-width:0; }
 .pod .blk{ border-radius:12px 12px 0 0; color:#fff; font-family:var(--f-num); font-weight:800; font-size:34px; display:grid; place-items:center; transform-origin:bottom; animation:rise .45s ease-out both; }
-.pod.g .blk{ background:#B8860B; height:96px; } .pod.s .blk{ background:#6B7A8A; height:70px; animation-delay:.08s; } .pod.b .blk{ background:#9A5B2E; height:54px; animation-delay:.16s; }
+.pod.g .blk{ background:linear-gradient(160deg,#F2C443,#B07A06 70%); height:96px; } .pod.s .blk{ background:linear-gradient(160deg,#B7C2CE,#5F6E7E 70%); height:70px; animation-delay:.08s; } .pod.b .blk{ background:linear-gradient(160deg,#D99A5E,#83461A 70%); height:54px; animation-delay:.16s; }
+.pod .blk{ text-shadow:0 2px 4px rgba(0,0,0,.3); box-shadow:inset 0 2px 0 rgba(255,255,255,.35); }
+.pod .medal-svg{ margin-bottom:4px; }
 .pod .nm{ font-weight:900; font-size:clamp(17px,1.7vw,22px); line-height:1.25; word-break:break-all; }
 .pod .cl{ font-size:15px; color:#46596B; }
 .pod .mk{ font-family:var(--f-num); font-size:22px; font-weight:700; color:#0B62A4; }
@@ -272,7 +411,7 @@ html.ov-transparent body::before{ display:none; }
 .duty.me{ background:var(--brand-soft); }
 @media (max-width:520px){ .duty{ grid-template-columns:1fr; } }
 
-@media (prefers-reduced-motion: reduce){ *{ animation:none !important; transition:none !important; } .ticker span{ padding-left:0; white-space:normal; } }
+@media (prefers-reduced-motion: reduce){ *{ animation:none !important; transition:none !important; } .medal-svg .shine{ display:none; } .ticker span{ padding-left:0; white-space:normal; } }
 
 /* 黑白列印：隱藏按鈕與導覽，狀態保留文字 */
 @media print{
@@ -289,52 +428,88 @@ html.ov-transparent body::before{ display:none; }
 }
 </style>
 
+<!-- 獎牌用的金、銀、銅漸層（全站共用一份） -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="mg1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFF3B0"/><stop offset=".45" stop-color="#F7C63A"/><stop offset="1" stop-color="#B07A06"/></linearGradient>
+    <linearGradient id="mg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".45" stop-color="#C9D2DC"/><stop offset="1" stop-color="#7D8B9B"/></linearGradient>
+    <linearGradient id="mg3" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFD9B5"/><stop offset=".45" stop-color="#D08A4B"/><stop offset="1" stop-color="#83461A"/></linearGradient>
+    <clipPath id="mclip"><circle cx="20" cy="31" r="14.5"/></clipPath>
+  </defs>
+</svg>
 <div id="app" v-cloak :class="{'board-mode': boardMode && page==='board', 'overlay-mode': page==='overlay'}">
 
-  <!-- ======== 頂欄 ======== -->
+  <!-- ======== 頂欄：校徽＋名稱（點了回首頁）、身分、直播、登入 ======== -->
   <header class="topbar no-print">
     <div class="topin">
-      <button class="menubtn lg-hide" @click="drawer=true" aria-label="開啟選單"><span aria-hidden="true">☰</span>選單</button>
-      <div class="brand">
-        <div class="logo" aria-hidden="true">楠</div>
-        <div style="min-width:0">
-          <div class="t1 sm-hide">{{ st.settings.title }}・{{ dateLabel }}</div>
-          <div class="t2">運動會即時通報系統 <span class="demo-chip">{{ FORMAL ? '正式版' : '體驗版' }}</span></div>
-        </div>
-      </div>
-      <button :class="st.live.on ? 'livebtn' : 'menubtn'" @click="go('watch')">{{ st.live.on ? '● 看直播' : '看直播' }}</button>
-      <span v-if="FORMAL && !fb.admin" class="rolechip">{{ fb.user ? roleObj.name : '訪客（未登入）' }}</span>
-      <button v-if="FORMAL && !fb.user" class="menubtn" style="background:#fff;color:#08304B" @click="signIn">學校帳號登入</button>
+      <button class="menubtn lg-hide" @click="drawer=true" aria-label="開啟選單"><span aria-hidden="true" style="font-size:22px">☰</span></button>
+      <button class="brand" @click="go('start')" title="回到首頁（今天要做的事）">
+        <img v-if="logoOk" :src="LOGO" alt="楠梓國小校徽" class="logo-img" @error="logoOk=false">
+        <span v-else class="logo" aria-hidden="true">楠</span>
+        <span class="brand-t">
+          <span class="t1 sm-hide">{{ st.settings.title }}・{{ dateLabel }}</span>
+          <span class="t2"><span class="t2-x">運動會<span class="sm-hide">即時</span>通報<span class="sm-hide">系統</span></span><span class="demo-chip sm-hide" v-if="!FORMAL">體驗版</span></span>
+        </span>
+      </button>
+      <button class="topwho lg-hide" @click="drawer=true" :title="'我的身分：'+whoName">{{ whoName }}</button>
+      <button :class="[st.live.on ? 'livebtn' : 'menubtn','sm-hide']" @click="go('watch')">{{ st.live.on ? '● 看直播' : '🎥 看直播' }}</button>
+      <button v-if="FORMAL && !fb.user" class="menubtn sm-hide" style="background:#fff;color:#0E4D8C" @click="signIn">工作人員登入</button>
       <button v-if="FORMAL && fb.user" class="menubtn sm-hide" @click="signOut" :title="fb.email">登出</button>
-      <label class="rolebox" for="roleSel" v-if="!FORMAL || fb.admin"><span class="sm-hide">{{ FORMAL ? '預覽身分' : '我現在是' }}</span>
-        <select id="roleSel" v-model="role" aria-label="切換身分">
-          <option v-for="r in ROLES" :key="r.id" :value="r.id">{{ r.name }}</option>
-        </select>
-      </label>
     </div>
   </header>
   <div v-if="FORMAL && fb.user && !fb.online" class="netbar no-print" role="status">⚠ 目前離線：你的操作會先存在這台裝置，恢復連線後自動送出（未送出 {{ fb.pending }} 筆）</div>
   <div v-if="FORMAL && fb.err" class="netbar no-print" role="alert">{{ fb.err }}</div>
 
   <div class="shell">
-    <!-- ======== 選單：電腦在左側、手機是抽屜 ======== -->
+    <!-- ======== 選單：電腦在左側、手機是抽屜 ========
+         由上往下：我是誰 → 今天要做的事 → 我的工作（照做事順序編號）→ 大家都會用 → 其他頁面（收合） -->
     <aside :class="['side no-print',{open:drawer}]" aria-label="頁面選單">
-      <div class="seg" style="display:flex;margin:4px 2px 0">
-        <button style="flex:1" :class="{on:navMode==='mine'}" @click="navMode='mine'">我的工作</button>
-        <button style="flex:1" :class="{on:navMode==='all'}" @click="navMode='all'">全部頁面</button>
+      <div class="drawer-close lg-hide"><button class="btn btn-sm" @click="drawer=false">✕ 關閉選單</button></div>
+      <div class="whoami">
+        <div class="who-l">我現在的身分</div>
+        <div class="who-n">{{ whoName }}</div>
+        <select v-if="!FORMAL || fb.admin" id="roleSel" class="inp" v-model="role" aria-label="切換身分">
+          <optgroup v-for="c in ROLE_CATS" :key="c.name" :label="c.name">
+            <option v-for="id in c.ids" :key="id" :value="id">{{ roleName(id) }}</option>
+          </optgroup>
+        </select>
+        <button v-if="FORMAL && !fb.user" class="btn btn-primary w-full" @click="signIn">工作人員登入（學校帳號）</button>
+        <button v-if="FORMAL && fb.user" class="btn btn-sm w-full mt-2 lg-hide" @click="signOut">登出 {{ fb.email }}</button>
       </div>
-      <template v-for="g in navGroups" :key="g.name">
-        <div class="sgroup">{{ g.name }}</div>
-        <button v-for="p in g.pages" :key="p.id" :class="['sitem',{on:page===p.id}]" @click="go(p.id)">
-          <span class="flex items-center gap-2"><span class="mine-dot" v-if="myPages.includes(p.id) && navMode==='all'" title="你這組的工作"></span>{{ p.name }}</span>
+
+      <button :class="['sitem start',{on:page==='start'}]" @click="go('start')"><span class="ico">🏁</span><span class="sname">今天要做的事</span></button>
+
+      <template v-if="myWork.length">
+        <div class="sgroup">我的工作</div>
+        <button v-for="(p,i) in myWork" :key="p.id" :class="['sitem',{on:page===p.id}]" @click="go(p.id)">
+          <span class="step">{{ i+1 }}</span>
+          <span class="stext"><span>{{ ICON[p.id] }} {{ p.name }}</span><small>{{ SDESC[p.id] }}</small></span>
           <span class="badge" v-if="badge(p.id)">{{ badge(p.id) }}</span>
         </button>
       </template>
+
+      <div class="sgroup">大家都會用</div>
+      <button v-for="p in commonPages" :key="p.id" :class="['sitem',{on:page===p.id}]" @click="go(p.id)">
+        <span class="ico">{{ ICON[p.id] }}</span><span class="sname">{{ p.name }}</span>
+        <span class="badge" v-if="badge(p.id)">{{ badge(p.id) }}</span>
+      </button>
+
+      <details class="sother" :open="otherOpen" @toggle="otherOpen=$event.target.open">
+        <summary>其他頁面（{{ otherCount }}）</summary>
+        <template v-for="g in otherGroups" :key="g.name">
+          <div class="sgroup">{{ g.name }}</div>
+          <button v-for="p in g.pages" :key="p.id" :class="['sitem',{on:page===p.id}]" @click="go(p.id)">
+            <span class="ico">{{ ICON[p.id] }}</span><span class="sname">{{ p.name }}</span>
+            <span class="badge" v-if="badge(p.id)">{{ badge(p.id) }}</span>
+          </button>
+        </template>
+      </details>
+
       <div class="side-foot">
         <template v-if="FORMAL">
           <div class="small mb-1 flex items-center gap-2"><span :class="['syncdot', fb.online ? '' : 'off']"></span><b>{{ fb.online ? '已連線・即時同步' : '離線中' }}</b></div>
-          <div class="small muted mb-1">傳送延遲 <b class="num">{{ fb.latency!=null ? (fb.latency/1000).toFixed(2)+' 秒' : '—' }}</b>・未送出 <b class="num">{{ fb.pending }}</b> 筆</div>
-          <div class="small muted mb-2" v-if="fb.user">{{ fb.email }}</div>
+          <div class="small muted mb-1">延遲 <b class="num">{{ fb.latency!=null ? (fb.latency/1000).toFixed(2)+' 秒' : '—' }}</b>・未送出 <b class="num">{{ fb.pending }}</b> 筆</div>
+          <div class="small muted mb-2 sm-hide" v-if="fb.user" style="word-break:break-all">{{ fb.email }}</div>
         </template>
         <template v-else>
           <div class="small mb-2 flex items-center gap-2"><span :class="['syncdot', sync.on ? (sync.ok ? '' : 'off') : 'local']"></span><b>{{ sync.on ? sync.status : '本機即時同步（0.5 秒）' }}</b></div>
@@ -342,30 +517,171 @@ html.ov-transparent body::before{ display:none; }
           <button class="btn btn-sm w-full mb-3" v-if="sync.available" @click="toggleCloud">{{ sync.on ? '改回本機體驗' : '開啟雲端多裝置同步' }}</button>
           <div class="small muted">體驗版：學生姓名與成績都是範例，資料只存在這台電腦，可以放心按。</div>
         </template>
-        <button class="btn btn-sm w-full mt-2" @click="go('feedback')">我要給建議</button>
+        <button class="btn btn-sm w-full mt-2" @click="go('feedback')">💬 我要給建議</button>
       </div>
     </aside>
     <div class="scrim lg-hide" v-if="drawer" @click="drawer=false"></div>
 
   <main class="main">
 
-    <!-- 頁首：分類、頁名、說明、權限 -->
-    <div class="pagehead" v-if="page!=='overlay'">
-      <div style="min-width:0">
-        <div class="eyebrow">{{ pageGroupName }}</div>
-        <h1 class="h-page">{{ pageObj.name }}</h1>
-        <div class="muted small">{{ TASK_DESC[page] }}</div>
+    <!-- 頁首：圖示、頁名、一句說明；右邊只有「怎麼用」和「更多」 -->
+    <div class="pagehead" v-if="page!=='overlay' && page!=='start'">
+      <div class="ph-l">
+        <span class="ph-ico" aria-hidden="true">{{ ICON[page] }}</span>
+        <div style="min-width:0">
+          <h1 class="h-page">{{ pageObj.name }}</h1>
+          <div class="muted small">{{ TASK_DESC[page] }}</div>
+        </div>
       </div>
-      <div class="flex gap-2 items-center flex-wrap no-print">
-        <span v-if="PAGE_PERM[page] && can(PAGE_PERM[page])" class="chip st-published">✔ 你這組可以操作</span>
-        <div class="seg sm-hide" v-if="canPrint"><button @click="doPrint('bw')">列印黑白</button><button @click="doPrint('color')">列印彩色</button></div>
+      <div class="flex gap-2 items-center no-print">
         <button class="btn btn-sm" v-if="HELP[page]" @click="helpOpen=!helpOpen" :aria-expanded="helpOpen">{{ helpOpen ? '收起說明' : '？這頁怎麼用' }}</button>
+        <details class="more" ref="moreEl">
+          <summary class="btn btn-sm" aria-label="更多功能">⋯ 更多</summary>
+          <div class="more-menu">
+            <button @click="closeMore(); sharePage(page)">🔗 分享這一頁</button>
+            <button v-if="canPrint" @click="closeMore(); doPrint('bw')">🖨️ 列印（黑白）</button>
+            <button v-if="canPrint" @click="closeMore(); doPrint('color')">🖨️ 列印（彩色）</button>
+          </div>
+        </details>
       </div>
     </div>
-    <div class="note note-info mb-4 no-print" v-if="PAGE_PERM[page] && !can(PAGE_PERM[page]) && page!=='overlay'">目前是「僅檢視」：這頁由 <b>{{ whoCan(PAGE_PERM[page]) }}</b> 操作。想體驗操作，請在右上角切換身分。</div>
+    <div class="note note-info mb-4 no-print" v-if="PAGE_PERM[page] && !can(PAGE_PERM[page]) && page!=='overlay' && page!=='start'">👀 這頁你可以看，操作由 <b>{{ whoCan(PAGE_PERM[page]) }}</b> 負責。<span v-if="!FORMAL">想體驗操作，請在選單最上面切換身分。</span></div>
     <ol class="card-flat helpbox mb-4 list-decimal pl-10 small no-print" v-if="helpOpen && HELP[page]">
       <li v-for="h in HELP[page]" class="py-1">{{ h }}</li>
     </ol>
+
+    <!-- ===================== 今天要做的事（首頁）=====================
+         上半部：所有人（家長、導師、工作人員）都看得到的即時現況
+         下半部：依身分列出「今天要做的事」大卡片，按了直接到那一頁 -->
+    <section v-if="page==='start'">
+      <div class="sky hero mb-5 fade-up">
+        <div class="hero-top">
+          <span class="live-pill"><i aria-hidden="true"></i>即時更新中</span>
+          <span>{{ dateLabel }}・現在 <b class="num" style="font-size:22px">{{ clock }}</b></span>
+        </div>
+        <div class="hero-grid">
+          <div>
+            <div class="b-label">🏃 現在進行</div>
+            <div class="b-big mt-1">{{ nowTl ? nowTl.title : '運動會尚未開始' }}</div>
+            <div class="mt-1" v-if="nextTl" style="opacity:.92">下一項 <b class="num" style="font-size:20px">{{ tlTime(nextTl) }}</b>　{{ nextTl.title }}</div>
+            <div class="mt-1" v-if="st.delayMin" style="color:var(--sun);font-weight:700">流程順延 {{ st.delayMin }} 分鐘</div>
+          </div>
+          <div class="glass" v-if="readyBatchObj">
+            <div class="b-label">🏅 頒獎進行中</div>
+            <div class="font-bold mt-1" style="font-size:20px">{{ readyBatchObj.title }}</div>
+            <div class="small" style="opacity:.92">頒獎人 {{ personText(presenterOf(readyBatchObj).p) }}・{{ readyBatchObj.place }}</div>
+          </div>
+          <div class="glass" v-else-if="publishedEvents[0]">
+            <div class="b-label">🏆 最新成績</div>
+            <div class="font-bold mt-1">{{ publishedEvents[0].name }}</div>
+            <div v-for="x in ranked(publishedEvents[0]).filter(x=>x.place && x.place<=3)" :key="x.e.id" class="flex items-center gap-2 mt-1"><medal-icon :p="x.place" :size="30"></medal-icon><span>{{ clsLabel(x.e.cls) }} <b>{{ pn(x.e.name) }}</b></span></div>
+          </div>
+        </div>
+        <div class="hero-act">
+          <button class="btn btn-white" @click="go('board')">📺 看大會看板</button>
+          <button :class="['btn', st.live.on ? 'onair' : 'btn-ghost']" style="border:0" @click="go('watch')">{{ st.live.on ? '● 直播中，馬上看' : '🎥 看直播' }}</button>
+          <button class="btn btn-ghost" @click="go('results')">🏆 查成績</button>
+        </div>
+      </div>
+
+      <!-- 導師：本班頒獎集合通知（即時） -->
+      <div class="flex flex-col gap-3 mb-5" v-if="myPages.includes('teacher') && teacherCalls.length">
+        <button v-for="c in teacherCalls" :key="c.b.id" :class="['card callcard text-left',{now:c.b.status==='ready'}]" @click="go('teacher')">
+          <b class="h-sec">{{ c.b.status==='ready' ? '▶ 現在頒獎！請帶 '+clsLabel(tCls)+' 得獎同學到「'+c.b.place+'」' : '📣 '+clsLabel(tCls)+' 頒獎集合通知：'+batchTime(c.b) }}</b>
+          <div class="small mt-1">本班得獎：{{ c.list.map(w=>(pn(w.name) || clsLabel(w.cls)+'代表')+'（'+w.ev+' 第'+ZH[w.place]+'名）').join('、') }}</div>
+        </button>
+      </div>
+
+      <div v-if="FORMAL && !fb.user" class="card mb-5 flex flex-wrap items-center justify-between gap-3" style="border:2px solid var(--brand)">
+        <div><h2 class="h-sec">工作人員請先登入</h2><div class="small muted">用學校 Google 帳號登入後，這裡會出現你這組今天要做的事。家長和觀眾不用登入，上面就能看即時現況。</div></div>
+        <button class="btn btn-primary btn-big" @click="signIn">工作人員登入</button>
+      </div>
+
+      <div class="flex items-end justify-between gap-2 flex-wrap mb-3">
+        <div>
+          <div class="eyebrow">{{ isPublicView ? '家長・觀眾' : '我的身分：'+whoName }}</div>
+          <h2 class="h-page" style="font-size:26px">{{ isPublicView ? '你可以這樣看運動會' : '今天要做的事' }}</h2>
+        </div>
+        <span class="small muted" v-if="!isPublicView">照編號順序做，按卡片就會開到那一頁</span>
+      </div>
+      <div class="taskgrid stagger mb-6">
+        <button v-for="(p,i) in startCards" :key="p.id" class="card task" @click="go(p.id)">
+          <span class="t-head"><span class="step" v-if="!isPublicView">{{ i+1 }}</span><span class="t-ico" aria-hidden="true">{{ ICON[p.id] }}</span><span class="t-name">{{ p.name }}</span><span class="badge" v-if="badge(p.id)">{{ badge(p.id) }}</span></span>
+          <span class="t-desc">{{ TASK_DESC[p.id] }}</span>
+          <span :class="['t-status',{hot:badge(p.id), wait:!badge(p.id) && statusText(p.id).startsWith('○')}]" v-if="statusText(p.id)">{{ statusText(p.id) }}</span>
+          <span class="t-go">{{ VERB[p.id] || '打開' }} <span aria-hidden="true">→</span></span>
+        </button>
+      </div>
+
+      <div class="grid gap-4 items-start" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,400px),1fr))">
+        <!-- 現場有狀況：一鍵通報給負責的組別 -->
+        <div class="card" v-if="can('report')">
+          <h2 class="h-sec">🚨 現場有狀況？</h2>
+          <p class="small muted mb-3">按類別，負責的組別會立刻收到。</p>
+          <div class="quick">
+            <button v-for="(t,k) in RTYPES" :key="k" class="btn" @click="rf.type=k; go('reports')">{{ RICON[k] }} {{ t.name }}</button>
+          </div>
+        </div>
+        <!-- 快速分享：QR Code、複製連結、手機分享 -->
+        <div class="card">
+          <h2 class="h-sec">🔗 分享給家長、同事</h2>
+          <p class="small muted mb-3">選要分享的頁面，對方掃 QR Code 或點連結就能看到同一個即時畫面。</p>
+          <div class="seg mb-3" role="group" aria-label="選擇分享的頁面">
+            <button v-for="o in SHARE_OPTS" :key="o.id" :class="{on:shareTarget===o.id}" @click="shareTarget=o.id">{{ o.name }}</button>
+          </div>
+          <div class="share-row">
+            <div class="qr-box"><div class="qr-slot" data-size="132" :data-url="shareUrl"></div></div>
+            <div class="flex flex-col gap-2" style="flex:1 1 180px;min-width:0">
+              <button class="btn btn-primary" @click="sharePage(shareTarget)">📤 分享連結</button>
+              <button class="btn" @click="copy(shareUrl)">📋 複製連結</button>
+              <div class="small muted" style="word-break:break-all">{{ shareUrl }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== 成績查詢（公開）=====================
+         一般運動會的成績公告：每個項目一張排名表，前三名金銀銅，DNS／NM 排最後；
+         預設只列得獎名次，按「看完整成績」展開；輸入班級會標出該班選手 -->
+    <section v-if="page==='results'" class="fade-up">
+      <div class="card mb-4">
+        <div class="flex flex-wrap gap-3 items-end">
+          <div class="seg res-grades" role="group" aria-label="依年級篩選">
+            <button v-for="o in RES_GRADES" :key="o.id" :class="{on:resGrade===o.id}" @click="resGrade=o.id">{{ o.name }}</button>
+          </div>
+          <div style="flex:1 1 220px;min-width:0">
+            <label class="lbl" for="resQ">找班級或項目</label>
+            <input id="resQ" class="inp" v-model.trim="resQ" placeholder="例如 503、五年三班、壘球" maxlength="20">
+          </div>
+        </div>
+        <div class="res-legend mt-2">已公布 {{ publishedEvents.length }} 個項目・<span v-if="maskOn">學生姓名依個資保護顯示為「王○明」・</span>NM＝無有效成績　DNS＝未出賽　DNF＝未跑完　DQ＝犯規</div>
+      </div>
+      <div v-if="!resultsShown.length" class="card text-center muted" style="padding:40px 16px">{{ publishedEvents.length ? '找不到符合的項目，換個關鍵字試試。' : '目前還沒有公布的成績，公布後這裡會即時出現。' }}</div>
+      <div class="res-grid">
+        <article v-for="ev in resultsShown" :key="ev.id" class="card">
+          <header class="res-h">
+            <div style="min-width:0">
+              <h2 class="h-sec">{{ ev.name }}</h2>
+              <div class="small muted">{{ ev.unit==='名次' ? '依名次' : '成績單位：'+ev.unit }}<span v-if="ev.publishedAt">・公布 {{ ev.publishedAt }}</span></div>
+            </div>
+            <span :class="['chip','st-'+ev.status]">{{ ev.status==='awarded' ? '★ 已頒獎' : '✔ 正式成績' }}</span>
+          </header>
+          <table class="rtbl">
+            <thead><tr><th style="width:3.2em">名次</th><th>班級</th><th v-if="!ev.team">姓名</th><th class="r">成績</th></tr></thead>
+            <tbody>
+              <tr v-for="x in resRows(ev)" :key="x.e.id" :class="[{win:x.place && x.place<=ev.awardTop, hit:resHit(x.e), out:!x.place}, x.place && x.place<=3 ? 'r'+x.place : '']">
+                <td><medal-icon :p="x.place" :size="x.place===1 ? 42 : 38"></medal-icon></td>
+                <td>{{ clsLabel(x.e.cls) }}</td>
+                <td v-if="!ev.team">{{ pn(x.e.name) }}</td>
+                <td class="num r" style="font-size:19px;font-weight:700">{{ fmtMark(ev,x.e) }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <button v-if="ranked(ev).length>ev.awardTop" class="res-more" @click="resOpen[ev.id]=!resOpen[ev.id]">{{ resOpen[ev.id] ? '只看得獎名次 ▲' : '看完整成績（'+ranked(ev).length+' 人）▼' }}</button>
+        </article>
+      </div>
+    </section>
 
     <!-- ===================== 總控台 ===================== -->
     <section v-if="page==='home'" class="fade-up">
@@ -392,14 +708,16 @@ html.ov-transparent body::before{ display:none; }
         </div>
         <div v-if="!fb.devices.length" class="small muted">還沒有裝置回報。</div>
       </div>
-      <div class="grid gap-3 mb-5" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
-        <button class="card kpi text-left" @click="go('score')"><div class="v num">{{ kpi.pub }}<span class="muted" style="font-size:24px">/{{ kpi.preTotal }}</span></div><div class="l">會前賽已公布</div></button>
-        <button class="card kpi text-left" @click="go('review')"><div class="v num" :style="kpi.review?'color:#6B21A8':''">{{ kpi.review }}</div><div class="l">等待審核</div></button>
-        <button class="card kpi text-left" @click="go('mc')"><div class="v num" :style="kpi.mc?'color:var(--warn)':''">{{ kpi.mc }}</div><div class="l">司儀待播報</div></button>
-        <button class="card kpi text-left" @click="go('guests')"><div class="v num">{{ kpi.guestIn }}<span class="muted" style="font-size:24px">/{{ st.guests.length }}</span></div><div class="l">來賓已報到</div></button>
-        <button class="card kpi text-left" @click="go('export')"><div class="v num">{{ allrunDone }}<span class="muted" style="font-size:24px">/{{ allrunClasses.length }}</span></div><div class="l">全員賽跑已填報</div></button>
-        <button class="card kpi text-left" @click="go('live')"><div class="v" style="font-size:26px;font-weight:900;line-height:1.2" :style="st.live.on?'color:#C8102E':''">{{ st.live.on ? '● 直播中' : '○ 未開播' }}</div><div class="l">網路直播</div></button>
-        <button class="card kpi text-left" @click="rFilter='open'; go('reports')"><div class="v num" :style="openReports.length?'color:var(--bad)':''">{{ openReports.length }}</div><div class="l">現場通報待處理</div></button>
+      <!-- 數字卡：「待處理」排前面，紅框＝有事要處理 -->
+      <div class="kpis mb-5 stagger">
+        <button :class="['card kpi text-left',{hot:openReports.length}]" @click="rFilter='open'; go('reports')"><div class="v num" :style="openReports.length?'color:var(--bad)':''">{{ openReports.length }}</div><div class="l">🚨 現場通報待處理</div></button>
+        <button :class="['card kpi text-left',{hot:kpi.review}]" @click="go('review')"><div class="v num" :style="kpi.review?'color:#6B21A8':''">{{ kpi.review }}</div><div class="l">✅ 成績等待審核</div></button>
+        <button :class="['card kpi text-left',{hot:kpi.mc}]" @click="go('mc')"><div class="v num" :style="kpi.mc?'color:var(--warn)':''">{{ kpi.mc }}</div><div class="l">🎤 司儀待播報</div></button>
+        <button class="card kpi text-left" @click="go('board')"><div class="v num">{{ st.timeline.filter(t=>t.status==='done').length }}<span class="muted" style="font-size:24px">/{{ st.timeline.length }}</span></div><div class="l">🏁 流程已完成</div></button>
+        <button class="card kpi text-left" @click="go('score')"><div class="v num">{{ kpi.pub }}<span class="muted" style="font-size:24px">/{{ kpi.preTotal }}</span></div><div class="l">🏆 會前賽已公布</div></button>
+        <button class="card kpi text-left" @click="go('guests')"><div class="v num">{{ kpi.guestIn }}<span class="muted" style="font-size:24px">/{{ st.guests.length }}</span></div><div class="l">🤝 來賓已報到</div></button>
+        <button class="card kpi text-left" @click="go('export')"><div class="v num">{{ allrunDone }}<span class="muted" style="font-size:24px">/{{ allrunClasses.length }}</span></div><div class="l">🏃 全員賽跑已填報</div></button>
+        <button class="card kpi text-left" @click="go('live')"><div class="v" style="font-size:28px;font-weight:900;line-height:1.3" :style="st.live.on?'color:#C8102E':''">{{ st.live.on ? '● 直播中' : '○ 未開播' }}</div><div class="l">📡 網路直播</div></button>
       </div>
 
       <div class="grid gap-5" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,480px),1fr))">
@@ -470,9 +788,12 @@ html.ov-transparent body::before{ display:none; }
       <div class="sky">
         <div class="board">
           <div class="b-head flex items-center justify-between gap-3 flex-wrap">
-            <div>
+            <div class="flex items-center gap-3" style="min-width:0">
+              <img v-if="logoOk" :src="LOGO" alt="楠梓國小校徽" class="logo-img" style="width:64px;height:64px" @error="logoOk=false">
+              <div style="min-width:0">
               <div class="b-label">KAOHSIUNG NANZI ELEMENTARY ・ 創校 127 週年</div>
               <div style="font-size:clamp(22px,2.6vw,34px);font-weight:900">{{ st.settings.title }}</div>
+              </div>
             </div>
             <div class="num" style="font-size:clamp(34px,4vw,56px);font-weight:800">{{ clock }}</div>
           </div>
@@ -500,13 +821,13 @@ html.ov-transparent body::before{ display:none; }
             </div>
             <div style="font-size:clamp(22px,2.4vw,32px);font-weight:900" class="mt-1">{{ boardEvent.name }}</div>
             <div class="podium" :key="boardEvent.id">
-              <div class="pod s" v-if="top(boardEvent,2)"><div class="nm">{{ top(boardEvent,2).e.name || clsLabel(top(boardEvent,2).e.cls) }}</div><div class="cl" v-if="top(boardEvent,2).e.name">{{ clsLabel(top(boardEvent,2).e.cls) }}</div><div class="mk">{{ fmtMark(boardEvent, top(boardEvent,2).e) }}</div><div class="blk">2</div></div><div v-else></div>
-              <div class="pod g" v-if="top(boardEvent,1)"><div class="nm">{{ top(boardEvent,1).e.name || clsLabel(top(boardEvent,1).e.cls) }}</div><div class="cl" v-if="top(boardEvent,1).e.name">{{ clsLabel(top(boardEvent,1).e.cls) }}</div><div class="mk">{{ fmtMark(boardEvent, top(boardEvent,1).e) }}</div><div class="blk">1</div></div><div v-else></div>
-              <div class="pod b" v-if="top(boardEvent,3)"><div class="nm">{{ top(boardEvent,3).e.name || clsLabel(top(boardEvent,3).e.cls) }}</div><div class="cl" v-if="top(boardEvent,3).e.name">{{ clsLabel(top(boardEvent,3).e.cls) }}</div><div class="mk">{{ fmtMark(boardEvent, top(boardEvent,3).e) }}</div><div class="blk">3</div></div><div v-else></div>
+              <div class="pod s" v-if="top(boardEvent,2)"><medal-icon :p="2" :size="46"></medal-icon><div class="nm">{{ pn(top(boardEvent,2).e.name) || clsLabel(top(boardEvent,2).e.cls) }}</div><div class="cl" v-if="top(boardEvent,2).e.name">{{ clsLabel(top(boardEvent,2).e.cls) }}</div><div class="mk">{{ fmtMark(boardEvent, top(boardEvent,2).e) }}</div><div class="blk">2</div></div><div v-else></div>
+              <div class="pod g" v-if="top(boardEvent,1)"><medal-icon :p="1" :size="56"></medal-icon><div class="nm">{{ pn(top(boardEvent,1).e.name) || clsLabel(top(boardEvent,1).e.cls) }}</div><div class="cl" v-if="top(boardEvent,1).e.name">{{ clsLabel(top(boardEvent,1).e.cls) }}</div><div class="mk">{{ fmtMark(boardEvent, top(boardEvent,1).e) }}</div><div class="blk">1</div></div><div v-else></div>
+              <div class="pod b" v-if="top(boardEvent,3)"><medal-icon :p="3" :size="46"></medal-icon><div class="nm">{{ pn(top(boardEvent,3).e.name) || clsLabel(top(boardEvent,3).e.cls) }}</div><div class="cl" v-if="top(boardEvent,3).e.name">{{ clsLabel(top(boardEvent,3).e.cls) }}</div><div class="mk">{{ fmtMark(boardEvent, top(boardEvent,3).e) }}</div><div class="blk">3</div></div><div v-else></div>
             </div>
             <div class="grid gap-2 mt-3" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
               <div v-for="x in ranked(boardEvent).filter(x=>x.place>=4 && x.place<=boardEvent.awardTop)" :key="x.e.id" style="background:#EEF4FA;border-radius:10px;padding:6px 10px;font-size:16px">
-                <b class="num" style="font-size:20px">{{ x.place }}</b>　{{ clsLabel(x.e.cls) }} {{ x.e.name }} <span class="num" style="color:#0B62A4">{{ fmtMark(boardEvent,x.e) }}</span>
+                <b class="num" style="font-size:20px">{{ x.place }}</b>　{{ clsLabel(x.e.cls) }} {{ pn(x.e.name) }} <span class="num" style="color:#0B62A4">{{ fmtMark(boardEvent,x.e) }}</span>
               </div>
             </div>
           </div>
@@ -520,7 +841,7 @@ html.ov-transparent body::before{ display:none; }
             <div class="b-big mt-1">{{ readyBatchObj.title }}</div>
             <div style="font-size:21px" class="mt-1">頒獎人：<b>{{ personText(presenterOf(readyBatchObj).p) }}</b><span v-if="presenterOf(readyBatchObj).sub">（代表頒獎）</span></div>
             <div class="mt-3 flex flex-col gap-1" style="font-size:17px">
-              <div v-for="g in winnerGroups(readyBatchObj)" :key="g.label"><b>{{ g.label }}｜</b><span v-for="w in g.list" :key="w.key" class="mr-3">{{ w.place }}. {{ clsLabel(w.cls) }} {{ w.name }}</span></div>
+              <div v-for="g in winnerGroups(readyBatchObj)" :key="g.label"><b>{{ g.label }}｜</b><span v-for="w in g.list" :key="w.key" class="mr-3">{{ w.place }}. {{ clsLabel(w.cls) }} {{ pn(w.name) }}</span></div>
             </div>
           </div>
 
@@ -574,7 +895,7 @@ html.ov-transparent body::before{ display:none; }
             <span class="chip st-none">{{ batchTime(c.b) }}・{{ c.b.place }}</span>
           </div>
           <div class="small mt-1">{{ c.b.title }}・頒獎人 {{ personText(presenterOf(c.b).p) }}</div>
-          <div class="mt-2">本班得獎：<b v-for="w in c.list" :key="w.key" class="mr-3">{{ w.name || clsLabel(w.cls)+'代表' }}（{{ w.ev }} 第{{ ZH[w.place] }}名）</b></div>
+          <div class="mt-2">本班得獎：<b v-for="w in c.list" :key="w.key" class="mr-3">{{ pn(w.name) || clsLabel(w.cls)+'代表' }}（{{ w.ev }} 第{{ ZH[w.place] }}名）</b></div>
         </div>
       </div>
       <div class="grid gap-4" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))">
@@ -597,8 +918,8 @@ html.ov-transparent body::before{ display:none; }
             <thead><tr><th>項目</th><th>名次</th><th>姓名</th><th>成績</th></tr></thead>
             <tbody><tr v-for="a in teacherAwards" :key="a.key">
               <td data-label="項目">{{ a.ev }}</td>
-              <td data-label="名次"><span :class="['place','p'+a.place]">{{ a.place }}</span></td>
-              <td data-label="姓名">{{ a.name || '班隊' }}</td>
+              <td data-label="名次"><medal-icon :p="a.place" :size="34"></medal-icon></td>
+              <td data-label="姓名">{{ pn(a.name) || '班隊' }}</td>
               <td data-label="成績" class="num">{{ a.mark }}</td>
             </tr></tbody>
           </table>
@@ -1053,6 +1374,10 @@ html.ov-transparent body::before{ display:none; }
     <!-- ===================== 積分與設定 ===================== -->
     <section v-if="page==='config'" class="fade-up">
       <fieldset :disabled="!can('config')">
+      <div class="card mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div style="min-width:0;flex:1 1 300px"><h2 class="h-sec">🔒 公開畫面姓名遮罩</h2><p class="small muted">開啟時，成績查詢、大會看板、看直播、直播字卡、PO 文與家長看到的畫面，學生姓名顯示為「王○明」；工作人員頁面仍是全名。</p></div>
+        <label class="flex items-center gap-2 font-bold" style="min-height:48px;cursor:pointer"><input type="checkbox" style="width:24px;height:24px" :checked="st.settings.maskNames!==false" @change="st.settings.maskNames=$event.target.checked"> {{ st.settings.maskNames!==false ? '已開啟（建議）' : '已關閉' }}</label>
+      </div>
       <div class="grid gap-4" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr))">
         <div class="card">
           <h2 class="h-sec mb-1">總錦標積分辦法</h2>
@@ -1386,7 +1711,7 @@ html.ov-transparent body::before{ display:none; }
           <div class="card"><div class="eyebrow">正在進行</div><div class="h-sec">{{ nowTl ? nowTl.title : '尚未開始' }}</div><div class="small muted" v-if="nextTl">下一項 {{ tlTime(nextTl) }}　{{ nextTl.title }}</div></div>
           <div class="card" v-if="readyBatchObj"><div class="eyebrow">頒獎進行中</div><div class="h-sec">{{ readyBatchObj.title }}</div><div class="small">頒獎人 {{ personText(presenterOf(readyBatchObj).p) }}・{{ readyBatchObj.place }}</div></div>
           <div class="card" v-if="publishedEvents[0]"><div class="eyebrow">最新成績</div><div class="font-bold">{{ publishedEvents[0].name }}</div>
-            <div v-for="x in ranked(publishedEvents[0]).filter(x=>x.place && x.place<=3)" :key="x.e.id" class="small"><span :class="['place','p'+x.place]">{{ x.place }}</span>{{ clsLabel(x.e.cls) }} {{ x.e.name }}</div></div>
+            <div v-for="x in ranked(publishedEvents[0]).filter(x=>x.place && x.place<=3)" :key="x.e.id" class="small flex items-center gap-2 mt-1"><medal-icon :p="x.place" :size="30"></medal-icon><span>{{ clsLabel(x.e.cls) }} {{ pn(x.e.name) }}</span></div></div>
         </div>
       </div>
     </section>
@@ -1490,10 +1815,10 @@ html.ov-transparent body::before{ display:none; }
   </div>
 
   <!-- 即時動態小視窗：任何頁面都能看看板重點 -->
-  <button class="dockbtn no-print" v-if="page!=='overlay' && page!=='board' && !dockOpen" @click="setDock(true)" aria-label="打開即時動態">
+  <button class="dockbtn no-print" v-if="page!=='overlay' && page!=='board' && page!=='start' && page!=='results' && !dockOpen" @click="setDock(true)" aria-label="打開即時動態">
     <span class="syncdot"></span>即時動態<span class="badge" v-if="urgentBc.length" style="background:#B42318;color:#fff">!</span>
   </button>
-  <aside class="dock no-print" v-if="dockOpen && page!=='overlay' && page!=='board'" aria-label="即時動態">
+  <aside class="dock no-print" v-if="dockOpen && page!=='overlay' && page!=='board' && page!=='start' && page!=='results'" aria-label="即時動態">
     <div class="flex items-center justify-between gap-2 mb-2">
       <b>即時動態</b><span class="small muted num">{{ clock }}</span>
       <button class="btn btn-sm" @click="setDock(false)" aria-label="關閉即時動態">收起</button>
@@ -1504,16 +1829,17 @@ html.ov-transparent body::before{ display:none; }
     <div class="dock-sec" v-if="checkinEvents.length"><div class="eyebrow">檢錄呼叫中</div><div class="small" v-for="e in checkinEvents" :key="e.id">● {{ e.name }}</div></div>
     <div class="dock-sec" v-if="readyBatchObj"><div class="eyebrow">頒獎進行中</div><b>{{ shortTitle(readyBatchObj.title) }}</b><div class="small">頒獎人 {{ personText(presenterOf(readyBatchObj).p) }}・{{ readyBatchObj.place }}</div></div>
     <div class="dock-sec" v-if="publishedEvents[0]"><div class="eyebrow">最新成績</div><b>{{ publishedEvents[0].name }}</b>
-      <div class="small" v-for="x in ranked(publishedEvents[0]).filter(x=>x.place && x.place<=3)" :key="x.e.id">{{ x.place }}. {{ clsLabel(x.e.cls) }} {{ x.e.name }} <span class="num">{{ fmtMark(publishedEvents[0],x.e) }}</span></div></div>
+      <div class="small flex items-center gap-2" v-for="x in ranked(publishedEvents[0]).filter(x=>x.place && x.place<=3)" :key="x.e.id"><medal-icon :p="x.place" :size="26"></medal-icon> {{ clsLabel(x.e.cls) }} {{ pn(x.e.name) }} <span class="num">{{ fmtMark(publishedEvents[0],x.e) }}</span></div></div>
     <div class="dock-sec"><div class="eyebrow">總錦標前三名</div>
       <div class="small" v-for="g in st.settings.scoring.grades" :key="g">{{ ZH[g] }}年級：<span v-for="(r,i) in (standings[g]||[]).slice(0,3)" :key="r.cls">{{ i+1 }}.{{ clsLabel(r.cls) }} {{ r.pts }}　</span></div></div>
     <button class="btn btn-primary w-full mt-1" @click="go('board')">開啟完整大會看板</button>
   </aside>
 
-  <!-- 手機底部快速列：你這組的頁面 -->
+  <!-- 手機底部快速列：開始＋你這組的頁面＋選單 -->
   <nav class="tabbar lg-hide no-print" aria-label="快速切換" v-if="page!=='overlay' && !(boardMode && page==='board')">
-    <button v-for="p in tabItems" :key="p.id" :class="['tab',{on:page===p.id}]" @click="go(p.id)"><span class="tab-dot" v-if="badge(p.id)">{{ badge(p.id) }}</span>{{ SHORT[p.id] || p.name }}</button>
-    <button class="tab" @click="drawer=true">☰ 全部</button>
+    <button :class="['tab',{on:page==='start'}]" @click="go('start')"><span class="ti">🏁</span>開始</button>
+    <button v-for="p in tabItems" :key="p.id" :class="['tab',{on:page===p.id}]" @click="go(p.id)"><span class="tab-dot" v-if="badge(p.id)">{{ badge(p.id) }}</span><span class="ti">{{ ICON[p.id] }}</span>{{ SHORT[p.id] || p.name }}</button>
+    <button class="tab" @click="drawer=true"><span class="ti">☰</span>選單</button>
   </nav>
 
   <!-- 通知 -->
@@ -1563,7 +1889,7 @@ const EVENT_DEFS = [
   { key:'jump',   base:'跳遠',         cat:'field', grades:[5,6],   unit:'公尺', better:'high', stage:'pre', range:[1.6,5.2] },
   { key:'soft',   base:'壘球擲遠',     cat:'field', grades:[5,6],   unit:'公尺', better:'high', stage:'pre', range:[10,55] },
   { key:'tball',  base:'樂樂棒球擲遠', cat:'field', grades:[3,4],   unit:'公尺', better:'high', stage:'pre', range:[6,38], todo:'獎勵表未列此項' },
-  { key:'m60',    base:'60公尺',       cat:'track', grades:[4,5,6], unit:'秒',   better:'low',  stage:'pre', range:[8.2,13.5] },
+  { key:'m60',    base:'60公尺',       cat:'track', grades:[3,4,5,6], unit:'秒',   better:'low',  stage:'pre', range:[8.2,13.5] },
   { key:'m100',   base:'100公尺',      cat:'track', grades:[4,5,6], unit:'秒',   better:'low',  stage:'pre', range:[13,21] },
   { key:'m200',   base:'200公尺',      cat:'track', grades:[5,6],   unit:'秒',   better:'low',  stage:'pre', range:[28,46] },
   { key:'r4',     base:'4×100公尺接力', cat:'relay', grades:[4,5,6], unit:'秒',   better:'low',  stage:'day', range:[58,95], team:true, genders:['男','女'], todo:'組數待確認' },
@@ -1590,7 +1916,7 @@ const QUICK_BC = [
 const ROLES = [
   { id:'control', name:'總控（司令台）',  pages:['home','board','mc','live'], duty:'整場主控：按流程「開始／完成」、流程延誤通知、掌握各組進度（建議由總幹事或其指定的人坐鎮司令台）' },
   { id:'record',  name:'紀錄組',          pages:['review','import','export','board','config','home'], duty:'系統管理員：審核並公布成績、匯入匯出資料、獎狀名單、上網公告；總控不在時可代為控制流程' },
-  { id:'sport',   name:'體育組・裁判組',  pages:['score','checkin','board','config'], duty:'登錄比賽成績、訂定積分辦法' },
+  { id:'sport',   name:'體育組・裁判組',  pages:['checkin','score','config','board'], duty:'登錄比賽成績、訂定積分辦法' },
   { id:'checkin', name:'檢錄組',          pages:['checkin','board'], duty:'檢錄點名、呼叫第二次檢錄' },
   { id:'mc',      name:'廣播組（司儀）',  pages:['mc','board'], duty:'照系統產生的播報稿廣播，唸完按「已播報」' },
   { id:'guest',   name:'招待組・交安組',  pages:['guests','awards','board'], duty:'來賓與頒獎人報到；有人無法出席就按「無法出席」，系統自動換備援' },
@@ -1622,28 +1948,58 @@ const PERMS = {
 const RTYPES = { equip:{ name:'器材', perm:'equipH' }, env:{ name:'環境清潔', perm:'envH' }, lunch:{ name:'午餐', perm:'lunchH' }, medic:{ name:'醫護', perm:'medic' }, site:{ name:'場地事務', perm:'siteH' }, other:{ name:'其他', perm:'flow' } };
 const PAGE_PERM = { home:'flow', checkin:'checkin', score:'score', review:'publish', mc:'mc', guests:'guest', awards:'award', live:'live', import:'data', config:'config', teacher:'allrun', reports:'report', medical:'medic', equip:'equipH', lunch:'lunchH', gifts:'gift', stations:'quest' };
 const PAGES = [
-  { id:'home', name:'總控台' }, { id:'board', name:'大會看板' }, { id:'teacher', name:'導師查詢' },
+  { id:'start', name:'今天要做的事' }, { id:'home', name:'總控台' }, { id:'board', name:'大會看板' }, { id:'results', name:'成績查詢' }, { id:'teacher', name:'導師查詢' },
   { id:'checkin', name:'檢錄' }, { id:'score', name:'成績登錄' }, { id:'review', name:'審核公布' },
   { id:'mc', name:'司儀台' }, { id:'guests', name:'來賓・頒獎人' }, { id:'watch', name:'看直播' }, { id:'awards', name:'頒獎梯次' }, { id:'live', name:'直播' },
   { id:'export', name:'獎狀與公告' }, { id:'import', name:'資料匯入' }, { id:'config', name:'積分與設定' },
   { id:'reports', name:'現場通報' }, { id:'medical', name:'醫護站' }, { id:'equip', name:'器材配送' }, { id:'lunch', name:'午餐' }, { id:'gifts', name:'收禮芳名錄' }, { id:'stations', name:'體育闖關' },
   { id:'feedback', name:'意見回饋' }, { id:'overlay', name:'直播疊字畫面' },
 ];
-/* 選單分組：依「比賽怎麼進行」排列 */
+/* 選單分組：依「比賽怎麼進行」排列（左側選單「其他頁面」用） */
 const PAGE_GROUPS = [
   { name:'主控', pages:['home'] },
   { name:'比賽進行', pages:['checkin','score','review'] },
-  { name:'現場通報', pages:['mc','guests','awards','live'] },
-  { name:'公開查詢', pages:['board','watch','teacher'] },
+  { name:'典禮與廣播', pages:['mc','guests','awards','live'] },
+  { name:'公開查詢', pages:['board','results','watch','teacher'] },
   { name:'後勤支援', pages:['reports','medical','equip','lunch','gifts','stations'] },
   { name:'資料管理', pages:['import','export','config','feedback'] },
 ];
+/* ▶ 接手的老師：選單要改順序、圖示、說明，都在下面這幾個表 */
+/* 每頁的圖示（選單、頁首、首頁卡片共用） */
+const ICON = { start:'🏁', results:'🏆', home:'🎛️', board:'📺', teacher:'🧑‍🏫', checkin:'📋', score:'⏱️', review:'✅', mc:'🎤', guests:'🤝', watch:'🎥', awards:'🏅', live:'📡',
+  export:'🖨️', import:'📥', config:'⚙️', reports:'🚨', medical:'🩹', equip:'📦', lunch:'🍱', gifts:'🎁', stations:'🎯', feedback:'💬', overlay:'🖥️' };
+/* 左側選單「我的工作」每項底下的一行小字（越短越好） */
+const SDESC = { results:'各項目完整成績', home:'按流程開始／完成', board:'投影到大螢幕', teacher:'本班出賽與得獎', checkin:'點名到／缺', score:'輸入成績自動排名', review:'確認後公布成績',
+  mc:'照稿播報', guests:'來賓報到', watch:'手機看直播', awards:'頒獎人與集合', live:'開播與 QR Code', export:'獎狀名單與公告', import:'Excel 貼上匯入',
+  config:'積分辦法與班級', reports:'處理現場通報', medical:'傷病登記', equip:'器材送達確認', lunch:'各班領餐', gifts:'捐贈登記', stations:'各站即時狀態', feedback:'告訴我們哪裡要改' };
+/* 首頁卡片上的按鈕文字：寫清楚要做的動作 */
+const VERB = { results:'查成績', home:'開始控場', board:'打開看板', teacher:'查本班', checkin:'開始點名', score:'登錄成績', review:'去審核', mc:'看播報稿', guests:'來賓報到',
+  watch:'看直播', awards:'安排頒獎', live:'設定直播', export:'下載名單', import:'匯入資料', config:'修改設定', reports:'看通報', medical:'登記傷病',
+  equip:'確認器材', lunch:'領餐登記', gifts:'登記捐贈', stations:'更新站點', feedback:'寫建議' };
+/* 首頁「現場有狀況？」按鈕圖示 */
+const RICON = { equip:'📦', env:'🧹', lunch:'🍱', medic:'🩹', site:'🏫', other:'❓' };
+/* 首頁「分享給家長、同事」可選的頁面 */
+const SHARE_OPTS = [ { id:'results', name:'成績查詢' }, { id:'board', name:'大會看板' }, { id:'watch', name:'看直播' }, { id:'start', name:'首頁' } ];
+/* 身分選單分類 */
+const ROLE_CATS = [
+  { name:'主控', ids:['control','record'] },
+  { name:'比賽', ids:['sport','checkin','mc'] },
+  { name:'典禮', ids:['ceremony','guest','award','live','doc','promo','gift'] },
+  { name:'後勤', ids:['equip','medic','lunch','env','quest','affairs'] },
+  { name:'其他', ids:['teacher','public'] },
+];
+/* 「大家都會用」的頁面（不在自己工作裡時才出現） */
+const COMMON = ['results','board','watch','reports'];
+/* 校徽圖檔：在 config.js 設定 SCHOOL_LOGO；找不到圖檔時自動顯示「楠」字圓章 */
+const LOGO = window.SCHOOL_LOGO || 'logo.svg';
 /* 成績登錄範本（含下拉選單的 Excel 檔，以 base64 內嵌；要更新範本請重新產生這一行） */
 const TEMPLATE_XLSX = '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';
-const SHORT = { reports:'通報', medical:'醫護', equip:'器材', lunch:'午餐', gifts:'芳名錄', stations:'闖關', watch:'看直播', export:'獎狀公告', config:'設定', import:'匯入', teacher:'導師', board:'看板', checkin:'檢錄', score:'登錄成績', review:'審核', guests:'來賓', awards:'頒獎', home:'總控台', mc:'司儀台', live:'直播' };
+const SHORT = { start:'開始', results:'成績', reports:'通報', medical:'醫護', equip:'器材', lunch:'午餐', gifts:'芳名錄', stations:'闖關', watch:'看直播', export:'獎狀公告', config:'設定', import:'匯入', teacher:'導師', board:'看板', checkin:'檢錄', score:'登錄成績', review:'審核', guests:'來賓', awards:'頒獎', home:'總控台', mc:'司儀台', live:'直播' };
 const OV_BG = [ {id:'green',name:'綠幕（去背用）',css:'#00B140'}, {id:'navy',name:'深藍',css:'#08304B'}, {id:'none',name:'透明',css:'transparent'} ];
 const OV_MODES = [ {id:'award',name:'頒獎進行中'}, {id:'result',name:'最新成績'}, {id:'flow',name:'目前流程'}, {id:'stand',name:'總錦標積分'} ];
 const TASK_DESC = {
+  start:'即時現況與你這組今天要做的事。',
+  results:'所有已公布的正式成績，可依年級篩選、輸入班級查詢。',
   review:'裁判送來的成績確認無誤後按「公布」，全部畫面同步更新。',
   import:'會前賽成績、選手名單、來賓名單，從 Excel 貼上就能匯入。',
   export:'自動產生獎狀名單、獎品數量、成績總表、校網公告與 PO 文。',
@@ -1721,19 +2077,25 @@ function parseCls(raw, grade){
 }
 
 /* ---------- 範例資料（體驗用；正式版改由匯入或試算表提供） ---------- */
+/* 建立一個比賽項目（例：五年級女生 壘球擲遠）；seed 和資料匯入共用 */
+function makeEvent(d,g,gd,order){
+  const name=ZH[g]+'年級'+(gd==='男'?'男生':gd==='女'?'女生':'')+' '+d.base;
+  return { id:d.key+'-'+g+'-'+(gd==='男'?'M':gd==='女'?'F':'X'), name, base:d.base, cat:d.cat, grade:g, gender:gd, unit:d.unit, better:d.better,
+    stage:d.stage, team:!!d.team, range:d.range||null, awardTop:6, status:'none', entries:[], publishedAt:'', todo:d.todo||'', order, scoreMode:'default', customPoints:[] };
+}
+/* 成績代碼：NM＝無有效成績、DNS＝未出賽、DNF＝未跑完、DQ＝犯規（都不排名次） */
+const MARK_CODES = ['NM','DNS','DNF','DQ'];
 function seed(){
   const R=rng(127);
   const pick=a=>a[Math.floor(R()*a.length)];
   const nm=g=>pick(SUR)+pick(g==='女'?GIRL:BOY)+pick(g==='女'?GIRL:BOY);
-  const settings={ title:'創校127週年校慶運動會', date:'2026-12-05', classes:{1:12,2:12,3:12,4:11,5:12,6:12}, kg:3, angel:1, maxPerStudent:2,
+  const settings={ title:'創校127週年校慶運動會', date:'2026-12-05', classes:{1:12,2:12,3:12,4:12,5:12,6:12}, kg:3, angel:1, maxPerStudent:2,
     scoring:{ points:[7,5,4,3,2,1], relayMult:2, grades:[5,6], champTop:3, countInd:true, countRelay:true } };
   const events=[]; let order=0;
   EVENT_DEFS.forEach(d=>{
     d.grades.forEach(g=>{
       (d.genders||['男','女']).forEach(gd=>{
-        const name=ZH[g]+'年級'+(gd==='男'?'男生':gd==='女'?'女生':'')+' '+d.base;
-        const ev={ id:d.key+'-'+g+'-'+(gd==='男'?'M':gd==='女'?'F':'X'), name, base:d.base, cat:d.cat, grade:g, gender:gd, unit:d.unit, better:d.better,
-          stage:d.stage, team:!!d.team, range:d.range||null, awardTop:6, status:'none', entries:[], publishedAt:'', todo:d.todo||'', order:order++ };
+        const ev=makeEvent(d,g,gd,order++);
         const n=settings.classes[g];
         for(let c=1;c<=n;c++){
           if(ev.team) ev.entries.push({ id:uid(), cls:clsId(g,c), name:'', mark:'', place:'', dq:false, present:null });
@@ -1852,7 +2214,9 @@ createApp({
     const role = ref(FORMAL ? 'public' : (()=>{ let r='record'; try{ r=localStorage.getItem(KEY+'-role')||'record'; }catch(e){} return ROLES.some(x=>x.id===r) ? r : 'record'; })());
     const drawer = ref(false);
     const navMode = ref(['control','record'].includes(role.value) ? 'all' : 'mine');
-    const page = ref('home');
+    const page = ref('start');   // 打開網站先看到「今天要做的事」
+    const logoOk = ref(true);
+    const otherOpen = ref(['control','record'].includes(role.value));
     const helpOpen = ref(false);
     const boardMode = ref(false);
     const clock = ref(hhmm());
@@ -1904,7 +2268,7 @@ createApp({
       }catch(e){}
     }
     window.addEventListener('storage', e=>{ if(!FORMAL && e.key===KEY && e.newValue){ try{ applying=true; st.value=migrate(JSON.parse(e.newValue)); nextTick(()=>{ applying=false; }); }catch(err){ applying=false; } } });
-    watch(role, v=>{ try{ localStorage.setItem(KEY+'-role', v); }catch(e){} navMode.value=['control','record'].includes(v)?'all':'mine'; if(!FORMAL && !roleObj.value.pages.includes(page.value) && page.value!=='feedback') go(roleObj.value.pages[0]); });
+    watch(role, v=>{ try{ localStorage.setItem(KEY+'-role', v); }catch(e){} navMode.value=['control','record'].includes(v)?'all':'mine'; otherOpen.value=['control','record'].includes(v) || (FORMAL && fb.admin); if(!FORMAL && page.value!=='feedback' && page.value!=='start' && !roleObj.value.pages.includes(page.value)) go('start'); });
 
     /* ----- 頁面切換（網址 #名稱，可直接分享某一頁） ----- */
     const validPage = p => PAGES.some(x=>x.id===p);
@@ -1922,7 +2286,68 @@ createApp({
     const pageObj = computed(()=>PAGES.find(p=>p.id===page.value)||PAGES[0]);
     const pageGroupName = computed(()=>{ const g=PAGE_GROUPS.find(g=>g.pages.includes(page.value)); return g ? g.name : '直播'; });
     const navGroups = computed(()=>PAGE_GROUPS.map(g=>({ name:g.name, pages:g.pages.filter(id=>navMode.value==='all' || roleObj.value.pages.includes(id) || id==='feedback').map(id=>PAGES.find(p=>p.id===id)) })).filter(g=>g.pages.length));
-    const tabItems = computed(()=>roleObj.value.pages.filter(id=>id!=='overlay').slice(0,4).map(id=>PAGES.find(p=>p.id===id)));
+    /* 左側選單：我的工作＝這組的頁面（照 ROLES 裡的順序）；大家都會用＝看板、直播、通報；其餘收在「其他頁面」 */
+    const pg = id => PAGES.find(p=>p.id===id);
+    const myWork = computed(()=>roleObj.value.pages.filter(id=>!['board','watch','results','overlay'].includes(id)).map(pg));
+    const commonPages = computed(()=>COMMON.filter(id=>!myWork.value.some(p=>p.id===id) && (id!=='reports' || can('report'))).map(pg));
+    const otherGroups = computed(()=>{ const used=new Set([...myWork.value, ...commonPages.value].map(p=>p.id)); used.add('feedback');
+      return PAGE_GROUPS.map(g=>({ name:g.name, pages:g.pages.filter(id=>!used.has(id)).map(pg) })).filter(g=>g.pages.length); });
+    const otherCount = computed(()=>otherGroups.value.reduce((n,g)=>n+g.pages.length,0));
+    const tabItems = computed(()=>[...myWork.value, ...commonPages.value].slice(0,3));
+    const roleName = id => (ROLES.find(r=>r.id===id)||{}).name || id;
+    const isPublicView = computed(()=>FORMAL ? !fb.user : role.value==='public');
+    const whoName = computed(()=>FORMAL && !fb.user ? '家長・觀眾' : roleObj.value.name);
+    /* 個資保護：公開畫面的學生姓名顯示成「黃○瑄」（一般成績公告的慣例）
+       ・家長觀眾（未登入）看到的每一頁、大會看板（會投影）、看直播、直播疊字、PO 文 → 一律遮罩
+       ・工作人員、導師登入後在自己的頁面看到全名
+       ・紀錄組可在「積分與設定」關掉 */
+    const maskOn = computed(()=>st.value.settings.maskNames!==false && (isPublicView.value || ['board','watch','results','overlay'].includes(page.value)));
+    function maskName(n){ n=String(n||''); if(!n || /[O○〇Ｏ]/.test(n) || n.length<2) return n; return n[0]+'○'+n.slice(2); }
+    function pn(n){ return maskOn.value ? maskName(n) : n; }
+    /* 成績查詢 */
+    const RES_GRADES=[{id:'all',name:'全部'},{id:3,name:'三年級'},{id:4,name:'四年級'},{id:5,name:'五年級'},{id:6,name:'六年級'}];
+    const resGrade=ref('all'), resQ=ref(''), resOpen=reactive({});
+    const qNorm=q=>String(q||'').replace(/\s|[-－]/g,'');
+    function resHit(e){ const q=qNorm(resQ.value); if(!q) return false; const c=String(e.cls||''); return [c.replace('-',''), c.replace('-0','').replace('-',''), clsLabel(c)].some(k=>k && k.includes(q)); }
+    const resultsShown=computed(()=>{ const q=qNorm(resQ.value);
+      return publishedEvents.value.filter(ev=>(resGrade.value==='all' || ev.grade===resGrade.value) && (!q || qNorm(ev.name).includes(q) || ev.entries.some(resHit)))
+        .slice().sort((a,b)=>a.grade-b.grade || a.order-b.order); });
+    function resRows(ev){ const all=ranked(ev); if(resOpen[ev.id]) return all; return all.filter(x=>(x.place && x.place<=ev.awardTop) || resHit(x.e)); }
+    function pnAlways(n){ return st.value.settings.maskNames!==false ? maskName(n) : n; }
+    /* 首頁卡片：工作人員＝我的工作（不足 3 張用常用頁面補）；家長觀眾＝看板、直播、闖關站 */
+    const startCards = computed(()=>{
+      if(isPublicView.value) return ['results','board','watch','stations'].map(pg);
+      const w=myWork.value; return w.length ? [...w, ...commonPages.value.slice(0, Math.max(0,3-w.length))] : commonPages.value;
+    });
+    /* 首頁卡片上的即時狀態（一句話） */
+    function statusText(id){
+      const n=badge(id);
+      switch(id){
+        case 'checkin': return n ? n+' 個項目等待檢錄' : '✔ 目前沒有要檢錄的項目';
+        case 'review': return n ? n+' 組成績等待審核' : '✔ 都審完了';
+        case 'mc': return n ? n+' 則等待播報' : '✔ 目前沒有待播報';
+        case 'guests': return n ? '還有 '+n+' 位未報到' : '✔ 全部報到了';
+        case 'reports': return n ? n+' 則通報等你處理' : '✔ 沒有待處理的通報';
+        case 'equip': return n ? n+' 項器材待送' : '✔ 近期器材都送達了';
+        case 'lunch': return lunchMissing.value.length ? '還有 '+lunchMissing.value.length+' 班未領餐' : '✔ 各班都領了';
+        case 'teacher': return st.value.allrun[tCls.value] ? '✔ '+clsLabel(tCls.value)+' 全員賽跑已填報' : '○ '+clsLabel(tCls.value)+' 全員賽跑名單還沒填';
+        case 'home': return nowTl.value ? '▶ 進行中：'+nowTl.value.title : '○ 流程尚未開始';
+        case 'live': case 'watch': return st.value.live.on ? '● 直播中' : '○ 尚未開播';
+        case 'results': return publishedEvents.value.length ? '已公布 '+publishedEvents.value.length+' 個項目' : '○ 還沒有公布的成績';
+        case 'stations': return st.value.stations.length ? st.value.stations.filter(x=>x.status==='open').length+' 站開放中' : '';
+        default: return '';
+      }
+    }
+    /* 分享：手機用系統分享，電腦就複製連結 */
+    const shareTarget = ref('results');
+    const baseUrl = () => { try{ return location.href.split('#')[0]; }catch(e){ return ''; } };
+    const shareUrl = computed(()=>baseUrl()+'#'+shareTarget.value);
+    async function sharePage(id){ const url=baseUrl()+'#'+id, title=st.value.settings.title+'・'+((pg(id)||{}).name||'');
+      if(navigator.share){ try{ await navigator.share({ title, text:title, url }); return; }catch(e){ if(e && e.name==='AbortError') return; } }
+      copy(url); }
+    const moreEl = ref(null);
+    function closeMore(){ if(moreEl.value) moreEl.value.open=false; }
+    document.addEventListener('click', e=>{ const m=moreEl.value; if(m && m.open && !m.contains(e.target)) m.open=false; });
     /* 權限：can＝這個身分能不能做；need＝不能做時跳出說明 */
     function can(a){ if(FORMAL && fb.admin) return true; /* 系統管理員全部可操作 */ const list=PERMS[a]||[]; if(FORMAL && fb.myRoles.length) return fb.myRoles.some(r=>list.includes(r)); return list.includes(role.value); }
     function whoCan(a){ return (PERMS[a]||[]).map(id=>(ROLES.find(r=>r.id===id)||{}).name).join('、'); }
@@ -1952,7 +2377,7 @@ createApp({
       return list.sort((a,b)=>(a.place||999)-(b.place||999));
     }
     function top(ev,p){ return ranked(ev).find(x=>x.place===p) || null; }
-    function fmtMark(ev,e){ if(ev.better==='place' || e.mark==='' || e.mark==null) return ''; const v=parseFloat(e.mark); if(isNaN(v)) return e.mark; return v.toFixed(2)+(ev.unit==='秒'?'″':' m'); }
+    function fmtMark(ev,e){ if(e.code) return e.code; if(ev.better==='place' || e.mark==='' || e.mark==null) return ''; const v=parseFloat(e.mark); if(isNaN(v)) return e.mark; return v.toFixed(2)+(ev.unit==='秒'?'″':' m'); }
     const isPub = e => e.status==='published' || e.status==='awarded';
     /* 每一組的名次得分：自訂 > 不計分 > 通用（通用＝積分辦法×接力倍數，並依「列入積分的項目」勾選） */
     function eventPoints(ev){
@@ -2201,7 +2626,7 @@ createApp({
     const postScope = ref('champ');
     function postEvents(){ if(postScope.value==='latest') return publishedEvents.value.slice(0,5); if(postScope.value==='champ') return []; const e=st.value.events.find(x=>x.id===postScope.value); return e?[e]:[]; }
     function champLines(medal){ const sc=st.value.settings.scoring; return sc.grades.map(g=>ZH[g]+'年級：'+(standings.value[g]||[]).slice(0,sc.champTop).map((r,i)=>(medal?['🥇','🥈','🥉'][i]||'':'第'+ZH[i+1]+'名 ')+clsLabel(r.cls)+'（'+r.pts+'分）').join(medal?' ':'、')).join('\n'); }
-    function evLines(ev,medal){ return ev.name+'\n'+ranked(ev).filter(x=>x.place && x.place<=ev.awardTop).map(x=>(medal?(['🥇','🥈','🥉'][x.place-1]||'🏅'):'第'+ZH[x.place]+'名 ')+clsLabel(x.e.cls)+' '+(x.e.name||'')+(fmtMark(ev,x.e)?'　'+fmtMark(ev,x.e).replace('″',' 秒').replace(' m',' 公尺'):'')).join('\n'); }
+    function evLines(ev,medal){ return ev.name+'\n'+ranked(ev).filter(x=>x.place && x.place<=ev.awardTop).map(x=>(medal?(['🥇','🥈','🥉'][x.place-1]||'🏅'):'第'+ZH[x.place]+'名 ')+clsLabel(x.e.cls)+' '+pnAlways(x.e.name||'')+(fmtMark(ev,x.e)?'　'+fmtMark(ev,x.e).replace('″',' 秒').replace(' m',' 公尺'):'')).join('\n'); }
     const postWeb = computed(()=>{ const s=st.value.settings; const head='【成績公告】楠梓國小'+s.title+'\n'; if(postScope.value==='champ') return head+'總錦標積分（統計至 '+hhmm()+'）如下：\n'+champLines(false)+'\n\n感謝全體師生、家長與社區的參與，恭喜以上班級！\n學務處體育組・教務處紀錄組 敬啟'; return head+postEvents().map(e=>evLines(e,false)).join('\n\n')+'\n\n恭喜以上得獎同學！完整成績請見學校網站。\n學務處體育組・教務處紀錄組 敬啟'; });
     const postSocial = computed(()=>{ const s=st.value.settings; const head='🏃‍♀️🏃 楠梓國小 '+s.title+'｜活力躍動 魅力楠梓\n\n'; const tail='\n\n為所有努力奔跑的孩子們喝采👏\n#楠梓國小 #校慶運動會 #活力躍動魅力楠梓'; if(postScope.value==='champ') return head+'🏆 總錦標積分排行\n'+champLines(true)+tail; return head+postEvents().map(e=>'🏅 '+evLines(e,true)).join('\n\n')+tail; });
     const remindText = computed(()=>'各位導師好：\n全員賽跑得獎名單尚未填報的班級如下，請於今日內至運動會系統「導師查詢」填報，謝謝！\n'+allrunMissing.value.map(clsLabel).join('、')+'\n——紀錄組');
@@ -2234,10 +2659,13 @@ createApp({
         const cls=parseCls(cl,g); if(!cls || +cls.split('-')[0]!==g){ row.msg='班級「'+cl+'」看不懂或年級不符'; return row; }
         if(+cls.split('-')[1]>(st.value.settings.classes[g]||0)){ row.msg=clsLabel(cls)+' 超過班級數'; return row; }
         if(!def.team && !nm){ row.msg='個人項目要填姓名'; return row; }
-        if(mk!=='' && isNaN(parseFloat(mk))){ row.msg='成績「'+mk+'」不是數字'; return row; }
-        if(pl!=='' && !parseInt(pl)){ row.msg='名次「'+pl+'」不是數字'; return row; }
+        const codeOf=v=>{ const u=String(v).toUpperCase().replace(/\s/g,''); return MARK_CODES.includes(u)?u:''; };
+        const code=codeOf(mk)||codeOf(pl)||(def.unit==='秒' && parseFloat(mk)>=99?'DNS':''); // 99.99 是學校表單「未出賽」的寫法
+        if(!code && mk!=='' && isNaN(parseFloat(mk))){ row.msg='成績「'+mk+'」不是數字（沒成績請寫 NM、DNS）'; return row; }
+        if(!code && pl!=='' && !parseInt(pl)){ row.msg='名次「'+pl+'」不是數字'; return row; }
         const evId=def.key+'-'+g+'-'+(gender==='男'?'M':gender==='女'?'F':'X'); const ev=st.value.events.find(e=>e.id===evId);
-        row.ok=true; row.target=ev.name; row.data={ evId, cls, name:nm, mark:mk, place:pl }; return row;
+        const evName=ev ? ev.name : makeEvent(def,g,gender,0).name+'（新增項目）';
+        row.ok=true; row.target=evName+(code?'・'+code:''); row.data={ evId, def:def.key, g, gender, cls, name:nm, mark:code?'':mk, place:code?'':pl, code }; return row;
       });
     }
     function parseImport(){ analyze(rowsFromText(imRaw.value)); }
@@ -2253,12 +2681,14 @@ createApp({
       if(imType.value==='guests'){ imOk.value.forEach((r,i)=>st.value.guests.push({ id:'g'+uid(), kind:r.data.kind, org:r.data.org, name:r.data.name, title:r.data.title, arrived:false, arrivedAt:'', introduced:r.data.kind==='校內', absent:false, ord:Date.now()+i })); log('匯入來賓 '+imOk.value.length+' 位'); toast('已匯入 '+imOk.value.length+' 位來賓'); imRows.value=[]; imRaw.value=''; return; }
       const byEv={}; imOk.value.forEach(r=>(byEv[r.data.evId]=byEv[r.data.evId]||[]).push(r.data));
       Object.entries(byEv).forEach(([id,list])=>{
-        const ev=st.value.events.find(e=>e.id===id); if(!ev) return;
+        let ev=st.value.events.find(e=>e.id===id);
+        if(!ev){ const d0=list[0], def=EVENT_DEFS.find(d=>d.key===d0.def); ev=makeEvent(def,d0.g,d0.gender,st.value.events.length); st.value.events.push(ev); } // 例如三年級 60 公尺：系統原本沒有就自動建立
         if(imMode.value==='replace') ev.entries=[];
-        list.forEach(d=>{ let x=ev.entries.find(e=>e.cls===d.cls && (ev.team || e.name===d.name)); if(!x){ x={ id:uid(), cls:d.cls, name:d.name, mark:'', place:'', dq:false, present:null }; ev.entries.push(x); } x.name=d.name||x.name; if(d.mark!=='') x.mark=d.mark; if(d.place!=='') x.place=parseInt(d.place); });
+        list.forEach(d=>{ let x=ev.entries.find(e=>e.cls===d.cls && (ev.team || e.name===d.name)); if(!x){ x={ id:uid(), cls:d.cls, name:d.name, mark:'', place:'', dq:false, present:null }; ev.entries.push(x); } x.name=d.name||x.name; if(d.mark!=='') x.mark=d.mark; if(d.place!=='') x.place=parseInt(d.place); x.code=d.code||''; x.dq=!!d.code; if(d.code){ x.mark=''; x.place=''; } });
         ev.entries.sort((a,b)=>a.cls.localeCompare(b.cls));
         if(imAfter.value==='published'){ ev.status='published'; ev.ts=Date.now(); ev.publishedAt=(new Date().getMonth()+1)+'/'+pad(new Date().getDate())+' '+hhmm(); }
         else if(imAfter.value==='review') ev.status='review';
+        else if(!ev.entries.some(x=>x.mark!=='' || x.code)){ ev.status='none'; ev.publishedAt=''; } // 只有名單、還沒成績：不要出現在公開成績
       });
       log('匯入成績 '+imOk.value.length+' 筆（'+Object.keys(byEv).length+' 組）'); toast('已匯入 '+imOk.value.length+' 筆，共 '+Object.keys(byEv).length+' 組'+(imAfter.value==='review'?'，請到「審核公布」確認':''));
       imRows.value=[]; imRaw.value='';
@@ -2388,7 +2818,7 @@ createApp({
       const modes = st.value.live.overlayModes.length ? st.value.live.overlayModes : ['flow'];
       const m = modes[ovIdx.value % modes.length];
       if(m==='award' && readyBatchObj.value){ const b=readyBatchObj.value, r=presenterOf(b); return { key:'a'+b.id, tag:'頒獎進行中', title:b.title, line:'頒獎人 '+personText(r.p)+'｜集合地點 '+b.place }; }
-      if(m==='result'){ const ev=publishedEvents.value[0]; if(ev) return { key:'r'+ev.id, tag:'最新成績', title:ev.name, line:ranked(ev).filter(x=>x.place && x.place<=3).map(x=>'第'+ZH[x.place]+'名 '+clsLabel(x.e.cls)+(x.e.name?' '+x.e.name:'')+(fmtMark(ev,x.e)?' '+fmtMark(ev,x.e):'')).join('　') }; }
+      if(m==='result'){ const ev=publishedEvents.value[0]; if(ev) return { key:'r'+ev.id, tag:'最新成績', title:ev.name, line:ranked(ev).filter(x=>x.place && x.place<=3).map(x=>'第'+ZH[x.place]+'名 '+clsLabel(x.e.cls)+(x.e.name?' '+pnAlways(x.e.name):'')+(fmtMark(ev,x.e)?' '+fmtMark(ev,x.e):'')).join('　') }; }
       if(m==='stand'){ const sc=st.value.settings.scoring; return { key:'s', tag:'總錦標積分', title:sc.grades.map(g=>ZH[g]).join('、')+'年級 即時排行', line:sc.grades.map(g=>ZH[g]+'年級 '+(standings.value[g]||[]).slice(0,3).map((r,i)=>(i+1)+'.'+clsLabel(r.cls)+' '+r.pts+'分').join('　')).join('｜') }; }
       return { key:'f'+(nowTl.value?nowTl.value.id:''), tag:'大會進行中', title: nowTl.value ? nowTl.value.title : '運動會即將開始', line: nextTl.value ? '下一項 '+tlTime(nextTl.value)+'　'+nextTl.value.title : '感謝收看' };
     });
@@ -2399,12 +2829,12 @@ createApp({
     watch(()=>[page.value, st.value.live.overlayBg], ()=>{ document.documentElement.classList.toggle('ov-transparent', page.value==='overlay' && st.value.live.overlayBg==='none'); }, { immediate:true });
     /* QR Code：畫在每個 .qr-slot 裡（看板、直播頁） */
     function renderQR(){ nextTick(()=>{ document.querySelectorAll('.qr-slot').forEach(el=>{
-      const url=st.value.live.url; if(el.dataset.done===url) return; el.textContent='';
+      const url=el.dataset.url || st.value.live.url; if(!url){ el.textContent=''; return; } if(el.dataset.done===url) return; el.textContent='';
       if(!window.QRCode){ el.textContent='（QR Code 元件未載入）'; return; }
       const sz=+el.dataset.size||200;
       try{ new QRCode(el,{ text:url, width:sz, height:sz, correctLevel:QRCode.CorrectLevel.M }); el.dataset.done=url; }catch(e){ el.textContent='（網址太長，無法產生 QR Code）'; }
     }); }); }
-    watch(()=>[page.value, st.value.live.url, st.value.live.on, boardMode.value], renderQR);
+    watch(()=>[page.value, st.value.live.url, st.value.live.on, boardMode.value, shareTarget.value], renderQR);
 
     /* =====================================================================
        正式版即時同步（Firebase Firestore）
@@ -2594,7 +3024,8 @@ createApp({
     onMounted(()=>{ readHash(); loadDraft(); syncLiveDraft(); renderQR(); if(FORMAL) fbInit(); else initCloud(); });
 
     return { st, role, page, helpOpen, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
-      SHORT, drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, undoTl, unarrive, undoBatch, downloadTemplate,
+      SHORT, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
+      drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
       roleObj, myPages, navPages, myTasks, dateLabel, go, badge, kpi, ask, modalOk, clsLabel,
       ranked, top, fmtMark, standings, barW, classPts, classRank, preEvents, dayEvents, reviewEvents, publishedEvents, latestPublished, checkinEvents,
@@ -2615,6 +3046,21 @@ createApp({
       copy, copyTable, downloadXlsx, setPreset, resetDemo, clearMarks,
       fbk, fbTried, fbText, sendFeedback, boardIdx, boardEvent, tickerText, toggleBoardMode, fullscreen };
   }
+})
+/* <medal-icon :p="名次" :size="大小"></medal-icon>：第 1～3 名畫成金、銀、銅獎牌，其他名次是圓形號碼 */
+.component('medal-icon', {
+  props:{ p:{ default:null }, size:{ default:38 } },
+  template:`<span v-if="p>=1 && p<=3" :class="['medal-svg','mm'+p]" :style="{width:size*0.84+'px',height:size+'px'}" role="img" :aria-label="['','金牌','銀牌','銅牌'][p]+'・第'+p+'名'">
+    <svg viewBox="0 0 40 48" width="100%" height="100%">
+      <polygon class="rb1" points="7,0 17,0 23,19 13,19"/><polygon class="rb2" points="23,0 33,0 27,19 17,19"/>
+      <polygon points="15,0 17,0 23,19 21,19" fill="rgba(255,255,255,.35)"/>
+      <circle cx="20" cy="31" r="15.5" :fill="'url(#mg'+p+')'" class="rim"/>
+      <circle cx="20" cy="31" r="11.5" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="1.2" stroke-dasharray="2 1.6"/>
+      <g clip-path="url(#mclip)"><rect class="shine" x="-14" y="10" width="7" height="42" fill="rgba(255,255,255,.75)" transform="rotate(20 20 31)"/></g>
+      <ellipse cx="14.5" cy="24.5" rx="5" ry="2.6" fill="rgba(255,255,255,.55)" transform="rotate(-30 14.5 24.5)"/>
+      <text x="20" y="36.2" text-anchor="middle" class="mnum">{{ p }}</text>
+    </svg></span>
+  <span v-else class="medal" :style="{width:size*0.84+'px',height:size*0.84+'px'}">{{ p || '—' }}</span>`
 }).mount('#app');
 </script>
 
