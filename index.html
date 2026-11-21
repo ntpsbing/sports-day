@@ -443,7 +443,7 @@ html.ov-transparent body::before{ display:none; }
   <!-- ======== 頂欄：校徽＋名稱（點了回首頁）、身分、直播、登入 ======== -->
   <header class="topbar no-print">
     <div class="topin">
-      <button class="menubtn lg-hide" @click="drawer=true" aria-label="開啟選單"><span aria-hidden="true" style="font-size:22px">☰</span></button>
+      <button v-if="!(FORMAL && !fb.user)" class="menubtn lg-hide" @click="drawer=true" aria-label="開啟選單"><span aria-hidden="true" style="font-size:22px">☰</span></button>
       <button class="brand" @click="go(homePage)" title="回到首頁">
         <img v-if="logoOk" :src="LOGO" alt="楠梓國小校徽" class="logo-img" @error="logoOk=false">
         <span v-else class="logo" aria-hidden="true">楠</span>
@@ -452,9 +452,9 @@ html.ov-transparent body::before{ display:none; }
           <span class="t2"><span class="t2-x">運動會<span class="sm-hide">即時</span>通報<span class="sm-hide">系統</span></span><span class="demo-chip sm-hide" v-if="!FORMAL">體驗版</span></span>
         </span>
       </button>
-      <button class="topwho lg-hide" @click="drawer=true" :title="'我的身分：'+whoName">{{ whoName }}</button>
+      <button v-if="!(FORMAL && !fb.user)" class="topwho lg-hide" @click="drawer=true" :title="'我的身分：'+whoName">{{ whoName }}</button>
       <button :class="[st.live.on ? 'livebtn' : 'menubtn','sm-hide']" @click="go('watch')">{{ st.live.on ? '● 看直播' : '🎥 看直播' }}</button>
-      <button v-if="FORMAL && !fb.user" class="menubtn sm-hide" style="background:#fff;color:#0E4D8C" @click="signIn">工作人員登入</button>
+      <button v-if="FORMAL && !fb.user" class="menubtn" style="background:#fff;color:#0E4D8C" @click="signIn">🔑 學校人員登入</button>
       <button v-if="FORMAL && fb.user" class="menubtn sm-hide" @click="signOut" :title="fb.email">登出</button>
     </div>
   </header>
@@ -466,7 +466,7 @@ html.ov-transparent body::before{ display:none; }
          由上往下：我是誰 → 今天要做的事 → 我的工作（照做事順序編號）→ 大家都會用 → 其他頁面（收合） -->
     <aside :class="['side no-print',{open:drawer}]" aria-label="頁面選單">
       <div class="drawer-close lg-hide"><button class="btn btn-sm" @click="drawer=false">✕ 關閉選單</button></div>
-      <div class="whoami">
+      <div class="whoami" v-if="!(FORMAL && !fb.user)">
         <div class="who-l">我現在的身分</div>
         <div class="who-n">{{ whoName }}</div>
         <select v-if="!FORMAL || fb.admin" id="roleSel" class="inp" v-model="role" aria-label="切換身分">
@@ -474,7 +474,6 @@ html.ov-transparent body::before{ display:none; }
             <option v-for="id in c.ids" :key="id" :value="id">{{ roleName(id) }}</option>
           </optgroup>
         </select>
-        <button v-if="FORMAL && !fb.user" class="btn btn-primary w-full" @click="signIn">工作人員登入（學校帳號）</button>
         <button v-if="FORMAL && fb.user" class="btn btn-sm w-full mt-2 lg-hide" @click="signOut">登出 {{ fb.email }}</button>
       </div>
 
@@ -552,10 +551,10 @@ html.ov-transparent body::before{ display:none; }
     </ol>
     <div v-if="gate" class="card text-center" style="padding:36px 18px">
       <div style="font-size:44px">🔒</div>
-      <h2 class="h-sec mt-2">{{ fb.user ? '這一頁不是你負責的工作' : '這一頁是工作人員專用' }}</h2>
-      <p class="small muted mt-1 mb-4">{{ fb.user ? '如果你也要負責這一組，請紀錄組在「帳號與權限」幫你加上。' : '工作人員請用學校帳號登入；家長和觀眾可以看成績查詢、大會看板、直播。' }}</p>
+      <h2 class="h-sec mt-2">{{ fb.user ? '這一頁不是你負責的工作' : '這一頁是學校人員專用' }}</h2>
+      <p class="small muted mt-1 mb-4">{{ fb.user ? '如果你也要負責這一組，請紀錄組在「帳號與權限」幫你加上。' : '學校人員請按右上角登入；家長和觀眾可以看大會看板、成績查詢、直播。' }}</p>
       <div class="flex gap-2 justify-center flex-wrap">
-        <button v-if="!fb.user" class="btn btn-primary btn-big" @click="signIn">工作人員登入</button>
+        <button v-if="!fb.user" class="btn btn-primary btn-big" @click="signIn">學校人員登入</button>
         <button class="btn btn-big" @click="go('start')">回首頁</button>
       </div>
     </div>
@@ -605,7 +604,7 @@ html.ov-transparent body::before{ display:none; }
 
       <div v-if="FORMAL && !fb.user" class="card mb-5 flex flex-wrap items-center justify-between gap-3" style="border:2px solid var(--brand)">
         <div><h2 class="h-sec">工作人員請先登入</h2><div class="small muted">用學校 Google 帳號登入後，這裡會出現你這組今天要做的事。家長和觀眾不用登入，上面就能看即時現況。</div></div>
-        <button class="btn btn-primary btn-big" @click="signIn">工作人員登入</button>
+        <button class="btn btn-primary btn-big" @click="signIn">學校人員登入</button>
       </div>
 
       <div class="flex items-end justify-between gap-2 flex-wrap mb-3">
@@ -796,7 +795,7 @@ html.ov-transparent body::before{ display:none; }
         <h2 class="h-sec mb-2">身分是怎麼給的？</h2>
         <ol class="small list-decimal pl-6 flex flex-col gap-1">
           <li><b>家長、觀眾</b>：不用登入，只看得到首頁、成績查詢、大會看板、看直播。</li>
-          <li><b>工作人員</b>：按右上角「工作人員登入」，用學校 Google 帳號登入（第一次按一下，之後同一台裝置會自動登入）。</li>
+          <li><b>工作人員</b>：按右上角「學校人員登入」，用學校 Google 帳號登入（第一次按一下，之後同一台裝置會自動登入）。</li>
           <li>系統用帳號查下面的表，自動給組別；表上沒有的老師是「班級導師」（可查本班、填全員賽跑）。</li>
           <li>想省事：把「工作分配名單」（姓名＋組別）貼上，老師登入一次就會自動對到組別。</li>
           <li>一個人可以兼任多組；改了組別，對方重新整理頁面就生效。</li>
@@ -1869,8 +1868,7 @@ html.ov-transparent body::before{ display:none; }
   <nav class="tabbar lg-hide no-print" aria-label="快速切換" v-if="page!=='overlay' && !(boardMode && page==='board')">
     <button v-if="!isPublicView" :class="['tab',{on:page==='start'}]" @click="go('start')"><span class="ti">🏠</span>首頁</button>
     <button v-for="p in tabItems" :key="p.id" :class="['tab',{on:page===p.id}]" @click="go(p.id)"><span class="tab-dot" v-if="badge(p.id)">{{ badge(p.id) }}</span><span class="ti">{{ ICON[p.id] }}</span>{{ SHORT[p.id] || p.name }}</button>
-    <button v-if="FORMAL && !fb.user" class="tab" @click="signIn"><span class="ti">🔑</span>登入</button>
-    <button v-else class="tab" @click="drawer=true"><span class="ti">☰</span>選單</button>
+    <button v-if="!(FORMAL && !fb.user)" class="tab" @click="drawer=true"><span class="ti">☰</span>選單</button>
   </nav>
 
   <!-- 通知 -->
