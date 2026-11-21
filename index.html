@@ -216,6 +216,15 @@ label.lbl{ display:block; font-size:16px; font-weight:700; color:var(--ink2); ma
 .kpi.hot{ border:2px solid var(--bad); }
 
 /* ---------- 成績查詢：一般運動會成績公告樣式（名次・班級・姓名・成績） ---------- */
+.evcheck{ background:var(--surface2); border-radius:14px; padding:12px 14px; }
+.evc{ display:flex; align-items:flex-start; gap:10px; background:var(--surface); border-radius:10px; padding:10px 12px; border-left:4px solid var(--line); }
+.evc-warn{ border-left-color:var(--warn); } .evc-ok{ border-left-color:var(--ok); } .evc-info{ border-left-color:var(--brand); }
+.evc-i{ font-weight:900; width:1.4em; text-align:center; flex:none; } .evc-warn .evc-i{ color:var(--warn); } .evc-ok .evc-i{ color:var(--ok); } .evc-info .evc-i{ color:var(--brand); }
+.evrow{ border:1px solid var(--line); border-radius:12px; padding:10px 12px; background:var(--surface); }
+.evrow-h{ display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
+.evchip{ min-height:38px; padding:0 10px; border-radius:10px; font-weight:700; font-size:15px; display:inline-flex; align-items:center; gap:6px; border:1px solid transparent; }
+.evchip:hover{ filter:brightness(.95); outline:2px solid var(--brand); }
+.evchip-n{ font-size:12px; opacity:.8; }
 .roletabs{ display:flex; flex-wrap:wrap; gap:8px; }
 .rtab{ min-height:44px; padding:0 14px; border-radius:999px; border:1.5px solid var(--line); background:var(--surface); font-weight:700; font-size:16px; color:var(--ink); display:inline-flex; align-items:center; gap:6px; transition:background .15s, border-color .15s; }
 .rtab:hover{ border-color:var(--brand); }
@@ -1542,7 +1551,7 @@ html.ov-transparent body::before{ display:none; }
           </div>
 
 
-          <div class="card">
+          <div class="card" id="tlCard">
             <h2 class="h-sec mb-1">當天流程表</h2>
             <p class="small muted mb-2">改時間或名稱後立刻同步到總控台、看板、司儀台。</p>
             <div class="flex flex-col gap-2" style="max-height:340px;overflow:auto">
@@ -1560,6 +1569,68 @@ html.ov-transparent body::before{ display:none; }
             <div class="flex gap-2 flex-wrap">
               <button class="btn btn-bad" @click="need('data') && ask('確定要把所有資料還原成範例嗎？你在這台電腦做的操作都會清除。', resetDemo)">還原範例資料</button>
               <button class="btn btn-bad" @click="need('data') && ask('確定清空所有成績嗎？選手名單會保留。', clearMarks)">清空所有成績</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== 比賽項目與分組：新增、修改、刪除＋自動檢查 ===== -->
+        <div class="card" style="grid-column:1/-1" id="evManage">
+          <div class="flex flex-wrap items-end justify-between gap-3 mb-3">
+            <div><h2 class="h-sec">🏃 比賽項目與分組</h2>
+              <p class="small muted">共 {{ evGroups.length }} 個項目、{{ st.events.length }} 組。點分組可以直接去登錄成績；項目可以自己新增、修改或刪除。</p></div>
+            <button class="btn btn-primary" @click="openEvForm()">＋ 新增比賽項目</button>
+          </div>
+
+          <!-- 自動檢查 -->
+          <div class="evcheck mb-4">
+            <div class="flex items-center gap-2 mb-2"><b>🔍 自動檢查</b><span :class="['chip', evChecks.some(c=>c.level==='warn') ? 'tag-todo' : 'st-published']">{{ evChecks.some(c=>c.level==='warn') ? evChecks.filter(c=>c.level==='warn').length+' 個要處理' : '✔ 沒有問題' }}</span></div>
+            <ul class="flex flex-col gap-2">
+              <li v-for="(c,i) in evChecks" :key="i" :class="['evc', 'evc-'+c.level]">
+                <span class="evc-i" aria-hidden="true">{{ c.level==='warn' ? '⚠' : c.level==='ok' ? '✔' : 'ℹ' }}</span>
+                <div style="flex:1;min-width:0"><div>{{ c.text }}</div><div v-if="c.detail" class="small muted" style="word-break:break-all">{{ c.detail }}</div></div>
+                <button v-if="c.fix" class="btn btn-sm btn-primary" @click="c.fix.fn()">{{ c.fix.label }}</button>
+              </li>
+            </ul>
+          </div>
+
+          <!-- 新增／修改表單 -->
+          <div v-if="evForm.open" class="card-flat mb-4 fade-up" style="border:2px solid var(--brand)">
+            <h3 class="h-sec mb-3">{{ evForm.editing ? '修改「'+evForm.editing+'」' : '新增比賽項目' }}</h3>
+            <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))">
+              <div><label class="lbl" for="efName">項目名稱</label><input id="efName" class="inp" v-model.trim="evForm.name" maxlength="20" placeholder="例：跳繩、拔河、趣味競賽"></div>
+              <div><label class="lbl" for="efCat">類型</label><select id="efCat" class="inp" v-model="evForm.cat"><option value="field">田賽（個人，比距離／次數）</option><option value="track">徑賽（個人，比時間）</option><option value="relay">接力・團體（以班為單位）</option></select></div>
+              <div><label class="lbl" for="efUnit">成績怎麼比</label><select id="efUnit" class="inp" v-model="evForm.unit"><option v-for="u in UNIT_OPTS" :key="u.v" :value="u.v">{{ u.label }}</option></select></div>
+              <div><label class="lbl" for="efStage">什麼時候比</label><select id="efStage" class="inp" v-model="evForm.stage"><option value="pre">會前賽（運動會前先比）</option><option value="day">運動會當天</option></select></div>
+              <div><label class="lbl" for="efTop">取前幾名</label><input id="efTop" class="inp num" type="number" min="1" max="10" v-model.number="evForm.awardTop"></div>
+              <div><label class="lbl">分組</label><div class="seg"><button :class="{on:!evForm.mixed}" @click="evForm.mixed=false">男女分開</button><button :class="{on:evForm.mixed}" @click="evForm.mixed=true">男女混合</button></div></div>
+            </div>
+            <label class="lbl mt-3">年級（可以複選）</label>
+            <div class="flex flex-wrap gap-2">
+              <label v-for="g in [1,2,3,4,5,6]" :key="g" class="btn btn-sm" :class="evForm.grades.includes(g)?'btn-primary':''"><input type="checkbox" class="sr-only" :value="g" v-model="evForm.grades">{{ ZH[g] }}年級</label>
+            </div>
+            <div class="note note-info mt-3 small" v-if="evFormPreview.add.length || evFormPreview.del.length">
+              <div v-if="evFormPreview.add.length">會新增 {{ evFormPreview.add.length }} 組：{{ evFormPreview.add.join('、') }}</div>
+              <div v-if="evFormPreview.del.length" style="color:var(--bad)">會刪除 {{ evFormPreview.del.length }} 組：{{ evFormPreview.del.join('、') }}</div>
+            </div>
+            <div class="flex gap-2 mt-3 flex-wrap">
+              <button class="btn btn-primary" @click="saveEvForm" :disabled="!evForm.name || !evForm.grades.length">{{ evForm.editing ? '儲存修改' : '建立項目' }}</button>
+              <button class="btn" @click="evForm.open=false">取消</button>
+            </div>
+          </div>
+
+          <!-- 項目總覽 -->
+          <div class="small muted mb-2 flex flex-wrap gap-3 items-center">分組顏色：<span class="evchip st-none" style="min-height:28px">未開始</span><span class="evchip st-checkin" style="min-height:28px">檢錄中</span><span class="evchip st-review" style="min-height:28px">待審核</span><span class="evchip st-published" style="min-height:28px">已公布</span><span>數字＝選手人數</span></div>
+          <div class="flex flex-col gap-2">
+            <div v-for="g in evGroups" :key="g.base" class="evrow">
+              <div class="evrow-h">
+                <div style="min-width:0"><b style="font-size:18px">{{ g.base }}</b> <span class="small muted">{{ CAT_NAME[g.cat] }}・{{ unitLabel(g) }}・{{ g.stage==='day' ? '當天' : '會前賽' }}・取前 {{ g.awardTop }} 名</span></div>
+                <div class="flex gap-2"><button class="btn btn-sm" @click="openEvForm(g.base)">修改</button><button class="btn btn-sm btn-bad" @click="deleteEvGroup(g.base)">刪除</button></div>
+              </div>
+              <div class="flex flex-wrap gap-2 mt-2">
+                <button v-for="e in g.events" :key="e.id" :class="['evchip','st-'+e.status]" :title="e.name+'：'+(e.team ? '班級隊伍' : e.entries.length+' 位選手')+'，'+STATUS[e.status]" @click="scEvId=e.id; go('score')">
+                  {{ ZH[e.grade] }}{{ e.gender==='混' ? '' : e.gender }}<span class="evchip-n">{{ e.team ? '' : e.entries.length }}</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -2202,6 +2273,9 @@ function makeEvent(d,g,gd,order){
 }
 /* 成績代碼：NM＝無有效成績、DNS＝未出賽、DNF＝未跑完、DQ＝犯規（都不排名次） */
 const MARK_CODES = ['NM','DNS','DNF','DQ'];
+/* 自訂比賽項目用：成績怎麼比 */
+const UNIT_OPTS = [ { v:'秒', better:'low', label:'時間（秒，越少越好）' }, { v:'公尺', better:'high', label:'距離（公尺，越遠越好）' }, { v:'次', better:'high', label:'次數（越多越好）' }, { v:'分', better:'high', label:'分數（越高越好）' }, { v:'名次', better:'place', label:'只排名次（直接填第幾名）' } ];
+const CAT_NAME = { field:'田賽', track:'徑賽', relay:'接力・團體' };
 function seed(){
   const R=rng(127);
   const pick=a=>a[Math.floor(R()*a.length)];
@@ -2523,7 +2597,7 @@ createApp({
       return list.sort((a,b)=>(a.place||999)-(b.place||999));
     }
     function top(ev,p){ return ranked(ev).find(x=>x.place===p) || null; }
-    function fmtMark(ev,e){ if(e.code) return e.code; if(ev.better==='place' || e.mark==='' || e.mark==null) return ''; const v=parseFloat(e.mark); if(isNaN(v)) return e.mark; return v.toFixed(2)+(ev.unit==='秒'?'″':' m'); }
+    function fmtMark(ev,e){ if(e.code) return e.code; if(ev.better==='place' || e.mark==='' || e.mark==null) return ''; const v=parseFloat(e.mark); if(isNaN(v)) return e.mark; return ev.unit==='秒' ? v.toFixed(2)+'″' : ev.unit==='公尺' ? v.toFixed(2)+' m' : (Number.isInteger(v) ? v : v.toFixed(1))+' '+(ev.unit||''); } // 次、分等自訂單位顯示整數＋單位
     const isPub = e => e.status==='published' || e.status==='awarded';
     /* 每一組的名次得分：自訂 > 不計分 > 通用（通用＝積分辦法×接力倍數，並依「列入積分的項目」勾選） */
     function eventPoints(ev){
@@ -2557,6 +2631,76 @@ createApp({
     function classPts(c){ const g=+String(c).split('-')[0]; const r=(standings.value[g]||[]).find(x=>x.cls===c); return r?r.pts:0; }
     function classRank(c){ const g=+String(c).split('-')[0]; const i=(standings.value[g]||[]).findIndex(x=>x.cls===c); return i>=0 && classPts(c)>0 ? i+1 : 0; }
 
+
+    /* ===== 比賽項目與分組（新增、修改、刪除、自動檢查）===== */
+    const evKey = e => String(e.id).split('-')[0];
+    const evGroups = computed(()=>{ const m=new Map(); st.value.events.slice().sort((a,b)=>(a.order||0)-(b.order||0)).forEach(e=>{ if(!m.has(e.base)) m.set(e.base,{ base:e.base, cat:e.cat, unit:e.unit, better:e.better, stage:e.stage, team:e.team, awardTop:e.awardTop, key:evKey(e), events:[] }); m.get(e.base).events.push(e); });
+      return [...m.values()].map(g=>{ const GO={'男':0,'女':1,'混':2}; g.events.sort((a,b)=>a.grade-b.grade || (GO[a.gender]||0)-(GO[b.gender]||0)); return g; }); });
+    const unitLabel = g => g.better==='place' ? '依名次' : g.unit+(g.better==='low' ? '（越少越好）' : '（越多越好）');
+    const evForm = reactive({ open:false, editing:'', name:'', cat:'field', unit:'公尺', grades:[], mixed:false, stage:'pre', awardTop:6 });
+    function openEvForm(base){ if(!need('config')) return; const g=base && evGroups.value.find(x=>x.base===base);
+      Object.assign(evForm, g ? { open:true, editing:base, name:base, cat:g.cat, unit:g.better==='place'?'名次':g.unit, grades:[...new Set(g.events.map(e=>e.grade))], mixed:g.events.every(e=>e.gender==='混'), stage:g.stage, awardTop:g.awardTop||6 }
+        : { open:true, editing:'', name:'', cat:'field', unit:'公尺', grades:[], mixed:false, stage:'pre', awardTop:6 });
+      nextTick(()=>{ const el=document.getElementById('efName'); if(el){ el.scrollIntoView({ behavior:'smooth', block:'center' }); el.focus(); } }); }
+    const genders = mixed => mixed ? ['混'] : ['男','女'];
+    const gName = (g,gd,base) => ZH[g]+'年級'+(gd==='男'?'男生':gd==='女'?'女生':'')+' '+base;
+    const evFormPreview = computed(()=>{ const add=[], del=[]; if(!evForm.open) return { add, del };
+      const old = evForm.editing ? st.value.events.filter(e=>e.base===evForm.editing) : [];
+      const want=[]; evForm.grades.slice().sort().forEach(g=>genders(evForm.mixed).forEach(gd=>want.push(g+'|'+gd)));
+      want.forEach(w=>{ if(!old.some(e=>e.grade+'|'+e.gender===w)){ const [g,gd]=w.split('|'); add.push(gName(+g,gd,evForm.name||'（未命名）')); } });
+      old.forEach(e=>{ if(!want.includes(e.grade+'|'+e.gender)) del.push(e.name); }); return { add, del }; });
+    const hasResult = e => e.entries.some(x=>x.mark!=='' || x.place!=='' || x.code) || isPub(e);
+    /* 新增的分組自動排進頒獎梯次：同項目所在的梯次 → 同類型的梯次 */
+    function attachToBatch(ev){ const B=st.value.batches.filter(b=>!b.champ); if(!B.length || B.some(b=>(b.eventIds||[]).includes(ev.id))) return false;
+      const same=e=>e && e.base===ev.base, cat=e=>e && e.cat===ev.cat;
+      const find=f=>B.find(b=>(b.eventIds||[]).some(id=>f(st.value.events.find(x=>x.id===id))));
+      const b=find(same)||find(cat); if(!b) return false; b.eventIds.push(ev.id); return true; }
+    function removeEvent(ev){ const i=st.value.events.indexOf(ev); if(i<0) return; st.value.events.splice(i,1); if(FORMAL) fbDelete('events',ev.id);
+      st.value.timeline.forEach(t=>{ if(t.eventIds && t.eventIds.includes(ev.id)) t.eventIds=t.eventIds.filter(x=>x!==ev.id); });
+      st.value.batches.forEach(b=>{ if(b.eventIds && b.eventIds.includes(ev.id)) b.eventIds=b.eventIds.filter(x=>x!==ev.id); }); }
+    function saveEvForm(){ if(!need('config')) return; const name=evForm.name.replace(/\s+/g,''); if(!name) return;
+      if(name!==evForm.editing && st.value.events.some(e=>e.base===name)){ toast('已經有「'+name+'」這個項目了',true); return; }
+      const u=UNIT_OPTS.find(x=>x.v===evForm.unit)||UNIT_OPTS[1];
+      const old = evForm.editing ? st.value.events.filter(e=>e.base===evForm.editing) : [];
+      const want=[]; evForm.grades.forEach(g=>genders(evForm.mixed).forEach(gd=>want.push({ g, gd })));
+      const dels=old.filter(e=>!want.some(w=>w.g===e.grade && w.gd===e.gender)); const delWithData=dels.filter(hasResult);
+      const run=()=>{
+        const def={ key: old[0] ? evKey(old[0]) : 'u'+Date.now().toString(36), base:name, cat:evForm.cat, unit:u.v, better:u.better, stage:evForm.stage, team:evForm.cat==='relay' };
+        dels.forEach(removeEvent);
+        st.value.events.filter(e=>e.base===evForm.editing && evForm.editing).forEach(e=>Object.assign(e,{ base:name, name:gName(e.grade,e.gender,name), cat:def.cat, unit:def.unit, better:def.better, stage:def.stage, team:def.team, awardTop:evForm.awardTop }));
+        let order=Math.max(0,...st.value.events.map(e=>e.order||0))+1, added=0, unbatched=0;
+        want.forEach(w=>{ if(st.value.events.some(e=>e.base===name && e.grade===w.g && e.gender===w.gd)) return;
+          const ev=makeEvent(def,w.g,w.gd,order++); ev.awardTop=evForm.awardTop;
+          if(def.team) for(let c=1;c<=(st.value.settings.classes[w.g]||0);c++) ev.entries.push({ id:uid(), cls:clsId(w.g,c), name:'', mark:'', place:'', dq:false, present:null });
+          st.value.events.push(ev); added++; if(!attachToBatch(ev)) unbatched++; });
+        log((evForm.editing?'修改':'新增')+'比賽項目：'+name+'（新增 '+added+' 組、刪除 '+dels.length+' 組）');
+        toast((evForm.editing?'已更新':'已建立')+'「'+name+'」'+(unbatched?'；有 '+unbatched+' 組還沒排進頒獎梯次，請看自動檢查':''));
+        evForm.open=false; };
+      if(delWithData.length) ask('以下分組已經有成績，刪除後成績會一起刪掉：'+delWithData.map(e=>e.name).join('、')+'。確定嗎？', run); else run(); }
+    function deleteEvGroup(base){ if(!need('config')) return; const evs=st.value.events.filter(e=>e.base===base); const withData=evs.filter(hasResult);
+      ask('確定刪除「'+base+'」全部 '+evs.length+' 組嗎？'+(withData.length?'其中 '+withData.length+' 組已經有成績，會一起刪除，無法復原。':''), ()=>{ evs.forEach(removeEvent); log('刪除比賽項目：'+base); toast('已刪除「'+base+'」'); }); }
+    /* 自動檢查：每次資料變動都重算 */
+    const evChecks = computed(()=>{ const out=[], E=st.value.events, nm=a=>a.map(e=>e.name).join('、');
+      const inBatch=new Set(st.value.batches.flatMap(b=>b.eventIds||[]));
+      const noBatch=E.filter(e=>!inBatch.has(e.id));
+      if(noBatch.length) out.push({ level:'warn', text:noBatch.length+' 組沒有排進頒獎梯次（成績公布後不會出現在頒獎通知與導師集合提醒）', detail:nm(noBatch),
+        fix:{ label:'自動排進頒獎梯次', fn:()=>{ if(!can('award') && !can('config')){ need('config'); return; } let n=0, made=0; noBatch.forEach(e=>{ if(attachToBatch(e)) n++; else { st.value.batches.splice(Math.max(0,st.value.batches.length-1),0,{ id:'b'+Date.now()+uid(), title:e.base+'頒獎', eventIds:[e.id], presenter:'', backup:'', override:'', place:'司令台前頒獎台', tl:'', status:'todo' }); made++; } }); log('自動排進頒獎梯次 '+(n+made)+' 組'); toast('已排進頒獎梯次'+(made?'（新增 '+made+' 個梯次，請到「頒獎梯次」設定時間與頒獎人）':'')); } } });
+      const inTl=new Set(st.value.timeline.flatMap(t=>t.eventIds||[]));
+      const dayNoTl=E.filter(e=>e.stage==='day' && !inTl.has(e.id));
+      if(dayNoTl.length) out.push({ level:'warn', text:dayNoTl.length+' 組當天比賽還沒排進流程（檢錄、司儀稿、看板不會自動跟著流程）', detail:nm(dayNoTl), fix:{ label:'去流程表', fn:()=>{ const el=document.getElementById('tlCard'); if(el) el.scrollIntoView({ behavior:'smooth' }); } } });
+      const preEmpty=E.filter(e=>e.stage==='pre' && !e.team && !e.entries.length);
+      if(preEmpty.length) out.push({ level:'warn', text:preEmpty.length+' 組會前賽還沒有選手名單或成績', detail:nm(preEmpty), fix:{ label:'去資料匯入', fn:()=>go('import') } });
+      const badCls=[]; E.forEach(e=>e.entries.forEach(x=>{ const [g,c]=String(x.cls).split('-').map(Number); if(g && c>(st.value.settings.classes[g]||0)) badCls.push(e.name+' '+clsLabel(x.cls)); }));
+      if(badCls.length) out.push({ level:'warn', text:badCls.length+' 筆選手的班級超過設定的班級數', detail:[...new Set(badCls)].slice(0,8).join('、'), fix:{ label:'去改班級數', fn:()=>{ const el=document.getElementById('gc1'); if(el) el.scrollIntoView({ behavior:'smooth', block:'center' }); } } });
+      const dup=[]; E.filter(e=>!e.team).forEach(e=>{ const seen=new Set(); e.entries.forEach(x=>{ if(!x.name) return; const k=x.cls+x.name; if(seen.has(k)) dup.push(e.name+' '+clsLabel(x.cls)+' '+x.name); seen.add(k); }); });
+      if(dup.length) out.push({ level:'warn', text:dup.length+' 位選手在同一組重複出現', detail:dup.slice(0,8).join('、') });
+      if(overLimit.value.length) out.push({ level:'warn', text:overLimit.value.length+' 位學生超過每人 '+st.value.settings.maxPerStudent+' 項個人項目上限', detail:overLimit.value.slice(0,6).map(o=>clsLabel(o.cls)+' '+o.name+'（'+o.events.join('、')+'）').join('；') });
+      const noPts=E.filter(e=>st.value.settings.scoring.grades.includes(e.grade) && isPub(e) && !eventPoints(e).length && e.scoreMode!=='none');
+      if(noPts.length) out.push({ level:'info', text:noPts.length+' 組已公布但沒有列入總錦標積分', detail:nm(noPts) });
+      const todo=evGroups.value.filter(g=>g.events.some(e=>e.todo));
+      if(todo.length) out.push({ level:'info', text:'計畫書待確認的項目：'+todo.map(g=>g.base+'（'+g.events.find(e=>e.todo).todo+'）').join('；') });
+      if(!out.some(c=>c.level==='warn')) out.unshift({ level:'ok', text:'所有項目和分組都檢查過了：都排進頒獎梯次、班級數正確、沒有重複選手。' });
+      return out; });
     /* ----- 共用清單 ----- */
     const preEvents = computed(()=>st.value.events.filter(e=>e.stage==='pre'));
     const dayEvents = computed(()=>st.value.events.filter(e=>e.stage==='day'));
@@ -2795,6 +2939,9 @@ createApp({
     function normBase(s){ s=String(s||'').replace(/\s/g,'').replace(/[mMＭ]$/,'公尺').replace(/米$/,'公尺').replace(/[xX＊*]/g,'×');
       if(/大隊/.test(s)) return '大隊接力'; if(/4×100|400.*接力|4×1/.test(s)) return '4×100公尺接力'; if(/樂樂/.test(s)) return '樂樂棒球擲遠'; if(/壘球/.test(s)) return '壘球擲遠'; if(/跳遠/.test(s)) return '跳遠';
       const m=s.match(/^(60|100|200)/); if(m) return m[1]+'公尺'; return s; }
+    /* 自己新增的項目（例：跳繩）也能匯入：從現有分組推出年級與規則 */
+    function customDef(base){ const evs=st.value.events.filter(e=>e.base===base); if(!evs.length) return null; const e=evs[0];
+      return { key:String(e.id).split('-')[0], base, cat:e.cat, unit:e.unit, better:e.better, stage:e.stage, team:e.team, grades:[...new Set(evs.map(x=>x.grade))], genders: evs.every(x=>x.gender==='混') ? ['混'] : undefined }; }
     function rowsFromText(t){ const lines=t.replace(/\r/g,'').split('\n').filter(l=>l.trim()); if(!lines.length) return []; const sep=lines[0].includes('\t')?'\t':','; return lines.map(l=>l.split(sep).map(c=>c.trim().replace(/^"|"$/g,''))); }
     function analyze(rows, after, append, sheet){
       if(!append) imRows.value=[];
@@ -2808,7 +2955,7 @@ createApp({
       const out=body.filter(r=>r.some(c=>String(c).trim())).slice(0,3000).map((r,li)=>{
         const cells=idx.map(i=>String(r[i]==null?'':r[i]).trim()); const row={ line:(sheet?sheet+' ':'')+(li+2), cells, ok:false, msg:'', after };
         if(imType.value==='guests'){ if(!cells[1] && !cells[0]){ row.msg='沒有姓名或單位'; return row; } row.ok=true; row.target='新增來賓'; row.data={ org:cells[0], name:cells[1]||'○○○', title:cells[2], note:cells[3], kind:['校內','家長會','來賓'].includes(cells[4])?cells[4]:'來賓' }; return row; }
-        const [it,gr,gd,cl,nm,mk,pl]=cells; const base=normBase(it); const def=EVENT_DEFS.find(d=>d.base===base);
+        const [it,gr,gd,cl,nm,mk,pl]=cells; const base=normBase(it); const def=EVENT_DEFS.find(d=>d.base===base) || customDef(base) || customDef(String(it).replace(/\s/g,''));
         if(!def){ row.msg='看不懂項目「'+it+'」'; return row; }
         const g=zhToNum(String(gr).replace(/年級?/,'')); if(!def.grades.includes(g)){ row.msg=base+' 沒有'+(g?ZH[g]+'年級':'這個年級'); return row; }
         let gender = def.genders && def.genders[0]==='混' ? '混' : (/女/.test(gd)?'女':/男/.test(gd)?'男':''); if(!gender){ row.msg='請填性別（男／女）'; return row; }
@@ -2821,7 +2968,7 @@ createApp({
         if(!code && pl!=='' && !parseInt(pl)){ row.msg='名次「'+pl+'」不是數字'; return row; }
         const evId=def.key+'-'+g+'-'+(gender==='男'?'M':gender==='女'?'F':'X'); const ev=st.value.events.find(e=>e.id===evId);
         const evName=ev ? ev.name : makeEvent(def,g,gender,0).name+'（新增項目）';
-        row.ok=true; row.target=evName+(code?'・'+code:'')+(needCls?'・'+ZH[g]+'年級將調為 '+needCls+' 班':''); row.data={ evId, def:def.key, g, gender, cls, name:nm, mark:code?'':mk, place:code?'':pl, code, needCls }; return row;
+        row.ok=true; row.target=evName+(code?'・'+code:'')+(needCls?'・'+ZH[g]+'年級將調為 '+needCls+' 班':''); row.data={ evId, def:def.key, base:def.base, g, gender, cls, name:nm, mark:code?'':mk, place:code?'':pl, code, needCls }; return row;
       });
       imRows.value = append ? imRows.value.concat(out) : out;
     }
@@ -2853,7 +3000,7 @@ createApp({
       const byEv={}; imOk.value.forEach(r=>{ r.data.after=r.after; (byEv[r.data.evId]=byEv[r.data.evId]||[]).push(r.data); });
       Object.entries(byEv).forEach(([id,list])=>{
         let ev=st.value.events.find(e=>e.id===id);
-        if(!ev){ const d0=list[0], def=EVENT_DEFS.find(d=>d.key===d0.def); ev=makeEvent(def,d0.g,d0.gender,st.value.events.length); st.value.events.push(ev); } // 例如三年級 60 公尺：系統原本沒有就自動建立
+        if(!ev){ const d0=list[0], def=EVENT_DEFS.find(d=>d.key===d0.def)||customDef(d0.base); ev=makeEvent(def,d0.g,d0.gender,st.value.events.length); st.value.events.push(ev); attachToBatch(ev); } // 例如三年級 60 公尺：系統原本沒有就自動建立
         if(imMode.value==='replace') ev.entries=[];
         list.forEach(d=>{ let x=ev.entries.find(e=>e.cls===d.cls && (ev.team || e.name===d.name)); if(!x){ x={ id:uid(), cls:d.cls, name:d.name, mark:'', place:'', dq:false, present:null }; ev.entries.push(x); } x.name=d.name||x.name; if(d.mark!=='') x.mark=d.mark; if(d.place!=='') x.place=parseInt(d.place); x.code=d.code||''; x.dq=!!d.code; if(d.code){ x.mark=''; x.place=''; } });
         ev.entries.sort((a,b)=>a.cls.localeCompare(b.cls));
@@ -3211,7 +3358,7 @@ createApp({
     onMounted(()=>{ readHash(); if(!hashGiven && isPublicView.value) page.value='board'; loadDraft(); syncLiveDraft(); renderQR(); if(FORMAL) fbInit(); else initCloud(); });
 
     return { st, role, page, helpOpen, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
-      SHORT, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
+      SHORT, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
       drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
       roleObj, myPages, navPages, myTasks, dateLabel, go, badge, kpi, ask, modalOk, clsLabel,
