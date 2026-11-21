@@ -258,6 +258,10 @@ label.lbl{ display:block; font-size:16px; font-weight:700; color:var(--ink2); ma
 .tag{ background:var(--surface2); border:1px solid var(--line); border-radius:8px; padding:2px 8px; font-size:14px; }
 .evrow{ border:1px solid var(--line); border-radius:12px; padding:10px 12px; background:var(--surface); }
 .evrow-h{ display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
+.stflow{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+.stflow-ar{ color:var(--ink2); font-weight:900; }
+.stflow-how{ margin-left:8px; } .stflow-how > summary{ cursor:pointer; color:var(--brand); font-weight:700; }
+.stflow-how[open]{ flex-basis:100%; margin-left:0; background:var(--surface2); border-radius:12px; padding:10px 12px; }
 .evchip{ min-height:38px; padding:0 10px; border-radius:10px; font-weight:700; font-size:15px; display:inline-flex; align-items:center; gap:6px; border:1px solid transparent; }
 .evchip:hover{ filter:brightness(.95); outline:2px solid var(--brand); }
 .evchip-n{ font-size:12px; opacity:.8; }
@@ -1646,7 +1650,17 @@ html.ov-transparent body::before{ display:none; }
           </div>
 
           <!-- 項目總覽 -->
-          <div class="small muted mb-2 flex flex-wrap gap-3 items-center">分組顏色：<span class="evchip st-none" style="min-height:28px">未開始</span><span class="evchip st-checkin" style="min-height:28px">檢錄中</span><span class="evchip st-review" style="min-height:28px">待審核</span><span class="evchip st-published" style="min-height:28px">已公布</span><span>數字＝選手人數</span></div>
+          <!-- 狀態流程：顏色＝這一組進行到哪一步；滑過或點「怎麼變」可看由誰按 -->
+          <div class="stflow mb-2">
+            <span class="small muted">分組狀態：</span>
+            <template v-for="(f,i) in STATUS_FLOW" :key="f.k"><span v-if="i" class="stflow-ar" aria-hidden="true">→</span><span :class="['evchip','st-'+f.k]" style="min-height:30px" :title="f.how">{{ f.name }}</span></template>
+            <details class="stflow-how"><summary class="small">怎麼變？</summary>
+              <ol class="small mt-2 flex flex-col gap-1">
+                <li v-for="f in STATUS_FLOW" :key="f.k"><span :class="['evchip','st-'+f.k]" style="min-height:26px">{{ f.name }}</span>　{{ f.how }}</li>
+              </ol>
+              <p class="small muted mt-2">會前賽已經比完，通常直接匯入並公布，不會經過「檢錄中、比賽中」。分組上的數字是選手人數。</p>
+            </details>
+          </div>
           <div class="flex flex-col gap-2">
             <div v-for="g in evGroups" :key="g.base" class="evrow" :style="{ boxShadow:'inset 5px 0 '+toneOf(g.base) }">
               <div class="evrow-h">
@@ -2413,6 +2427,15 @@ const MARK_CODES = ['NM','DNS','DNF','DQ'];
 const UNIT_OPTS = [ { v:'秒', better:'low', label:'時間（秒，越少越好）' }, { v:'公尺', better:'high', label:'距離（公尺，越遠越好）' }, { v:'次', better:'high', label:'次數（越多越好）' }, { v:'分', better:'high', label:'分數（越高越好）' }, { v:'名次', better:'place', label:'只排名次（直接填第幾名）' } ];
 /* 每個獎項一個色系（依項目順序輪流）：獎狀名單、獎品統計、成績總表、成績查詢、項目總覽共用 */
 const TONES = ['#1565B5','#2E8A45','#C44A1A','#7B3FB0','#0F7F86','#A87C00','#C2185B','#4A5B6B','#00838F','#6D4C41','#3949AB','#558B2F'];
+/* 每一組比賽的狀態流程（由誰按哪個按鈕） */
+const STATUS_FLOW = [
+  { k:'none', name:'未開始', how:'還沒開始比，或只匯入了選手名單' },
+  { k:'checkin', name:'檢錄中', how:'檢錄組在「檢錄」頁按「開始檢錄」（司儀同時收到檢錄廣播稿）' },
+  { k:'running', name:'比賽中', how:'檢錄組按「檢錄完成，交給裁判」' },
+  { k:'review', name:'待審核', how:'裁判在「成績登錄」按「送出審核」，或匯入時選「送紀錄組審核」' },
+  { k:'published', name:'已公布', how:'紀錄組在「審核公布」按「公布成績」，或匯入時選「直接公布」；看板、成績查詢同步出現' },
+  { k:'awarded', name:'已頒獎', how:'頒獎組在「頒獎梯次」按該梯次「完成頒獎」' },
+];
 const CAT_NAME = { field:'田賽', track:'徑賽', relay:'接力・團體' };
 function seed(){
   const R=rng(127);
@@ -3554,7 +3577,7 @@ createApp({
     onMounted(()=>{ readHash(); if(!hashGiven && isPublicView.value) page.value='board'; loadDraft(); syncLiveDraft(); renderQR(); if(FORMAL) fbInit(); else initCloud(); });
 
     return { st, role, page, helpOpen, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
-      SHORT, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
+      SHORT, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
       drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
       roleObj, myPages, navPages, myTasks, dateLabel, go, badge, kpi, ask, modalOk, clsLabel,
