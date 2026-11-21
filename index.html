@@ -206,9 +206,30 @@ label.lbl{ display:block; font-size:16px; font-weight:700; color:var(--ink2); ma
 .rtbl th{ text-align:left; font-size:14px; color:var(--ink2); font-weight:700; padding:8px 6px; border-bottom:1px solid var(--line); }
 .rtbl td{ padding:7px 6px; border-bottom:1px solid var(--line); vertical-align:middle; }
 .rtbl .r{ text-align:right; }
-.rtbl tr.win td{ background:color-mix(in srgb, var(--sun) 10%, transparent); }
+.rtbl tr.win td{ background:color-mix(in srgb, var(--sun) 8%, transparent); }
+/* 前三名整列：金、銀、銅淡色底＋左側色條，名字加粗 */
+.rtbl tr.r1{ background:linear-gradient(90deg, rgba(247,198,58,.32), rgba(247,198,58,.04)); }
+.rtbl tr.r2{ background:linear-gradient(90deg, rgba(160,174,190,.34), rgba(160,174,190,.04)); }
+.rtbl tr.r3{ background:linear-gradient(90deg, rgba(208,138,75,.30), rgba(208,138,75,.04)); }
+.rtbl tr.r1 td, .rtbl tr.r2 td, .rtbl tr.r3 td{ background:transparent; }
+.rtbl tr.r1.hit td, .rtbl tr.r2.hit td, .rtbl tr.r3.hit td{ background:color-mix(in srgb, var(--brand-soft) 60%, transparent); }
+.rtbl tr.r1 td:first-child{ box-shadow:inset 4px 0 #E3A90C; } .rtbl tr.r2 td:first-child{ box-shadow:inset 4px 0 #8C9AAA; } .rtbl tr.r3 td:first-child{ box-shadow:inset 4px 0 #B86E32; }
+.rtbl tr.r1 td, .rtbl tr.r2 td, .rtbl tr.r3 td{ font-weight:700; }
+.rtbl tr.r1 td{ padding-block:10px; font-size:18px; }
 .rtbl tr.hit td{ background:var(--brand-soft); font-weight:900; }
 .rtbl tr.out td{ color:var(--ink2); }
+.medal-svg{ display:inline-block; vertical-align:middle; flex:none; filter:drop-shadow(0 2px 3px rgba(60,40,0,.25)); transition:transform .2s; }
+.medal-svg svg{ display:block; overflow:visible; }
+.medal-svg .mnum{ font-family:var(--f-num); font-weight:800; font-size:15px; }
+.mm1 .rb1{ fill:#E8452C } .mm1 .rb2{ fill:#B8231A } .mm1 .rim{ stroke:#A0700A; stroke-width:1.2 } .mm1 .mnum{ fill:#5A3D00 }
+.mm2 .rb1{ fill:#2B8BDB } .mm2 .rb2{ fill:#0E4D8C } .mm2 .rim{ stroke:#6E7C8C; stroke-width:1.2 } .mm2 .mnum{ fill:#25313E }
+.mm3 .rb1{ fill:#38A055 } .mm3 .rb2{ fill:#1E6B32 } .mm3 .rim{ stroke:#7A3F16; stroke-width:1.2 } .mm3 .mnum{ fill:#3D1D06 }
+/* 閃光：每隔幾秒掃過一次，金牌最明顯 */
+.medal-svg .shine{ animation:mshine 3.6s ease-in-out infinite; }
+.mm2 .shine{ animation-delay:.5s; } .mm3 .shine{ animation-delay:1s; }
+@keyframes mshine{ 0%,62%{ transform:translateX(0) rotate(20deg); } 85%,100%{ transform:translateX(46px) rotate(20deg); } }
+.medal-svg .shine{ transform-box:fill-box; }
+tr:hover .medal-svg, .pod:hover .medal-svg{ transform:translateY(-2px) rotate(-6deg); }
 .medal{ width:32px; height:32px; border-radius:50%; display:inline-grid; place-items:center; font-family:var(--f-num); font-weight:800; font-size:18px; background:var(--surface2); color:var(--ink); }
 .medal.m1{ background:#F5C542; color:#3A2A00; } .medal.m2{ background:#CBD3DC; color:#1F2A35; } .medal.m3{ background:#DDA06A; color:#3A1E06; }
 .res-more{ width:100%; min-height:44px; margin-top:8px; border-radius:10px; font-weight:700; color:var(--brand); }
@@ -299,7 +320,9 @@ label.lbl{ display:block; font-size:16px; font-weight:700; color:var(--ink2); ma
 .podium{ display:grid; grid-template-columns:1fr 1.15fr 1fr; align-items:end; gap:10px; margin-top:10px; }
 .pod{ text-align:center; min-width:0; }
 .pod .blk{ border-radius:12px 12px 0 0; color:#fff; font-family:var(--f-num); font-weight:800; font-size:34px; display:grid; place-items:center; transform-origin:bottom; animation:rise .45s ease-out both; }
-.pod.g .blk{ background:#B8860B; height:96px; } .pod.s .blk{ background:#6B7A8A; height:70px; animation-delay:.08s; } .pod.b .blk{ background:#9A5B2E; height:54px; animation-delay:.16s; }
+.pod.g .blk{ background:linear-gradient(160deg,#F2C443,#B07A06 70%); height:96px; } .pod.s .blk{ background:linear-gradient(160deg,#B7C2CE,#5F6E7E 70%); height:70px; animation-delay:.08s; } .pod.b .blk{ background:linear-gradient(160deg,#D99A5E,#83461A 70%); height:54px; animation-delay:.16s; }
+.pod .blk{ text-shadow:0 2px 4px rgba(0,0,0,.3); box-shadow:inset 0 2px 0 rgba(255,255,255,.35); }
+.pod .medal-svg{ margin-bottom:4px; }
 .pod .nm{ font-weight:900; font-size:clamp(17px,1.7vw,22px); line-height:1.25; word-break:break-all; }
 .pod .cl{ font-size:15px; color:#46596B; }
 .pod .mk{ font-family:var(--f-num); font-size:22px; font-weight:700; color:#0B62A4; }
@@ -388,7 +411,7 @@ html.ov-transparent body::before{ display:none; }
 .duty.me{ background:var(--brand-soft); }
 @media (max-width:520px){ .duty{ grid-template-columns:1fr; } }
 
-@media (prefers-reduced-motion: reduce){ *{ animation:none !important; transition:none !important; } .ticker span{ padding-left:0; white-space:normal; } }
+@media (prefers-reduced-motion: reduce){ *{ animation:none !important; transition:none !important; } .medal-svg .shine{ display:none; } .ticker span{ padding-left:0; white-space:normal; } }
 
 /* 黑白列印：隱藏按鈕與導覽，狀態保留文字 */
 @media print{
@@ -405,6 +428,15 @@ html.ov-transparent body::before{ display:none; }
 }
 </style>
 
+<!-- 獎牌用的金、銀、銅漸層（全站共用一份） -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="mg1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFF3B0"/><stop offset=".45" stop-color="#F7C63A"/><stop offset="1" stop-color="#B07A06"/></linearGradient>
+    <linearGradient id="mg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".45" stop-color="#C9D2DC"/><stop offset="1" stop-color="#7D8B9B"/></linearGradient>
+    <linearGradient id="mg3" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFD9B5"/><stop offset=".45" stop-color="#D08A4B"/><stop offset="1" stop-color="#83461A"/></linearGradient>
+    <clipPath id="mclip"><circle cx="20" cy="31" r="14.5"/></clipPath>
+  </defs>
+</svg>
 <div id="app" v-cloak :class="{'board-mode': boardMode && page==='board', 'overlay-mode': page==='overlay'}">
 
   <!-- ======== 頂欄：校徽＋名稱（點了回首頁）、身分、直播、登入 ======== -->
@@ -542,7 +574,7 @@ html.ov-transparent body::before{ display:none; }
           <div class="glass" v-else-if="publishedEvents[0]">
             <div class="b-label">🏆 最新成績</div>
             <div class="font-bold mt-1">{{ publishedEvents[0].name }}</div>
-            <div v-for="x in ranked(publishedEvents[0]).filter(x=>x.place && x.place<=3)" :key="x.e.id" class="small">{{ ['','🥇','🥈','🥉'][x.place] }} {{ clsLabel(x.e.cls) }} {{ pn(x.e.name) }}</div>
+            <div v-for="x in ranked(publishedEvents[0]).filter(x=>x.place && x.place<=3)" :key="x.e.id" class="flex items-center gap-2 mt-1"><medal-icon :p="x.place" :size="30"></medal-icon><span>{{ clsLabel(x.e.cls) }} <b>{{ pn(x.e.name) }}</b></span></div>
           </div>
         </div>
         <div class="hero-act">
@@ -638,8 +670,8 @@ html.ov-transparent body::before{ display:none; }
           <table class="rtbl">
             <thead><tr><th style="width:3.2em">名次</th><th>班級</th><th v-if="!ev.team">姓名</th><th class="r">成績</th></tr></thead>
             <tbody>
-              <tr v-for="x in resRows(ev)" :key="x.e.id" :class="{win:x.place && x.place<=ev.awardTop, hit:resHit(x.e), out:!x.place}">
-                <td><span :class="['medal', x.place && x.place<=3 ? 'm'+x.place : '']">{{ x.place || '—' }}</span></td>
+              <tr v-for="x in resRows(ev)" :key="x.e.id" :class="[{win:x.place && x.place<=ev.awardTop, hit:resHit(x.e), out:!x.place}, x.place && x.place<=3 ? 'r'+x.place : '']">
+                <td><medal-icon :p="x.place" :size="x.place===1 ? 42 : 38"></medal-icon></td>
                 <td>{{ clsLabel(x.e.cls) }}</td>
                 <td v-if="!ev.team">{{ pn(x.e.name) }}</td>
                 <td class="num r" style="font-size:19px;font-weight:700">{{ fmtMark(ev,x.e) }}</td>
@@ -789,9 +821,9 @@ html.ov-transparent body::before{ display:none; }
             </div>
             <div style="font-size:clamp(22px,2.4vw,32px);font-weight:900" class="mt-1">{{ boardEvent.name }}</div>
             <div class="podium" :key="boardEvent.id">
-              <div class="pod s" v-if="top(boardEvent,2)"><div class="nm">{{ pn(top(boardEvent,2).e.name) || clsLabel(top(boardEvent,2).e.cls) }}</div><div class="cl" v-if="top(boardEvent,2).e.name">{{ clsLabel(top(boardEvent,2).e.cls) }}</div><div class="mk">{{ fmtMark(boardEvent, top(boardEvent,2).e) }}</div><div class="blk">2</div></div><div v-else></div>
-              <div class="pod g" v-if="top(boardEvent,1)"><div class="nm">{{ pn(top(boardEvent,1).e.name) || clsLabel(top(boardEvent,1).e.cls) }}</div><div class="cl" v-if="top(boardEvent,1).e.name">{{ clsLabel(top(boardEvent,1).e.cls) }}</div><div class="mk">{{ fmtMark(boardEvent, top(boardEvent,1).e) }}</div><div class="blk">1</div></div><div v-else></div>
-              <div class="pod b" v-if="top(boardEvent,3)"><div class="nm">{{ pn(top(boardEvent,3).e.name) || clsLabel(top(boardEvent,3).e.cls) }}</div><div class="cl" v-if="top(boardEvent,3).e.name">{{ clsLabel(top(boardEvent,3).e.cls) }}</div><div class="mk">{{ fmtMark(boardEvent, top(boardEvent,3).e) }}</div><div class="blk">3</div></div><div v-else></div>
+              <div class="pod s" v-if="top(boardEvent,2)"><medal-icon :p="2" :size="46"></medal-icon><div class="nm">{{ pn(top(boardEvent,2).e.name) || clsLabel(top(boardEvent,2).e.cls) }}</div><div class="cl" v-if="top(boardEvent,2).e.name">{{ clsLabel(top(boardEvent,2).e.cls) }}</div><div class="mk">{{ fmtMark(boardEvent, top(boardEvent,2).e) }}</div><div class="blk">2</div></div><div v-else></div>
+              <div class="pod g" v-if="top(boardEvent,1)"><medal-icon :p="1" :size="56"></medal-icon><div class="nm">{{ pn(top(boardEvent,1).e.name) || clsLabel(top(boardEvent,1).e.cls) }}</div><div class="cl" v-if="top(boardEvent,1).e.name">{{ clsLabel(top(boardEvent,1).e.cls) }}</div><div class="mk">{{ fmtMark(boardEvent, top(boardEvent,1).e) }}</div><div class="blk">1</div></div><div v-else></div>
+              <div class="pod b" v-if="top(boardEvent,3)"><medal-icon :p="3" :size="46"></medal-icon><div class="nm">{{ pn(top(boardEvent,3).e.name) || clsLabel(top(boardEvent,3).e.cls) }}</div><div class="cl" v-if="top(boardEvent,3).e.name">{{ clsLabel(top(boardEvent,3).e.cls) }}</div><div class="mk">{{ fmtMark(boardEvent, top(boardEvent,3).e) }}</div><div class="blk">3</div></div><div v-else></div>
             </div>
             <div class="grid gap-2 mt-3" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
               <div v-for="x in ranked(boardEvent).filter(x=>x.place>=4 && x.place<=boardEvent.awardTop)" :key="x.e.id" style="background:#EEF4FA;border-radius:10px;padding:6px 10px;font-size:16px">
@@ -886,7 +918,7 @@ html.ov-transparent body::before{ display:none; }
             <thead><tr><th>項目</th><th>名次</th><th>姓名</th><th>成績</th></tr></thead>
             <tbody><tr v-for="a in teacherAwards" :key="a.key">
               <td data-label="項目">{{ a.ev }}</td>
-              <td data-label="名次"><span :class="['place','p'+a.place]">{{ a.place }}</span></td>
+              <td data-label="名次"><medal-icon :p="a.place" :size="34"></medal-icon></td>
               <td data-label="姓名">{{ pn(a.name) || '班隊' }}</td>
               <td data-label="成績" class="num">{{ a.mark }}</td>
             </tr></tbody>
@@ -1679,7 +1711,7 @@ html.ov-transparent body::before{ display:none; }
           <div class="card"><div class="eyebrow">正在進行</div><div class="h-sec">{{ nowTl ? nowTl.title : '尚未開始' }}</div><div class="small muted" v-if="nextTl">下一項 {{ tlTime(nextTl) }}　{{ nextTl.title }}</div></div>
           <div class="card" v-if="readyBatchObj"><div class="eyebrow">頒獎進行中</div><div class="h-sec">{{ readyBatchObj.title }}</div><div class="small">頒獎人 {{ personText(presenterOf(readyBatchObj).p) }}・{{ readyBatchObj.place }}</div></div>
           <div class="card" v-if="publishedEvents[0]"><div class="eyebrow">最新成績</div><div class="font-bold">{{ publishedEvents[0].name }}</div>
-            <div v-for="x in ranked(publishedEvents[0]).filter(x=>x.place && x.place<=3)" :key="x.e.id" class="small"><span :class="['place','p'+x.place]">{{ x.place }}</span>{{ clsLabel(x.e.cls) }} {{ pn(x.e.name) }}</div></div>
+            <div v-for="x in ranked(publishedEvents[0]).filter(x=>x.place && x.place<=3)" :key="x.e.id" class="small flex items-center gap-2 mt-1"><medal-icon :p="x.place" :size="30"></medal-icon><span>{{ clsLabel(x.e.cls) }} {{ pn(x.e.name) }}</span></div></div>
         </div>
       </div>
     </section>
@@ -1797,7 +1829,7 @@ html.ov-transparent body::before{ display:none; }
     <div class="dock-sec" v-if="checkinEvents.length"><div class="eyebrow">檢錄呼叫中</div><div class="small" v-for="e in checkinEvents" :key="e.id">● {{ e.name }}</div></div>
     <div class="dock-sec" v-if="readyBatchObj"><div class="eyebrow">頒獎進行中</div><b>{{ shortTitle(readyBatchObj.title) }}</b><div class="small">頒獎人 {{ personText(presenterOf(readyBatchObj).p) }}・{{ readyBatchObj.place }}</div></div>
     <div class="dock-sec" v-if="publishedEvents[0]"><div class="eyebrow">最新成績</div><b>{{ publishedEvents[0].name }}</b>
-      <div class="small" v-for="x in ranked(publishedEvents[0]).filter(x=>x.place && x.place<=3)" :key="x.e.id">{{ x.place }}. {{ clsLabel(x.e.cls) }} {{ pn(x.e.name) }} <span class="num">{{ fmtMark(publishedEvents[0],x.e) }}</span></div></div>
+      <div class="small flex items-center gap-2" v-for="x in ranked(publishedEvents[0]).filter(x=>x.place && x.place<=3)" :key="x.e.id"><medal-icon :p="x.place" :size="26"></medal-icon> {{ clsLabel(x.e.cls) }} {{ pn(x.e.name) }} <span class="num">{{ fmtMark(publishedEvents[0],x.e) }}</span></div></div>
     <div class="dock-sec"><div class="eyebrow">總錦標前三名</div>
       <div class="small" v-for="g in st.settings.scoring.grades" :key="g">{{ ZH[g] }}年級：<span v-for="(r,i) in (standings[g]||[]).slice(0,3)" :key="r.cls">{{ i+1 }}.{{ clsLabel(r.cls) }} {{ r.pts }}　</span></div></div>
     <button class="btn btn-primary w-full mt-1" @click="go('board')">開啟完整大會看板</button>
@@ -3014,6 +3046,21 @@ createApp({
       copy, copyTable, downloadXlsx, setPreset, resetDemo, clearMarks,
       fbk, fbTried, fbText, sendFeedback, boardIdx, boardEvent, tickerText, toggleBoardMode, fullscreen };
   }
+})
+/* <medal-icon :p="名次" :size="大小"></medal-icon>：第 1～3 名畫成金、銀、銅獎牌，其他名次是圓形號碼 */
+.component('medal-icon', {
+  props:{ p:{ default:null }, size:{ default:38 } },
+  template:`<span v-if="p>=1 && p<=3" :class="['medal-svg','mm'+p]" :style="{width:size*0.84+'px',height:size+'px'}" role="img" :aria-label="['','金牌','銀牌','銅牌'][p]+'・第'+p+'名'">
+    <svg viewBox="0 0 40 48" width="100%" height="100%">
+      <polygon class="rb1" points="7,0 17,0 23,19 13,19"/><polygon class="rb2" points="23,0 33,0 27,19 17,19"/>
+      <polygon points="15,0 17,0 23,19 21,19" fill="rgba(255,255,255,.35)"/>
+      <circle cx="20" cy="31" r="15.5" :fill="'url(#mg'+p+')'" class="rim"/>
+      <circle cx="20" cy="31" r="11.5" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="1.2" stroke-dasharray="2 1.6"/>
+      <g clip-path="url(#mclip)"><rect class="shine" x="-14" y="10" width="7" height="42" fill="rgba(255,255,255,.75)" transform="rotate(20 20 31)"/></g>
+      <ellipse cx="14.5" cy="24.5" rx="5" ry="2.6" fill="rgba(255,255,255,.55)" transform="rotate(-30 14.5 24.5)"/>
+      <text x="20" y="36.2" text-anchor="middle" class="mnum">{{ p }}</text>
+    </svg></span>
+  <span v-else class="medal" :style="{width:size*0.84+'px',height:size*0.84+'px'}">{{ p || '—' }}</span>`
 }).mount('#app');
 </script>
 
