@@ -1192,10 +1192,15 @@ html.ov-transparent body::before{ display:none; }
         <div style="min-width:0" class="flex flex-col gap-4">
           <div class="card">
             <h2 class="h-sec mb-2">臨時插播</h2>
-            <div class="flex flex-wrap gap-2 mb-2">
-              <button class="btn btn-sm" v-for="q in QUICK_BC" :key="q.t" @click="mcText=q.text">{{ q.t }}</button>
+            <p class="small muted mb-2">點範例 → 自動選取「○」→ 直接打字換掉（Tab 或「下一個空格」跳到下一個○）。</p>
+            <div class="seg mb-2" role="tablist" aria-label="範例分類">
+              <button v-for="(c,i) in QUICK_BC" :key="c.cat" :class="{on:bcCat===i}" @click="bcCat=i">{{ c.cat }}</button>
             </div>
-            <textarea class="inp" id="mcText" rows="3" v-model="mcText" placeholder="輸入要廣播的內容" maxlength="200"></textarea>
+            <div class="flex flex-wrap gap-2 mb-2">
+              <button class="btn btn-sm" v-for="q in QUICK_BC[bcCat].items" :key="q.t" @click="useTpl('mcText', q.text)">{{ q.t }}</button>
+            </div>
+            <textarea class="inp" id="mcText" rows="3" v-model="mcText" placeholder="輸入要廣播的內容，或點上面的範例" maxlength="200" @keydown="slotKey"></textarea>
+            <div class="flex gap-2 items-center mt-1 small" v-if="mcText.includes('○')"><span style="color:var(--warn);font-weight:700">還有 {{ (mcText.match(/○+/g)||[]).length }} 個「○」要填</span><button class="btn btn-sm" @click="nextSlot('mcText')">下一個空格 →</button></div>
             <button class="btn btn-primary mt-2" @click="addInsert" :disabled="!mcText.trim()">加入播報清單</button>
           </div>
           <div class="card">
@@ -1587,8 +1592,13 @@ html.ov-transparent body::before{ display:none; }
         <div class="card flex flex-col gap-3">
           <h2 class="h-sec">送出通報</h2>
           <div><label class="lbl">類別</label><div class="seg"><button v-for="(t,k) in RTYPES" :key="k" :class="{on:rf.type===k}" @click="rf.type=k">{{ t.name }}</button></div></div>
-          <div><label class="lbl" for="rfPlace">地點</label><input id="rfPlace" class="inp" v-model.trim="rf.place" maxlength="20" placeholder="例：東側廁所、檢錄處、五年三班休息區"></div>
-          <div><label class="lbl" for="rfText">狀況</label><textarea id="rfText" class="inp" rows="2" v-model.trim="rf.text" maxlength="120" placeholder="例：衛生紙用完、接力棒少一支、學生跌倒擦傷"></textarea></div>
+          <div><label class="lbl" for="rfPlace">地點</label>
+            <div class="flex flex-wrap gap-2 mb-2"><button class="btn btn-sm" v-for="pl in PLACE_TPL" :key="pl" @click="useTpl('rfPlace', pl)">{{ pl }}</button></div>
+            <input id="rfPlace" class="inp" v-model.trim="rf.place" maxlength="20" placeholder="點上面的地點，或自己輸入" @keydown="slotKey"></div>
+          <div><label class="lbl" for="rfText">狀況</label>
+            <div class="flex flex-wrap gap-2 mb-2"><button class="btn btn-sm" v-for="t in (REPORT_TPL[rf.type]||[])" :key="t" @click="useTpl('rfText', t)">{{ t }}</button></div>
+            <textarea id="rfText" class="inp" rows="2" v-model.trim="rf.text" maxlength="120" placeholder="點上面的範例，或自己輸入" @keydown="slotKey"></textarea>
+            <div class="flex gap-2 items-center mt-1 small" v-if="(rf.place+rf.text).includes('○')"><span style="color:var(--warn);font-weight:700">還有「○」要填</span><button class="btn btn-sm" @click="nextSlot(rf.place.includes('○') ? 'rfPlace' : 'rfText')">下一個空格 →</button></div></div>
           <label class="flex items-center gap-2"><input type="checkbox" id="rfUrgent" v-model="rf.urgent" style="width:22px;height:22px"> 緊急（醒目提醒負責組別）</label>
           <label class="flex items-center gap-2" v-if="rf.urgent"><input type="checkbox" id="rfMc" v-model="rf.mc" style="width:22px;height:22px"> 同時請司儀廣播</label>
           <button class="btn btn-primary btn-big" @click="submitReport" :disabled="!rf.text">送出通報</button>
@@ -1956,13 +1966,52 @@ const PLAN_QUESTIONS = [
 ];
 const STATUS = { none:'○ 未開始', checkin:'◐ 檢錄中', running:'▶ 比賽中', review:'⧗ 待審核', published:'✔ 已公布', awarded:'★ 已頒獎' };
 const BC = { thanks:'感謝', urgent:'緊急更正', check:'檢錄', result:'成績宣布', guest:'來賓介紹', award:'頒獎', flow:'大會報告', insert:'插播' };
+/* ▶ 接手的老師：司儀插播範例。「○」是要填的地方，點範例後會自動選取第一個○，直接打字就會換掉（Tab 跳下一個）
+   想新增範例，照格式加一行即可 */
 const QUICK_BC = [
-  { t:'找人', text:'大會報告：請 ○年○班 ○○○ 同學聽到廣播後，到司令台找老師。' },
-  { t:'失物招領', text:'大會報告：司令台撿到 ○○ 一件，遺失的同學請到司令台認領。' },
-  { t:'補充水分', text:'大會報告：天氣炎熱，請各班同學記得補充水分，注意休息。' },
-  { t:'午餐', text:'大會報告：請各班午餐值日生到 ○○ 領取午餐。' },
-  { t:'交通安全', text:'大會報告：散會時請家長走東寧路側門接送，注意交通安全。' },
+  { cat:'找人・失物', items:[
+    { t:'找學生', text:'大會報告：請 ○年○班 ○○○ 同學聽到廣播後，到 司令台 找老師。' },
+    { t:'找家長', text:'大會報告：請 ○年○班 ○○○ 同學的家長，到 司令台 與老師聯繫，謝謝。' },
+    { t:'走失兒童', text:'大會報告：有一位穿 ○○ 衣服的小朋友在司令台等家長，請家長盡快到司令台。' },
+    { t:'失物招領', text:'大會報告：司令台撿到 ○○（顏色 ○○）一件，遺失的同學請到司令台認領。' },
+    { t:'找老師', text:'大會報告：請 ○○ 老師聽到廣播後，到 ○○ 處理事情，謝謝。' } ] },
+  { cat:'比賽進行', items:[
+    { t:'檢錄呼叫', text:'大會報告：請參加 ○年級○子組 ○○ 的選手，立刻到檢錄處報到。' },
+    { t:'最後檢錄', text:'大會報告：最後一次檢錄，請 ○年級○子組 ○○ 還沒報到的選手，馬上到檢錄處。' },
+    { t:'下一項預告', text:'大會報告：下一項比賽是 ○○，請相關班級選手到 ○○ 準備。' },
+    { t:'比賽延後', text:'大會報告：因為 ○○，○○ 比賽延後約 ○ 分鐘，請選手在休息區等候。' },
+    { t:'場地變更', text:'大會報告：○○ 比賽改在 ○○ 進行，請選手與老師留意。' },
+    { t:'加油', text:'大會報告：請大家為場上的選手加油，給他們最熱烈的掌聲！' } ] },
+  { cat:'秩序・安全', items:[
+    { t:'跑道淨空', text:'大會報告：比賽即將開始，請跑道上的人員退到線外，謝謝合作。' },
+    { t:'回休息區', text:'大會報告：請各班同學回到班級休息區，不要在跑道上走動。' },
+    { t:'觀眾區', text:'大會報告：請家長在觀眾區觀賽，不要進入比賽場地，謝謝合作。' },
+    { t:'補充水分', text:'大會報告：天氣炎熱，請各班同學記得補充水分，注意休息。' },
+    { t:'防曬', text:'大會報告：今天陽光強，請同學戴帽子，多在陰涼處休息。' },
+    { t:'天候暫停', text:'大會報告：因為天候關係，比賽暫停，請各班回到 ○○ 待命，等候通知。' },
+    { t:'緊急集合', text:'大會報告：請全體人員保持冷靜，聽從老師指示，到 ○○ 集合。' } ] },
+  { cat:'生活', items:[
+    { t:'午餐', text:'大會報告：請各班午餐值日生到 ○○ 領取午餐。' },
+    { t:'垃圾分類', text:'大會報告：請各班把垃圾分類好，資源回收請送到 ○○。' },
+    { t:'廁所位置', text:'大會報告：廁所在 ○○ 和 ○○，請家長與同學多加利用。' },
+    { t:'交通安全', text:'大會報告：散會時請家長走東寧路側門接送，注意交通安全。' },
+    { t:'散會', text:'大會報告：今天的運動會到此結束，請各班依序回教室，謝謝大家的參與！' } ] },
+  { cat:'感謝・典禮', items:[
+    { t:'歡迎來賓', text:'大會報告：熱烈歡迎 ○○ 蒞臨指導，請大家掌聲歡迎！' },
+    { t:'感謝捐贈', text:'大會報告：感謝 ○○ 捐贈 ○○，讓運動會更加圓滿，謝謝！' },
+    { t:'頒獎集合', text:'大會報告：請 ○○ 的得獎同學，到頒獎台前集合，準備頒獎。' },
+    { t:'感謝工作人員', text:'大會報告：感謝全體老師、志工與工作人員的辛苦付出，請大家給他們掌聲！' } ] },
 ];
+/* 現場通報範例（依類別）與常用地點 */
+const REPORT_TPL = {
+  equip:['接力棒少 ○ 支','碼錶不夠／沒電，需要 ○ 個','名次牌不見了','起跑線、終點線需要補畫','需要 ○○ 送到 ○○'],
+  env:['廁所衛生紙用完了','垃圾桶滿了，需要清理','地上有飲料打翻，容易滑倒','洗手台沒有洗手乳','休息區有垃圾需要清理'],
+  lunch:['○年○班 便當少 ○ 個','午餐送錯班級（○年○班）','餐具不夠，需要 ○ 份','有學生需要素食便當'],
+  medic:['有學生跌倒擦傷，需要醫護','學生頭暈、身體不舒服，疑似中暑','學生流鼻血','需要冰敷袋','學生扭傷，無法走路'],
+  site:['麥克風／音響沒有聲音','帳篷被風吹歪，需要固定','椅子不夠，需要 ○ 張','沒有電，需要延長線','大門口需要人員引導'],
+  other:['有家長進入比賽場地','找不到 ○○ 老師','有不明人士在校園','需要支援人手 ○ 位'],
+};
+const PLACE_TPL = ['檢錄處','司令台','起跑區','終點','頒獎台','東側廁所','西側廁所','觀眾區','○年○班休息區'];
 /* 身分與分工：pages＝這組要用的頁面；duty＝總控台「分工表」的說明 */
 const ROLES = [
   { id:'control', name:'總控（司令台）',  pages:['home','board','mc','live'], duty:'整場主控：按流程「開始／完成」、流程延誤通知、掌握各組進度（建議由總幹事或其指定的人坐鎮司令台）' },
@@ -2572,9 +2621,17 @@ createApp({
     function askReopen(ev){ if(!need('publish')) return; modal.value={ title:'申請修改「'+ev.name+'」', text:'已公布的成績要修改，請寫明原因，系統會留下紀錄。', input:'', placeholder:'例：第2名與第3名秒數登錄顛倒', okText:'退回重新登錄', onOk:(reason)=>{ ev.status='review'; log('申請修改已公布成績：'+ev.name+'（原因：'+reason+'）'); bc('flow','大會報告：'+ev.name+' 成績重新核對中，正確成績稍後公布。'); toast('已改為待審核，請重新登錄或確認'); scEvId.value=ev.id; } }; }
 
     /* ----- 司儀 ----- */
-    const mcText = ref('');
+    const mcText = ref(''); const bcCat = ref(0);
+    /* 範例套用：填入後自動選取第一個「○」，直接打字就換掉；Tab 跳到下一個○ */
+    function selectSlot(el, from){ const v=el.value, re=/○+/g; re.lastIndex=from||0; let m=re.exec(v); if(!m && from){ re.lastIndex=0; m=re.exec(v); }
+      el.focus(); if(m){ el.setSelectionRange(m.index, m.index+m[0].length); return true; } el.setSelectionRange(v.length, v.length); return false; }
+    function useTpl(id, text){ if(id==='mcText') mcText.value=text; else if(id==='rfPlace') rf.place=text; else rf.text=text;
+      nextTick(()=>{ const el=document.getElementById(id); if(el) selectSlot(el,0); }); }
+    function slotKey(e){ if(e.key==='Tab' && !e.shiftKey && e.target.value.includes('○')){ e.preventDefault(); selectSlot(e.target, e.target.selectionEnd); } }
+    function nextSlot(id){ const el=document.getElementById(id); if(el) selectSlot(el, el.selectionEnd||0); }
     function doneBc(b){ if(!need('mc')) return; b.done=true; b.doneAt=hhmm(); if(b.guestId){ const g=st.value.guests.find(x=>x.id===b.guestId); if(g) g.introduced=true; } toast('已標記播報'); }
-    function addInsert(){ if(!need('mc')) return; bc('insert', mcText.value.trim()); log('新增插播'); mcText.value=''; toast('已加入，排在最前面'); }
+    function addInsert(){ if(!need('mc')) return; if(mcText.value.includes('○')){ ask('內容還有「○」沒有改，確定加入嗎？', doInsert); return; } doInsert(); }
+    function doInsert(){ bc('insert', mcText.value.trim()); log('新增插播'); mcText.value=''; toast('已加入，排在最前面'); }
     function bcStyle(t){ return { thanks:'background:var(--ok-soft);color:var(--ok)', urgent:'background:#B42318;color:#fff', check:'background:var(--warn-soft);color:var(--warn)', result:'background:var(--ok-soft);color:var(--ok)', guest:'background:#FFF4CC;color:#6B4E00', award:'background:#FFF4CC;color:#6B4E00', flow:'background:var(--brand-soft);color:var(--brand)', insert:'background:var(--bad-soft);color:var(--bad)' }[t]; }
 
     /* ----- 來賓・頒獎人 ----- */
@@ -2897,7 +2954,8 @@ createApp({
     const reportList = computed(()=>{ const a=st.value.reports.slice().sort((x,y)=>(y.ts||0)-(x.ts||0)); if(rFilter.value==='open') return a.filter(isOpenR); if(rFilter.value==='mine') return a.filter(r=>isOpenR(r) && (canHandle(r) || mine(r))); return a; });
     const openMedicReports = computed(()=>openReports.value.filter(r=>r.type==='medic'));
     function newReport(o){ st.value.reports.push(Object.assign({ id:'r'+Date.now()+uid(), ts:Date.now(), at:hhmm(), by:roleObj.value.name, byEmail:FORMAL?fb.email:'', byRole:role.value, status:'open', handledBy:'', doneAt:'', urgent:false, place:'', text:'' }, o)); }
-    function submitReport(){ if(!need('report')) return; newReport({ type:rf.type, place:rf.place, text:rf.text, urgent:rf.urgent }); if(rf.urgent && rf.mc) bc('insert','大會報告：'+(rf.place?rf.place+'，':'')+rf.text+'，請相關人員協助處理。',{ reportId:st.value.reports[st.value.reports.length-1].id }); log('現場通報：'+RTYPES[rf.type].name+' '+rf.place+' '+rf.text); toast('已送出，'+RTYPES[rf.type].name+'負責組別會即時收到'); rf.place=''; rf.text=''; rf.urgent=false; rf.mc=false; }
+    function submitReport(){ if(!need('report')) return; if((rf.place+rf.text).includes('○')){ ask('地點或狀況還有「○」沒有改，確定送出嗎？', doSubmitReport); return; } doSubmitReport(); }
+    function doSubmitReport(){ newReport({ type:rf.type, place:rf.place, text:rf.text, urgent:rf.urgent }); if(rf.urgent && rf.mc) bc('insert','大會報告：'+(rf.place?rf.place+'，':'')+rf.text+'，請相關人員協助處理。',{ reportId:st.value.reports[st.value.reports.length-1].id }); log('現場通報：'+RTYPES[rf.type].name+' '+rf.place+' '+rf.text); toast('已送出，'+RTYPES[rf.type].name+'負責組別會即時收到'); rf.place=''; rf.text=''; rf.urgent=false; rf.mc=false; }
     function setReport(r,stt){ if(!canHandle(r)){ need(RTYPES[r.type]?RTYPES[r.type].perm:'flow'); return; } r.status=stt; r.handledBy=roleObj.value.name; if(stt==='done') r.doneAt=hhmm(); log('通報'+(stt==='done'?'完成':'處理中')+'：'+r.place+' '+r.text); }
     const md = reactive({ cls:'', name:'', issue:'', care:'', parent:false });
     function addMedical(){ if(!need('medic')) return; st.value.medical.push({ id:'m'+Date.now()+uid(), ts:Date.now(), at:hhmm(), cls:md.cls, name:md.name, issue:md.issue, care:md.care, parent:md.parent, notified:false, status:'open', by:roleObj.value.name }); log('醫護：登記一筆'); toast('已登記'); md.name=''; md.issue=''; md.care=''; md.parent=false; }
@@ -3139,7 +3197,7 @@ createApp({
     onMounted(()=>{ readHash(); if(!hashGiven && isPublicView.value) page.value='board'; loadDraft(); syncLiveDraft(); renderQR(); if(FORMAL) fbInit(); else initCloud(); });
 
     return { st, role, page, helpOpen, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
-      SHORT, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
+      SHORT, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
       drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
       roleObj, myPages, navPages, myTasks, dateLabel, go, badge, kpi, ask, modalOk, clsLabel,
