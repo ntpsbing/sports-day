@@ -201,6 +201,13 @@ label.lbl{ display:block; font-size:16px; font-weight:700; color:var(--ink2); ma
 .kpi.hot{ border:2px solid var(--bad); }
 
 /* ---------- 成績查詢：一般運動會成績公告樣式（名次・班級・姓名・成績） ---------- */
+.roletabs{ display:flex; flex-wrap:wrap; gap:8px; }
+.rtab{ min-height:44px; padding:0 14px; border-radius:999px; border:1.5px solid var(--line); background:var(--surface); font-weight:700; font-size:16px; color:var(--ink); display:inline-flex; align-items:center; gap:6px; transition:background .15s, border-color .15s; }
+.rtab:hover{ border-color:var(--brand); }
+.rtab.on{ background:var(--brand); border-color:var(--brand); color:var(--brand-ink); }
+.rtab.empty:not(.on){ color:var(--ink2); border-style:dashed; }
+.rtab-n{ min-width:24px; height:24px; padding:0 7px; border-radius:999px; background:var(--surface2); color:var(--ink2); font-size:13px; font-weight:900; display:inline-grid; place-items:center; }
+.rtab.on .rtab-n{ background:rgba(255,255,255,.25); color:inherit; }
 .res-grid{ display:grid; gap:16px; grid-template-columns:repeat(auto-fill,minmax(min(100%,440px),1fr)); align-items:start; }
 .res-h{ display:flex; justify-content:space-between; align-items:flex-start; gap:8px; padding-bottom:10px; margin-bottom:4px; border-bottom:3px solid var(--track); }
 .rtbl{ width:100%; border-collapse:collapse; font-size:17px; }
@@ -838,19 +845,15 @@ html.ov-transparent body::before{ display:none; }
               </details>
             </div>
             <div class="flex gap-2 items-center flex-wrap mb-2"><b>已設定 {{ fb.roles.length }} 位</b>
-              <div class="seg" role="group" aria-label="顯示方式"><button :class="{on:roleView==='group'}" @click="roleView='group'">依組別</button><button :class="{on:roleView==='name'}" @click="roleView='name'">依姓名</button></div>
-              <input class="inp" id="rfQ" v-model="roleQ" placeholder="搜尋姓名、組別或帳號" style="max-width:260px"></div>
-            <!-- 依組別：每組一張卡，列出成員；點名字可以修改 -->
-            <div v-if="roleView==='group'" class="grid gap-3 items-start" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr))">
-              <div v-for="g in roleGroups" :key="g.id" class="card-flat" :style="g.list.length?'':'opacity:.6'">
-                <div class="flex justify-between items-center gap-2 mb-2"><b>{{ g.name }}</b><span :class="['chip', g.list.length ? 'st-published' : 'tag-todo']">{{ g.list.length ? g.list.length+' 位' : '尚無人' }}</span></div>
-                <div class="flex flex-wrap gap-2">
-                  <button v-for="r in g.list" :key="r.email" class="btn btn-sm" :title="r.email+'（點一下修改）'" @click="editRole(r)">{{ r.name || r.email.split('@')[0] }}<span v-if="r.roles.length>1" class="muted" style="font-size:.8em">＋{{ r.roles.length-1 }}</span></button>
-                </div>
-              </div>
+              <input class="inp" id="rfQ" v-model="roleQ" placeholder="搜尋姓名或帳號" style="max-width:260px"></div>
+            <!-- 上面一排組別：點了只看那一組的成員；「全部」看所有人 -->
+            <div class="roletabs mb-3" role="tablist" aria-label="依組別篩選">
+              <button role="tab" :aria-selected="roleTab==='all'" :class="['rtab',{on:roleTab==='all'}]" @click="roleTab='all'">全部 <span class="rtab-n">{{ fb.roles.length }}</span></button>
+              <button v-for="g in roleGroups" :key="g.id" role="tab" :aria-selected="roleTab===g.id" :class="['rtab',{on:roleTab===g.id, empty:!g.n}]" @click="roleTab=g.id">{{ g.name }} <span class="rtab-n">{{ g.n }}</span></button>
             </div>
-            <div v-else class="tblwrap" style="max-height:420px;overflow:auto"><table class="tbl small"><thead><tr><th>姓名</th><th>組別</th><th></th></tr></thead><tbody>
-              <tr v-for="r in roleRowsShown" :key="r.email"><td><b style="font-size:1.05em">{{ r.name || '（未填姓名）' }}</b><div class="muted" style="word-break:break-all;font-size:.8em">{{ r.email }}</div></td><td>{{ r.roles.map(id=>(ROLES.find(x=>x.id===id)||{}).name||id).join('、') }}</td><td class="flex gap-1"><button class="btn btn-sm" @click="editRole(r)">修改</button><button class="btn btn-sm" @click="removeRole(r.email)">移除</button></td></tr>
+            <div v-if="roleTab!=='all' && !roleRowsTab.length" class="card-flat small muted text-center" style="padding:24px">「{{ roleName(roleTab) }}」還沒有設定成員。在上方輸入帳號、勾選這一組，按「設定權限」。</div>
+            <div v-else class="tblwrap" style="max-height:480px;overflow:auto"><table class="tbl small"><thead><tr><th>姓名</th><th>組別</th><th></th></tr></thead><tbody>
+              <tr v-for="r in roleRowsTab" :key="r.email"><td><b style="font-size:1.05em">{{ r.name || '（未填姓名）' }}</b><div class="muted" style="word-break:break-all;font-size:.8em">{{ r.email }}</div></td><td>{{ r.roles.map(id=>(ROLES.find(x=>x.id===id)||{}).name||id).join('、') }}</td><td class="flex gap-1"><button class="btn btn-sm" @click="editRole(r)">修改</button><button class="btn btn-sm" @click="removeRole(r.email)">移除</button></td></tr>
             </tbody></table></div>
           </div>
     </section>
@@ -3050,10 +3053,10 @@ createApp({
     /* 批次設定權限：組別名稱用關鍵字對應（例：「器材」→器材組、「司儀」→廣播組） */
     const ROLE_KEYS=[['control',['總控','司令台','總幹事']],['record',['紀錄']],['sport',['體育組','裁判','競賽']],['checkin',['檢錄']],['mc',['廣播','司儀']],['guest',['招待','交安']],['award',['頒獎','獎品']],['live',['攝影','直播']],['doc',['文書']],['ceremony',['典禮']],['equip',['器材']],['medic',['醫護']],['lunch',['午餐']],['env',['環保']],['quest',['闖關','體闖']],['gift',['收禮']],['promo',['文宣']],['affairs',['事務','場地']],['teacher',['導師']]];
     function roleIdOf(name){ const n=String(name).trim(); if(!n) return null; const hit=ROLE_KEYS.find(([id,keys])=>keys.some(k=>n.includes(k))); return hit?hit[0]:null; }
-    const roleBulk = ref(''); const roleQ = ref(''); const roleView = ref('group');
+    const roleBulk = ref(''); const roleQ = ref(''); const roleTab = ref('all');
     /* 依組別顯示：照身分選單的分類順序，每組列出成員（兼任的人會出現在每一組） */
-    const roleGroups = computed(()=>ROLE_CATS.flatMap(c=>c.ids).filter(id=>!['teacher','public'].includes(id)).map(id=>({ id, name:roleName(id),
-      list: roleRowsShown.value.filter(r=>r.roles.includes(id)) })).filter(g=>g.list.length || !roleQ.value.trim()));
+    const roleGroups = computed(()=>ROLE_CATS.flatMap(c=>c.ids).filter(id=>!['teacher','public'].includes(id)).map(id=>({ id, name:roleName(id), n:fb.roles.filter(r=>r.roles.includes(id)).length })));
+    const roleRowsTab = computed(()=>roleTab.value==='all' ? roleRowsShown.value : roleRowsShown.value.filter(r=>r.roles.includes(roleTab.value)));
     const roleRowsShown = computed(()=>{ const q=roleQ.value.trim().toLowerCase();
       return fb.roles.map(r=>({ ...r, gtxt:r.roles.map(id=>(ROLES.find(x=>x.id===id)||{}).name||id).join('、') }))
         .filter(r=>!q || (r.name+' '+r.email+' '+r.gtxt).toLowerCase().includes(q))
@@ -3119,7 +3122,7 @@ createApp({
       scEvId, scEv, scRows, scShake, scIssues, needsMark, markWarn, submitReview,
       rvTab, rvNote, publish, sendBack, askReopen,
       mcText, doneBc, addInsert, bcStyle,
-      FORMAL, fb, roleView, roleGroups, signIn, signOut, initFormal, roleForm, setRole, editRole, removeRole, roleBulk, roleBulkRows, applyRoleBulk, roleQ, roleRowsShown, rosterDraft, onRosterInput, rosterMap, loginMatches, pendingMatches, saveRoster, setRosterAuto, applyMatches, isOnline, devicesSorted, devicesOnline, addTl, removeTl, removeGuest,
+      FORMAL, fb, roleTab, roleGroups, roleRowsTab, signIn, signOut, initFormal, roleForm, setRole, editRole, removeRole, roleBulk, roleBulkRows, applyRoleBulk, roleQ, roleRowsShown, rosterDraft, onRosterInput, rosterMap, loginMatches, pendingMatches, saveRoster, setRosterAuto, applyMatches, isOnline, devicesSorted, devicesOnline, addTl, removeTl, removeGuest,
       RTYPES, STA, rf, rFilter, canHandle, openReports, myOpenReports, reportList, openMedicReports, submitReport, setReport, md, addMedical, medicalRows, eqFilter, ne, tlLabel, equipGroups, nextEquip, setEquip, addEquip, lunchInfo, lunchMissing, setLunchInfo, toggleLunch, callLunch, gf, addGift, announceGift, giftRows, giftText, setStation, supportMissing, initSupport,
       dockOpen, setDock, qa, quickAssign, person, useBackup, restorePrimary, eventPoints, setCustomPts, baseNames, bulk, applyBulk,
       gFilter, gKind, guestList, ng, arrive, addGuest, personText, personMark, shortTitle, batchesOf, presenterOf, toggleAbsent, readyBatchObj, batchTime, winnersOf, winnerGroups, awardIssues, teacherCalls, sync, toggleCloud, canEmbed, embedUrl,
