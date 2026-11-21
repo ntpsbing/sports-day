@@ -1357,6 +1357,7 @@ html.ov-transparent body::before{ display:none; }
           <h2 class="h-sec">第 3 步：檢查後匯入</h2>
           <div class="small"><b style="color:var(--ok)">✔ 可匯入 {{ imOk.length }} 筆</b>　<b style="color:var(--bad)" v-if="imBad.length">✗ 有問題 {{ imBad.length }} 筆（不會匯入）</b></div>
         </div>
+        <div class="note note-info mb-2" v-if="imSheetPlan.published || imSheetPlan.none">依工作表名稱自動處理：<b v-if="imSheetPlan.published">直接公布 {{ imSheetPlan.published }} 筆</b><span v-if="imSheetPlan.published && imSheetPlan.none">、</span><b v-if="imSheetPlan.none">只匯入名單（不公布）{{ imSheetPlan.none }} 筆</b>。按下面按鈕一次完成。</div>
         <div class="tblwrap" style="max-height:420px;overflow:auto">
           <table class="tbl cards">
             <thead><tr><th>列</th><th>檢查</th><th v-for="h in imHeaders">{{ h }}</th></tr></thead>
@@ -2641,23 +2642,24 @@ createApp({
       if(/大隊/.test(s)) return '大隊接力'; if(/4×100|400.*接力|4×1/.test(s)) return '4×100公尺接力'; if(/樂樂/.test(s)) return '樂樂棒球擲遠'; if(/壘球/.test(s)) return '壘球擲遠'; if(/跳遠/.test(s)) return '跳遠';
       const m=s.match(/^(60|100|200)/); if(m) return m[1]+'公尺'; return s; }
     function rowsFromText(t){ const lines=t.replace(/\r/g,'').split('\n').filter(l=>l.trim()); if(!lines.length) return []; const sep=lines[0].includes('\t')?'\t':','; return lines.map(l=>l.split(sep).map(c=>c.trim().replace(/^"|"$/g,''))); }
-    function analyze(rows){
-      if(!rows.length){ imRows.value=[]; return; }
+    function analyze(rows, after, append, sheet){
+      if(!append) imRows.value=[];
+      if(!rows.length) return;
       let hdr=rows[0].map(String), body=rows.slice(1);
       const want = imType.value==='results' ? ['項目','年級','性別','班級','姓名','成績','名次'] : ['單位','姓名','職稱','備註','類別'];
       if(!hdr.some(h=>want.includes(h.trim()))){ body=rows; hdr=want; }
       const idx=want.map(w=>hdr.findIndex(h=>h.trim()===w || (w==='性別' && h.trim()==='組別')));
       want.forEach((w,i)=>{ if(idx[i]<0) idx[i]=i; });
       imHeaders.value=want;
-      imRows.value=body.filter(r=>r.some(c=>String(c).trim())).slice(0,2000).map((r,li)=>{
-        const cells=idx.map(i=>String(r[i]==null?'':r[i]).trim()); const row={ line:li+2, cells, ok:false, msg:'' };
+      const out=body.filter(r=>r.some(c=>String(c).trim())).slice(0,3000).map((r,li)=>{
+        const cells=idx.map(i=>String(r[i]==null?'':r[i]).trim()); const row={ line:(sheet?sheet+' ':'')+(li+2), cells, ok:false, msg:'', after };
         if(imType.value==='guests'){ if(!cells[1] && !cells[0]){ row.msg='沒有姓名或單位'; return row; } row.ok=true; row.target='新增來賓'; row.data={ org:cells[0], name:cells[1]||'○○○', title:cells[2], note:cells[3], kind:['校內','家長會','來賓'].includes(cells[4])?cells[4]:'來賓' }; return row; }
         const [it,gr,gd,cl,nm,mk,pl]=cells; const base=normBase(it); const def=EVENT_DEFS.find(d=>d.base===base);
         if(!def){ row.msg='看不懂項目「'+it+'」'; return row; }
         const g=zhToNum(String(gr).replace(/年級?/,'')); if(!def.grades.includes(g)){ row.msg=base+' 沒有'+(g?ZH[g]+'年級':'這個年級'); return row; }
         let gender = def.genders && def.genders[0]==='混' ? '混' : (/女/.test(gd)?'女':/男/.test(gd)?'男':''); if(!gender){ row.msg='請填性別（男／女）'; return row; }
         const cls=parseCls(cl,g); if(!cls || +cls.split('-')[0]!==g){ row.msg='班級「'+cl+'」看不懂或年級不符'; return row; }
-        if(+cls.split('-')[1]>(st.value.settings.classes[g]||0)){ row.msg=clsLabel(cls)+' 超過班級數'; return row; }
+        const needCls = +cls.split('-')[1]>(st.value.settings.classes[g]||0) ? +cls.split('-')[1] : 0; // 例：成績單有 412 班但設定只有 11 班 → 匯入時自動調成 12 班
         if(!def.team && !nm){ row.msg='個人項目要填姓名'; return row; }
         const codeOf=v=>{ const u=String(v).toUpperCase().replace(/\s/g,''); return MARK_CODES.includes(u)?u:''; };
         const code=codeOf(mk)||codeOf(pl)||(def.unit==='秒' && parseFloat(mk)>=99?'DNS':''); // 99.99 是學校表單「未出賽」的寫法
@@ -2665,13 +2667,26 @@ createApp({
         if(!code && pl!=='' && !parseInt(pl)){ row.msg='名次「'+pl+'」不是數字'; return row; }
         const evId=def.key+'-'+g+'-'+(gender==='男'?'M':gender==='女'?'F':'X'); const ev=st.value.events.find(e=>e.id===evId);
         const evName=ev ? ev.name : makeEvent(def,g,gender,0).name+'（新增項目）';
-        row.ok=true; row.target=evName+(code?'・'+code:''); row.data={ evId, def:def.key, g, gender, cls, name:nm, mark:code?'':mk, place:code?'':pl, code }; return row;
+        row.ok=true; row.target=evName+(code?'・'+code:'')+(needCls?'・'+ZH[g]+'年級將調為 '+needCls+' 班':''); row.data={ evId, def:def.key, g, gender, cls, name:nm, mark:code?'':mk, place:code?'':pl, code, needCls }; return row;
       });
+      imRows.value = append ? imRows.value.concat(out) : out;
     }
     function parseImport(){ analyze(rowsFromText(imRaw.value)); }
+    /* 一個 Excel 有好幾個工作表時一次全部讀進來（例：田賽成績＋徑賽決賽名單）
+       工作表名稱有「公布」→ 直接公布；有「名單」→ 只匯入名單；開頭是「參考」→ 略過；其他照下拉選單 */
+    function readWorkbook(wb, fname){
+      const names = imType.value==='results' ? wb.SheetNames.filter(n=>!/^參考/.test(n)) : [wb.SheetNames[0]];
+      const use = names.includes('成績登錄') ? ['成績登錄'] : names;
+      imRows.value=[];
+      use.forEach(n=>{ const rows=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:false,defval:''});
+        const after = imType.value!=='results' ? undefined : /公布/.test(n) ? 'published' : /名單/.test(n) ? 'none' : undefined;
+        analyze(rows, after, true, use.length>1 ? '「'+n+'」' : ''); });
+      imRaw.value='（已讀取檔案：'+fname+(use.length>1?'，共 '+use.length+' 個工作表':'')+'）'; toast('已讀取 '+fname);
+    }
+    const imSheetPlan = computed(()=>{ const m={}; imRows.value.forEach(r=>{ if(!r.ok || !r.after) return; m[r.after]=(m[r.after]||0)+1; }); return m; });
     function readImportFile(e){
       const f=e.target.files && e.target.files[0]; if(!f) return; const reader=new FileReader();
-      if(/\.(xlsx|xls)$/i.test(f.name)){ reader.onload=()=>{ try{ const wb=XLSX.read(new Uint8Array(reader.result),{type:'array'}); const ws=wb.Sheets[wb.SheetNames.includes('成績登錄')?'成績登錄':wb.SheetNames[0]]; const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:''}); imRaw.value='（已讀取檔案：'+f.name+'）'; analyze(rows); toast('已讀取 '+f.name); }catch(err){ toast('這個 Excel 檔讀不出來，請改用複製貼上',true); } }; reader.readAsArrayBuffer(f); }
+      if(/\.(xlsx|xls)$/i.test(f.name)){ reader.onload=()=>{ try{ const wb=XLSX.read(new Uint8Array(reader.result),{type:'array'}); readWorkbook(wb, f.name); }catch(err){ toast('這個 Excel 檔讀不出來，請改用複製貼上',true); } }; reader.readAsArrayBuffer(f); }
       else { reader.onload=()=>{ imRaw.value=String(reader.result); parseImport(); }; reader.readAsText(f,'utf-8'); }
       e.target.value='';
     }
@@ -2679,18 +2694,21 @@ createApp({
     const imBad = computed(()=>imRows.value.filter(r=>!r.ok));
     function doImport(){ if(!need('data')) return;
       if(imType.value==='guests'){ imOk.value.forEach((r,i)=>st.value.guests.push({ id:'g'+uid(), kind:r.data.kind, org:r.data.org, name:r.data.name, title:r.data.title, arrived:false, arrivedAt:'', introduced:r.data.kind==='校內', absent:false, ord:Date.now()+i })); log('匯入來賓 '+imOk.value.length+' 位'); toast('已匯入 '+imOk.value.length+' 位來賓'); imRows.value=[]; imRaw.value=''; return; }
-      const byEv={}; imOk.value.forEach(r=>(byEv[r.data.evId]=byEv[r.data.evId]||[]).push(r.data));
+      const grow={}; imOk.value.forEach(r=>{ const d=r.data; if(d.needCls) grow[d.g]=Math.max(grow[d.g]||0, d.needCls); });
+      Object.entries(grow).forEach(([g,n])=>{ st.value.settings.classes[g]=n; log(ZH[g]+'年級班級數調為 '+n+' 班（依匯入資料）'); });
+      const byEv={}; imOk.value.forEach(r=>{ r.data.after=r.after; (byEv[r.data.evId]=byEv[r.data.evId]||[]).push(r.data); });
       Object.entries(byEv).forEach(([id,list])=>{
         let ev=st.value.events.find(e=>e.id===id);
         if(!ev){ const d0=list[0], def=EVENT_DEFS.find(d=>d.key===d0.def); ev=makeEvent(def,d0.g,d0.gender,st.value.events.length); st.value.events.push(ev); } // 例如三年級 60 公尺：系統原本沒有就自動建立
         if(imMode.value==='replace') ev.entries=[];
         list.forEach(d=>{ let x=ev.entries.find(e=>e.cls===d.cls && (ev.team || e.name===d.name)); if(!x){ x={ id:uid(), cls:d.cls, name:d.name, mark:'', place:'', dq:false, present:null }; ev.entries.push(x); } x.name=d.name||x.name; if(d.mark!=='') x.mark=d.mark; if(d.place!=='') x.place=parseInt(d.place); x.code=d.code||''; x.dq=!!d.code; if(d.code){ x.mark=''; x.place=''; } });
         ev.entries.sort((a,b)=>a.cls.localeCompare(b.cls));
-        if(imAfter.value==='published'){ ev.status='published'; ev.ts=Date.now(); ev.publishedAt=(new Date().getMonth()+1)+'/'+pad(new Date().getDate())+' '+hhmm(); }
-        else if(imAfter.value==='review') ev.status='review';
+        const after=list[0].after||imAfter.value;
+        if(after==='published'){ ev.status='published'; ev.ts=Date.now(); ev.publishedAt=(new Date().getMonth()+1)+'/'+pad(new Date().getDate())+' '+hhmm(); }
+        else if(after==='review') ev.status='review';
         else if(!ev.entries.some(x=>x.mark!=='' || x.code)){ ev.status='none'; ev.publishedAt=''; } // 只有名單、還沒成績：不要出現在公開成績
       });
-      log('匯入成績 '+imOk.value.length+' 筆（'+Object.keys(byEv).length+' 組）'); toast('已匯入 '+imOk.value.length+' 筆，共 '+Object.keys(byEv).length+' 組'+(imAfter.value==='review'?'，請到「審核公布」確認':''));
+      log('匯入成績 '+imOk.value.length+' 筆（'+Object.keys(byEv).length+' 組）'); toast('已匯入 '+imOk.value.length+' 筆，共 '+Object.keys(byEv).length+' 組'+(Object.keys(grow).length?'（已自動調整班級數）':'')+(imOk.value.some(r=>(r.after||imAfter.value)==='review')?'，請到「審核公布」確認':''));
       imRows.value=[]; imRaw.value='';
       if(overLimit.value.length) setTimeout(()=>toast('注意：有 '+overLimit.value.length+' 位學生超過個人項目上限，詳見總控台',true),600);
     }
@@ -3024,7 +3042,7 @@ createApp({
     onMounted(()=>{ readHash(); loadDraft(); syncLiveDraft(); renderQR(); if(FORMAL) fbInit(); else initCloud(); });
 
     return { st, role, page, helpOpen, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
-      SHORT, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
+      SHORT, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
       drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
       roleObj, myPages, navPages, myTasks, dateLabel, go, badge, kpi, ask, modalOk, clsLabel,
