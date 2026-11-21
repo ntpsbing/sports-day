@@ -509,7 +509,7 @@ html.ov-transparent body::before{ display:none; }
       <div class="side-foot">
         <template v-if="FORMAL">
           <div class="small mb-1 flex items-center gap-2"><span :class="['syncdot', fb.online ? '' : 'off']"></span><b>{{ fb.online ? '已連線・即時同步' : '離線中' }}</b></div>
-          <div class="small muted mb-1">延遲 <b class="num">{{ fb.latency!=null ? (fb.latency/1000).toFixed(2)+' 秒' : '—' }}</b>・未送出 <b class="num">{{ fb.pending }}</b> 筆</div>
+          <div class="small muted mb-1" v-if="!isPublicView">延遲 <b class="num">{{ fb.latency!=null ? (fb.latency/1000).toFixed(2)+' 秒' : '—' }}</b>・未送出 <b class="num">{{ fb.pending }}</b> 筆</div>
           <div class="small muted mb-2 sm-hide" v-if="fb.user" style="word-break:break-all">{{ fb.email }}</div>
         </template>
         <template v-else>
@@ -518,7 +518,7 @@ html.ov-transparent body::before{ display:none; }
           <button class="btn btn-sm w-full mb-3" v-if="sync.available" @click="toggleCloud">{{ sync.on ? '改回本機體驗' : '開啟雲端多裝置同步' }}</button>
           <div class="small muted">體驗版：學生姓名與成績都是範例，資料只存在這台電腦，可以放心按。</div>
         </template>
-        <button class="btn btn-sm w-full mt-2" @click="go('feedback')">💬 我要給建議</button>
+        <button v-if="!isPublicView" class="btn btn-sm w-full mt-2" @click="go('feedback')">💬 我要給建議</button>
       </div>
     </aside>
     <div class="scrim lg-hide" v-if="drawer" @click="drawer=false"></div>
