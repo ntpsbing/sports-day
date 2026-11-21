@@ -409,6 +409,8 @@ html.ov-transparent body::before{ display:none; }
 .dock{ position:fixed; z-index:45; right:max(16px, env(safe-area-inset-right,0px)); bottom:calc(16px + env(safe-area-inset-bottom,0px)); width:min(340px, calc(100vw - 32px)); max-height:min(70vh, 620px); overflow-y:auto; background:var(--surface); color:var(--ink); border:1px solid var(--line); border-radius:16px; padding:14px; box-shadow:0 10px 36px rgba(0,0,0,.28); animation:fadeUp .2s ease-out; }
 .dock-sec{ background:var(--surface2); border-radius:10px; padding:8px 10px; margin-bottom:8px; }
 @media (max-width:1023.98px){ .dockbtn, .dock{ bottom:calc(70px + env(safe-area-inset-bottom,0px)); } }
+.previewbar{ background:var(--sun); color:#1D1500; font-weight:700; display:flex; align-items:center; justify-content:center; gap:12px; flex-wrap:wrap; padding:8px max(16px, env(safe-area-inset-right,0px)) 8px max(16px, env(safe-area-inset-left,0px)); text-align:center; }
+.previewbar .btn{ min-height:40px; }
 .netbar{ background:#B42318; color:#fff; font-weight:700; text-align:center; padding:8px max(16px, env(safe-area-inset-right,0px)) 8px max(16px, env(safe-area-inset-left,0px)); }
 .rolechip{ background:#fff; color:#0E2132; border-radius:10px; min-height:44px; padding:0 12px; font-weight:900; display:flex; align-items:center; }
 .btn-wrap{ white-space:normal; text-align:left; line-height:1.35; padding-block:8px; height:auto; }
@@ -465,6 +467,7 @@ html.ov-transparent body::before{ display:none; }
       <button v-if="FORMAL && fb.user" class="menubtn sm-hide" @click="signOut" :title="fb.email">登出</button>
     </div>
   </header>
+  <div v-if="previewing" class="previewbar no-print" role="status">👀 預覽中：你正在用「{{ roleObj.name }}」的身分看畫面（看到的頁面和能做的事都跟他一樣）<button class="btn btn-sm" @click="role='record'; go('start')">回到管理員</button></div>
   <div v-if="FORMAL && fb.user && !fb.online" class="netbar no-print" role="status">⚠ 目前離線：你的操作會先存在這台裝置，恢復連線後自動送出（未送出 {{ fb.pending }} 筆）</div>
   <div v-if="FORMAL && fb.err" class="netbar no-print" role="alert">{{ fb.err }}</div>
 
@@ -476,6 +479,7 @@ html.ov-transparent body::before{ display:none; }
       <div class="whoami" v-if="!(FORMAL && !fb.user)">
         <div class="who-l">我現在的身分</div>
         <div class="who-n">{{ whoName }}</div>
+        <div v-if="FORMAL && fb.admin" class="small muted mb-1">管理員可切換身分，預覽各組看到的畫面</div>
         <select v-if="!FORMAL || fb.admin" id="roleSel" class="inp" v-model="role" aria-label="切換身分">
           <optgroup v-for="c in ROLE_CATS" :key="c.name" :label="c.name">
             <option v-for="id in c.ids" :key="id" :value="id">{{ roleName(id) }}</option>
@@ -1164,7 +1168,7 @@ html.ov-transparent body::before{ display:none; }
         <div class="small mt-1" v-if="readyBatchObj">目前頒獎：<b>{{ shortTitle(readyBatchObj.title) }}</b>　頒獎人：<b style="font-size:20px;color:var(--brand)">{{ personText(presenterOf(readyBatchObj).p) }}</b></div>
       </div>
       <div v-for="u in urgentBc" :key="u.id" class="urgent mb-4" role="alert">
-        <div class="flex items-center justify-between gap-2 flex-wrap"><span class="chip" style="background:#fff;color:#B42318">⚠ 緊急更正・{{ u.at }}</span><button class="btn" style="background:#fff;color:#B42318;border:0" @click="doneBc(u)">已播報</button></div>
+        <div class="flex items-center justify-between gap-2 flex-wrap"><span class="chip" style="background:#fff;color:#B42318">⚠ 緊急更正・{{ u.at }}</span><span class="flex gap-2"><button class="btn" style="background:#fff;color:#B42318;border:0" @click="doneBc(u)">已播報</button><button v-if="canWithdrawB(u)" class="btn" style="background:transparent;color:#fff;border:1.5px solid #fff" @click="withdrawBc(u)">取消這則</button></span></div>
         <div class="mt-2" style="font-size:26px;font-weight:900;line-height:1.5">{{ u.text }}</div>
       </div>
       <div class="grid gap-4" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr))">
@@ -1180,7 +1184,9 @@ html.ov-transparent body::before{ display:none; }
             <div class="flex gap-2 mt-3 flex-wrap">
               <button class="btn btn-ok" @click="doneBc(b)">已播報</button>
               <button class="btn btn-sm" @click="copy(b.text)">複製文字</button>
+              <button v-if="canWithdrawB(b)" class="btn btn-sm btn-bad" @click="withdrawBc(b)">取消這則</button>
             </div>
+            <div class="small muted mt-1" v-if="b.by">由 {{ b.by }} 送出</div>
           </div>
         </div>
         <div style="min-width:0" class="flex flex-col gap-4">
@@ -1193,10 +1199,10 @@ html.ov-transparent body::before{ display:none; }
             <button class="btn btn-primary mt-2" @click="addInsert" :disabled="!mcText.trim()">加入播報清單</button>
           </div>
           <div class="card">
-            <h2 class="h-sec mb-2">已播報紀錄</h2>
+            <h2 class="h-sec mb-2">已播報／已取消紀錄</h2>
             <div v-if="!doneBcList.length" class="muted small">尚無紀錄</div>
             <div v-for="b in doneBcList.slice(0,12)" :key="b.id" class="small py-2" style="border-bottom:1px solid var(--line)">
-              <span class="num muted">{{ b.doneAt }}</span>　<b>{{ BC[b.type] }}</b>　{{ b.text.length>46 ? b.text.slice(0,46)+'…' : b.text }}
+              <span class="num muted">{{ b.doneAt }}</span>　<b>{{ b.cancelled ? '✕ 已取消' : BC[b.type] }}</b>　<span :style="b.cancelled?'text-decoration:line-through;opacity:.6':''">{{ b.text.length>46 ? b.text.slice(0,46)+'…' : b.text }}</span>
             </div>
           </div>
         </div>
@@ -1594,16 +1600,17 @@ html.ov-transparent body::before{ display:none; }
             <div class="seg"><button :class="{on:rFilter==='mine'}" @click="rFilter='mine'">我這組要處理</button><button :class="{on:rFilter==='open'}" @click="rFilter='open'">未完成</button><button :class="{on:rFilter==='all'}" @click="rFilter='all'">全部</button></div>
           </div>
           <div v-if="!reportList.length" class="small muted">目前沒有通報。</div>
-          <div v-for="r in reportList" :key="r.id" class="card-flat mb-2" :style="r.urgent && r.status!=='done' ? 'border:2px solid var(--bad)' : ''">
+          <div v-for="r in reportList" :key="r.id" class="card-flat mb-2" :style="r.status==='cancel' ? 'opacity:.55' : r.urgent && isOpenR(r) ? 'border:2px solid var(--bad)' : ''">
             <div class="flex justify-between gap-2 flex-wrap">
               <div><span class="chip st-none">{{ RTYPES[r.type] ? RTYPES[r.type].name : r.type }}</span> <span v-if="r.urgent" class="chip" style="background:var(--bad);color:#fff">緊急</span> <b>{{ r.place }}</b></div>
-              <span :class="['chip', r.status==='done'?'st-published':r.status==='doing'?'st-running':'tag-todo']">{{ r.status==='done' ? '✔ 已完成 '+r.doneAt : r.status==='doing' ? '▶ 處理中' : '○ 待處理' }}</span>
+              <span :class="['chip', r.status==='cancel'?'st-none':r.status==='done'?'st-published':r.status==='doing'?'st-running':'tag-todo']">{{ r.status==='cancel' ? '✕ 已撤回 '+r.doneAt : r.status==='done' ? '✔ 已完成 '+r.doneAt : r.status==='doing' ? '▶ 處理中' : '○ 待處理' }}</span>
             </div>
             <div class="mt-1">{{ r.text }}</div>
             <div class="small muted">{{ r.at }}・{{ r.by }}<span v-if="r.handledBy">・處理：{{ r.handledBy }}</span></div>
-            <div class="flex gap-2 mt-2" v-if="r.status!=='done' && canHandle(r)">
-              <button class="btn btn-sm" v-if="r.status==='open'" @click="setReport(r,'doing')">處理中</button>
-              <button class="btn btn-sm btn-ok" @click="setReport(r,'done')">已完成</button>
+            <div class="flex gap-2 mt-2 flex-wrap" v-if="isOpenR(r) && (canHandle(r) || canWithdrawR(r))">
+              <button class="btn btn-sm" v-if="r.status==='open' && canHandle(r)" @click="setReport(r,'doing')">處理中</button>
+              <button class="btn btn-sm btn-ok" v-if="canHandle(r)" @click="setReport(r,'done')">已完成</button>
+              <button class="btn btn-sm btn-bad" v-if="canWithdrawR(r)" @click="withdrawReport(r)">↩ 撤回通報</button>
             </div>
           </div>
         </div>
@@ -2315,7 +2322,7 @@ createApp({
       }catch(e){}
     }
     window.addEventListener('storage', e=>{ if(!FORMAL && e.key===KEY && e.newValue){ try{ applying=true; st.value=migrate(JSON.parse(e.newValue)); nextTick(()=>{ applying=false; }); }catch(err){ applying=false; } } });
-    watch(role, v=>{ try{ localStorage.setItem(KEY+'-role', v); }catch(e){} navMode.value=['control','record'].includes(v)?'all':'mine'; otherOpen.value=['control','record'].includes(v) || (FORMAL && fb.admin); if(!FORMAL && page.value!=='feedback' && page.value!=='start' && !roleObj.value.pages.includes(page.value)) go('start'); });
+    watch(role, v=>{ try{ localStorage.setItem(KEY+'-role', v); }catch(e){} navMode.value=['control','record'].includes(v)?'all':'mine'; otherOpen.value=['control','record'].includes(v); if(page.value!=='feedback' && page.value!=='start' && (FORMAL ? !canSee(page.value) : !roleObj.value.pages.includes(page.value))) go('start'); });
 
     /* ----- 頁面切換（網址 #名稱，可直接分享某一頁） ----- */
     const validPage = p => PAGES.some(x=>x.id===p);
@@ -2340,7 +2347,8 @@ createApp({
       if(id==='start') return !isPublicView.value; // 家長觀眾不需要首頁，直接看大會看板
       if(!FORMAL || PUBLIC_PAGES.includes(id)) return true;
       if(!fb.user) return false;
-      if(fb.admin || fb.myRoles.some(r=>['control','record'].includes(r))) return true;
+      const rs = previewing.value ? [role.value] : fb.myRoles;
+      if((fb.admin && !previewing.value) || rs.some(r=>['control','record'].includes(r))) return true;
       if(id==='feedback' || id==='teacher') return true;
       if(id==='reports') return can('report');
       if(id==='overlay') return roleObj.value.pages.includes('live');
@@ -2419,7 +2427,12 @@ createApp({
     function closeMore(){ if(moreEl.value) moreEl.value.open=false; }
     document.addEventListener('click', e=>{ const m=moreEl.value; if(m && m.open && !m.contains(e.target)) m.open=false; });
     /* 權限：can＝這個身分能不能做；need＝不能做時跳出說明 */
-    function can(a){ if(FORMAL && fb.admin) return true; /* 系統管理員全部可操作 */ const list=PERMS[a]||[]; if(FORMAL && fb.myRoles.length) return fb.myRoles.some(r=>list.includes(r)); return list.includes(role.value); }
+    /* 預覽模式：系統管理員在身分選單切成別的組（例：班級導師），畫面與權限都照那個組，方便確認老師看到什麼 */
+    const previewing = computed(()=>FORMAL && fb.admin && role.value!=='record');
+    function can(a){ const list=PERMS[a]||[];
+      if(FORMAL && fb.admin && !previewing.value) return true; /* 系統管理員全部可操作 */
+      if(previewing.value) return list.includes(role.value);
+      if(FORMAL && fb.myRoles.length) return fb.myRoles.some(r=>list.includes(r)); return list.includes(role.value); }
     function whoCan(a){ return (PERMS[a]||[]).map(id=>(ROLES.find(r=>r.id===id)||{}).name).join('、'); }
     function need(a){ if(can(a)) return true; toast('這個動作由「'+whoCan(a)+'」負責；想體驗請在右上角切換身分',true); return false; }
     const canPrint = (()=>{ try{ return window.self===window.top; }catch(e){ return false; } })();
@@ -2431,7 +2444,7 @@ createApp({
 
     function toast(text,bad){ const id=uid(); toasts.value.push({id,text,bad}); setTimeout(()=>{ toasts.value=toasts.value.filter(t=>t.id!==id); },2800); }
     function log(text){ st.value.logs.unshift({ id:'l'+Date.now()+uid(), ts:Date.now(), at:hhmm(), role:roleObj.value.name, by:FORMAL?fb.email:'', text }); if(st.value.logs.length>300) st.value.logs.length=300; }
-    function bc(type,text,extra){ st.value.broadcasts.push(Object.assign({ id:'b'+Date.now()+uid(), ts:Date.now(), type, text, at:hhmm(), done:false }, extra||{})); }
+    function bc(type,text,extra){ st.value.broadcasts.push(Object.assign({ id:'b'+Date.now()+uid(), ts:Date.now(), type, text, at:hhmm(), done:false, by:roleObj.value.name, byEmail:FORMAL?fb.email:'' }, extra||{})); }
     function ask(text,fn){ modal.value={ text, onOk:fn, okText:'確定' }; }
     function modalOk(){ const m=modal.value; modal.value=null; m.onOk && m.onOk(m.input); }
 
@@ -2830,7 +2843,7 @@ createApp({
     /* ----- 看板輪播與時鐘 ----- */
     const boardIdx = ref(0);
     const boardEvent = computed(()=>latestPublished.value[boardIdx.value % Math.max(1,latestPublished.value.length)] || null);
-    const tickerText = computed(()=>{ const items=[]; st.value.gifts.filter(g=>g.announced).slice(-3).forEach(g=>items.push('【感謝】'+g.donor+' 捐贈 '+g.item)); checkinEvents.value.forEach(e=>items.push('【檢錄】'+e.name+' 請到檢錄處報到')); if(nextTl.value) items.push('【下一項】'+tlTime(nextTl.value)+' '+nextTl.value.title); st.value.broadcasts.filter(b=>b.done && (b.type==='flow'||b.type==='insert')).slice(-3).forEach(b=>items.push('【大會報告】'+b.text.replace(/^大會報告：/,''))); items.push('楠梓國小創校127週年　活力躍動　魅力楠梓'); return items.join('　　◆　　'); });
+    const tickerText = computed(()=>{ const items=[]; st.value.gifts.filter(g=>g.announced).slice(-3).forEach(g=>items.push('【感謝】'+g.donor+' 捐贈 '+g.item)); checkinEvents.value.forEach(e=>items.push('【檢錄】'+e.name+' 請到檢錄處報到')); if(nextTl.value) items.push('【下一項】'+tlTime(nextTl.value)+' '+nextTl.value.title); st.value.broadcasts.filter(b=>b.done && !b.cancelled && (b.type==='flow'||b.type==='insert')).slice(-3).forEach(b=>items.push('【大會報告】'+b.text.replace(/^大會報告：/,''))); items.push('楠梓國小創校127週年　活力躍動　魅力楠梓'); return items.join('　　◆　　'); });
     setInterval(()=>{ clock.value=hhmm(); },10000);
     setInterval(()=>{ if(page.value==='board' && latestPublished.value.length) boardIdx.value=(boardIdx.value+1)%latestPublished.value.length; },8000);
     function toggleBoardMode(){ boardMode.value=!boardMode.value; }
@@ -2870,12 +2883,21 @@ createApp({
     const STA = { open:{ label:'● 開放中', short:'開放', cls:'st-published' }, busy:{ label:'人多請稍候', short:'人多', cls:'tag-todo' }, pause:{ label:'暫停', short:'暫停', cls:'st-none' }, closed:{ label:'已結束', short:'結束', cls:'st-none' } };
     const rf = reactive({ type:'env', place:'', text:'', urgent:false, mc:false }); const rFilter = ref('mine');
     function canHandle(r){ const t=RTYPES[r.type]; return t ? can(t.perm) : can('flow'); }
-    const openReports = computed(()=>st.value.reports.filter(r=>r.status!=='done'));
+    /* 撤回：不小心送出的通報、廣播稿可以撤回（送出的人，或總控、紀錄組）；保留紀錄但不再提醒任何人 */
+    const isOpenR = r => r.status!=='done' && r.status!=='cancel';
+    const mine = x => FORMAL ? (x.byEmail && x.byEmail===fb.email) : (x.by===roleObj.value.name);
+    const canWithdrawR = r => isOpenR(r) && (mine(r) || can('flow'));
+    const canWithdrawB = b => !b.done && (mine(b) || can('mc') || can('flow'));
+    function withdrawReport(r){ ask('確定撤回這則通報嗎？負責的組別就不會再收到提醒。', ()=>{ r.status='cancel'; r.doneAt=hhmm(); r.handledBy='撤回：'+roleObj.value.name;
+      st.value.broadcasts.forEach(b=>{ if(b.reportId===r.id && !b.done){ b.done=true; b.cancelled=true; b.doneAt=hhmm(); } });
+      log('撤回通報：'+(r.place||'')+' '+r.text); toast('已撤回通報'); }); }
+    function withdrawBc(b){ ask('確定取消這則廣播稿嗎？司儀台會移除它。', ()=>{ b.done=true; b.cancelled=true; b.doneAt=hhmm(); b.cancelBy=roleObj.value.name; log('取消廣播稿：'+b.text.slice(0,30)); toast('已取消這則廣播'); }); }
+    const openReports = computed(()=>st.value.reports.filter(isOpenR));
     const myOpenReports = computed(()=>openReports.value.filter(r=>canHandle(r) && !(FORMAL && fb.admin && role.value==='record' && false)).sort((a,b)=>(b.urgent?1:0)-(a.urgent?1:0)||(a.ts||0)-(b.ts||0)));
-    const reportList = computed(()=>{ const a=st.value.reports.slice().sort((x,y)=>(y.ts||0)-(x.ts||0)); if(rFilter.value==='open') return a.filter(r=>r.status!=='done'); if(rFilter.value==='mine') return a.filter(r=>r.status!=='done' && canHandle(r)); return a; });
+    const reportList = computed(()=>{ const a=st.value.reports.slice().sort((x,y)=>(y.ts||0)-(x.ts||0)); if(rFilter.value==='open') return a.filter(isOpenR); if(rFilter.value==='mine') return a.filter(r=>isOpenR(r) && (canHandle(r) || mine(r))); return a; });
     const openMedicReports = computed(()=>openReports.value.filter(r=>r.type==='medic'));
-    function newReport(o){ st.value.reports.push(Object.assign({ id:'r'+Date.now()+uid(), ts:Date.now(), at:hhmm(), by:roleObj.value.name, status:'open', handledBy:'', doneAt:'', urgent:false, place:'', text:'' }, o)); }
-    function submitReport(){ if(!need('report')) return; newReport({ type:rf.type, place:rf.place, text:rf.text, urgent:rf.urgent }); if(rf.urgent && rf.mc) bc('insert','大會報告：'+(rf.place?rf.place+'，':'')+rf.text+'，請相關人員協助處理。'); log('現場通報：'+RTYPES[rf.type].name+' '+rf.place+' '+rf.text); toast('已送出，'+RTYPES[rf.type].name+'負責組別會即時收到'); rf.place=''; rf.text=''; rf.urgent=false; rf.mc=false; }
+    function newReport(o){ st.value.reports.push(Object.assign({ id:'r'+Date.now()+uid(), ts:Date.now(), at:hhmm(), by:roleObj.value.name, byEmail:FORMAL?fb.email:'', byRole:role.value, status:'open', handledBy:'', doneAt:'', urgent:false, place:'', text:'' }, o)); }
+    function submitReport(){ if(!need('report')) return; newReport({ type:rf.type, place:rf.place, text:rf.text, urgent:rf.urgent }); if(rf.urgent && rf.mc) bc('insert','大會報告：'+(rf.place?rf.place+'，':'')+rf.text+'，請相關人員協助處理。',{ reportId:st.value.reports[st.value.reports.length-1].id }); log('現場通報：'+RTYPES[rf.type].name+' '+rf.place+' '+rf.text); toast('已送出，'+RTYPES[rf.type].name+'負責組別會即時收到'); rf.place=''; rf.text=''; rf.urgent=false; rf.mc=false; }
     function setReport(r,stt){ if(!canHandle(r)){ need(RTYPES[r.type]?RTYPES[r.type].perm:'flow'); return; } r.status=stt; r.handledBy=roleObj.value.name; if(stt==='done') r.doneAt=hhmm(); log('通報'+(stt==='done'?'完成':'處理中')+'：'+r.place+' '+r.text); }
     const md = reactive({ cls:'', name:'', issue:'', care:'', parent:false });
     function addMedical(){ if(!need('medic')) return; st.value.medical.push({ id:'m'+Date.now()+uid(), ts:Date.now(), at:hhmm(), cls:md.cls, name:md.name, issue:md.issue, care:md.care, parent:md.parent, notified:false, status:'open', by:roleObj.value.name }); log('醫護：登記一筆'); toast('已登記'); md.name=''; md.issue=''; md.care=''; md.parent=false; }
@@ -2884,7 +2906,7 @@ createApp({
     function tlLabel(id){ const t=st.value.timeline.find(x=>x.id===id); return t ? tlTime(t)+' '+t.title : ''; }
     const equipGroups = computed(()=>{ const out=[]; st.value.timeline.forEach(t=>{ const items=st.value.equip.filter(x=>x.tl===t.id && (eqFilter.value==='all' || x.status!=='back')); if(items.length) out.push({ tl:t.id, time:tlTime(t), title:t.title, items }); }); const orphan=st.value.equip.filter(x=>!st.value.timeline.some(t=>t.id===x.tl)); if(orphan.length) out.push({ tl:'_', time:'', title:'其他', items:orphan }); return out; });
     const nextEquip = computed(()=>{ const ids=st.value.timeline.filter(t=>t.status!=='done').slice(0,3).map(t=>t.id); return st.value.equip.filter(x=>ids.includes(x.tl) && x.status==='todo'); });
-    function setEquip(x,stt){ if(!need('equipH')) return; x.status=stt; x.at=hhmm(); st.value.reports.forEach(r=>{ if(r.type==='equip' && r.equipTl===x.tl && r.status!=='done' && !st.value.equip.some(e=>e.tl===x.tl && e.status==='todo')){ r.status='done'; r.doneAt=hhmm(); r.handledBy='器材組'; } }); }
+    function setEquip(x,stt){ if(!need('equipH')) return; x.status=stt; x.at=hhmm(); st.value.reports.forEach(r=>{ if(r.type==='equip' && r.equipTl===x.tl && isOpenR(r) && !st.value.equip.some(e=>e.tl===x.tl && e.status==='todo')){ r.status='done'; r.doneAt=hhmm(); r.handledBy='器材組'; } }); }
     function addEquip(){ if(!need('equipH')) return; st.value.equip.push({ id:'q'+Date.now()+uid(), tl:ne.tl, item:ne.item, qty:ne.qty||1, place:ne.place, status:'todo', at:'' }); ne.item=''; ne.place=''; toast('已新增器材'); }
     /* 器材自動提醒：流程開始或開始檢錄時，該項目還沒送達的器材變成緊急通報 */
     function equipAlert(tlId){ if(!tlId) return; const miss=st.value.equip.filter(x=>x.tl===tlId && x.status==='todo'); if(!miss.length) return; if(st.value.reports.some(r=>r.type==='equip' && r.equipTl===tlId && r.status!=='done')) return;
@@ -3117,7 +3139,7 @@ createApp({
     onMounted(()=>{ readHash(); if(!hashGiven && isPublicView.value) page.value='board'; loadDraft(); syncLiveDraft(); renderQR(); if(FORMAL) fbInit(); else initCloud(); });
 
     return { st, role, page, helpOpen, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
-      SHORT, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
+      SHORT, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
       drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
       roleObj, myPages, navPages, myTasks, dateLabel, go, badge, kpi, ask, modalOk, clsLabel,
