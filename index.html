@@ -542,11 +542,11 @@ html.ov-transparent body::before{ display:none; }
       </div>
       <div class="flex gap-2 items-center no-print">
         <button class="btn btn-sm" v-if="HELP[page] && !gate && !isPublicView" @click="helpOpen=!helpOpen" :aria-expanded="helpOpen">{{ helpOpen ? '收起說明' : '？這頁怎麼用' }}</button>
-        <button v-if="!printHere" class="btn btn-sm" @click="sharePage(page)">🔗 分享</button>
-        <details v-else class="more" ref="moreEl">
-          <summary class="btn btn-sm" aria-label="更多功能">⋯ 更多</summary>
+        <button v-if="!printHere && shareHere" class="btn btn-sm" @click="sharePage(page)">🔗 分享</button>
+        <details v-if="printHere" class="more" ref="moreEl">
+          <summary class="btn btn-sm" :aria-label="shareHere ? '更多功能' : '列印'">{{ shareHere ? '⋯ 更多' : '🖨️ 列印' }}</summary>
           <div class="more-menu">
-            <button @click="closeMore(); sharePage(page)">🔗 分享這一頁</button>
+            <button v-if="shareHere" @click="closeMore(); sharePage(page)">🔗 分享這一頁</button>
             <button @click="closeMore(); doPrint('bw')">🖨️ 列印（黑白）</button>
             <button @click="closeMore(); doPrint('color')">🖨️ 列印（彩色）</button>
           </div>
@@ -2414,6 +2414,8 @@ createApp({
     /* 只在螢幕上看的頁面不需要列印（大會看板、看直播、首頁） */
     const NO_PRINT = ['board','watch','start','overlay'];
     const printHere = computed(()=>canPrint && !NO_PRINT.includes(page.value));
+    /* 分享只放在家長會看的頁面（大會看板、成績查詢、看直播）；工作人員頁面分享出去對方也打不開 */
+    const shareHere = computed(()=>PUBLIC_PAGES.includes(page.value));
     function closeMore(){ if(moreEl.value) moreEl.value.open=false; }
     document.addEventListener('click', e=>{ const m=moreEl.value; if(m && m.open && !m.contains(e.target)) m.open=false; });
     /* 權限：can＝這個身分能不能做；need＝不能做時跳出說明 */
@@ -3115,7 +3117,7 @@ createApp({
     onMounted(()=>{ readHash(); if(!hashGiven && isPublicView.value) page.value='board'; loadDraft(); syncLiveDraft(); renderQR(); if(FORMAL) fbInit(); else initCloud(); });
 
     return { st, role, page, helpOpen, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
-      SHORT, printHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
+      SHORT, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
       drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
       roleObj, myPages, navPages, myTasks, dateLabel, go, badge, kpi, ask, modalOk, clsLabel,
