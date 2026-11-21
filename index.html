@@ -216,6 +216,14 @@ label.lbl{ display:block; font-size:16px; font-weight:700; color:var(--ink2); ma
 .kpi.hot{ border:2px solid var(--bad); }
 
 /* ---------- 成績查詢：一般運動會成績公告樣式（名次・班級・姓名・成績） ---------- */
+.flash-row td{ animation:flashRow 1.2s ease-out; }
+@keyframes flashRow{ 0%,40%{ background:color-mix(in srgb, var(--sun) 45%, transparent); } }
+.tblwrap thead{ position:sticky; top:0; background:var(--surface); z-index:1; }
+.tone-row td{ background:color-mix(in srgb, var(--tc) 7%, transparent); }
+.tone-row td:first-child{ box-shadow:inset 5px 0 var(--tc); color:var(--tc); font-weight:900; }
+.tone-row.tone-nb td{ border-top:3px solid var(--tc); }
+.tone-row.tone-ng td{ border-top:1.5px dashed color-mix(in srgb, var(--tc) 45%, transparent); }
+.tone-row td.rep{ opacity:.3; font-weight:400 !important; }
 .evcheck{ background:var(--surface2); border-radius:14px; padding:10px 14px; }
 .evcheck-s{ list-style:none; cursor:pointer; display:flex; align-items:center; gap:10px; flex-wrap:wrap; min-height:40px; }
 .evcheck-s::-webkit-details-marker{ display:none; }
@@ -229,6 +237,8 @@ label.lbl{ display:block; font-size:16px; font-weight:700; color:var(--ink2); ma
 .evc-i{ width:28px; height:28px; border-radius:50%; display:grid; place-items:center; font-weight:900; font-size:17px; flex:none; color:#fff; font-family:var(--f-num); }
 .evc-warn .evc-i{ background:var(--bad); animation:pop .35s ease-out; } .evc-ok .evc-i{ background:var(--ok); } .evc-info .evc-i{ background:var(--brand); font-style:italic; }
 .evc-list > summary{ cursor:pointer; color:var(--brand); font-weight:700; margin-top:4px; width:max-content; }
+.tag-link{ cursor:pointer; background:var(--surface); font-weight:700; border-width:1.5px; }
+.tag-link:hover{ background:var(--brand-soft); }
 .tag{ background:var(--surface2); border:1px solid var(--line); border-radius:8px; padding:2px 8px; font-size:14px; }
 .evrow{ border:1px solid var(--line); border-radius:12px; padding:10px 12px; background:var(--surface); }
 .evrow-h{ display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
@@ -745,7 +755,7 @@ html.ov-transparent body::before{ display:none; }
       <div v-if="!resultsShown.length" class="card text-center muted" style="padding:40px 16px">{{ publishedEvents.length ? '找不到符合的項目，換個關鍵字試試。' : '目前還沒有公布的成績，公布後這裡會即時出現。' }}</div>
       <div class="res-grid">
         <article v-for="ev in resultsShown" :key="ev.id" class="card">
-          <header class="res-h">
+          <header class="res-h" :style="{ borderBottomColor: toneOf(ev.base) }">
             <div style="min-width:0">
               <h2 class="h-sec">{{ ev.name }}</h2>
               <div class="small muted">{{ ev.unit==='名次' ? '依名次' : '成績單位：'+ev.unit }}<span v-if="ev.publishedAt">・公布 {{ ev.publishedAt }}</span></div>
@@ -1424,10 +1434,11 @@ html.ov-transparent body::before{ display:none; }
           </div>
         </div>
         <div class="small muted mb-2">共 {{ certRows.length-1 }} 張；文書組可直接用 Word「合併列印」套印獎狀。</div>
+        <div class="flex flex-wrap gap-2 mb-2" v-if="certRows.length>2"><span class="small muted" style="align-self:center">快速跳到：</span><button v-for="b in [...new Set(certRows.slice(1).map(r=>r[0]))]" :key="b" class="tag tag-link" :style="{ borderColor:toneOf(b), color:toneOf(b) }" @click="jumpRow('cert', b)">{{ b }}</button></div>
         <div class="tblwrap" style="max-height:520px;overflow:auto">
           <table class="tbl">
             <thead><tr><th v-for="h in certRows[0]">{{ h }}</th></tr></thead>
-            <tbody><tr v-for="(r,i) in certRows.slice(1,301)" :key="i"><td v-for="c in r">{{ c }}</td></tr></tbody>
+            <tbody><tr v-for="(r,i) in certRows.slice(1,301)" :key="i" :data-jump="'cert|'+r[0]" v-bind="(t=>({ class:t.cls, style:t.style }))(toneRow(certRows,i+1,1))"><td v-for="(c,ci) in r" :class="{ rep: (ci===0 && !toneRow(certRows,i+1,1).nb) || (ci===1 && !toneRow(certRows,i+1,1).ng) }">{{ c }}</td></tr></tbody>
           </table>
           <div class="small muted p-2" v-if="certRows.length>301">畫面只顯示前 300 筆，下載或複製會包含全部。</div>
         </div>
@@ -1440,7 +1451,7 @@ html.ov-transparent body::before{ display:none; }
         </div>
         <div class="tblwrap"><table class="tbl cards">
           <thead><tr><th v-for="h in prizeRows[0]">{{ h }}</th></tr></thead>
-          <tbody><tr v-for="(r,i) in prizeRows.slice(1)" :key="i" :style="i===prizeRows.length-2?'font-weight:900':''"><td v-for="(c,ci) in r" :data-label="prizeRows[0][ci]">{{ c }}</td></tr></tbody>
+          <tbody><tr v-for="(r,i) in prizeRows.slice(1)" :key="i" :class="i===prizeRows.length-2 ? '' : 'tone-row'" :style="i===prizeRows.length-2 ? 'font-weight:900' : { '--tc':toneOf(r[0]) }"><td v-for="(c,ci) in r" :data-label="prizeRows[0][ci]">{{ c }}</td></tr></tbody>
         </table></div>
         <p class="small muted mt-2">「預估」依組數 × 取獎名額計算；「已確定」依目前已公布或已填報的名單計算。</p>
       </div>
@@ -1451,8 +1462,8 @@ html.ov-transparent body::before{ display:none; }
           <div class="flex gap-2 flex-wrap"><button class="btn" @click="copyTable(totalRows)">複製表格</button><button class="btn btn-primary" @click="downloadXlsx(totalRows,'成績總表')">下載 Excel</button></div>
         </div>
         <div class="tblwrap" style="max-height:520px;overflow:auto"><table class="tbl">
-          <thead><tr><th v-for="h in totalRows[0]">{{ h }}</th></tr></thead>
-          <tbody><tr v-for="(r,i) in totalRows.slice(1,301)" :key="i"><td v-for="c in r">{{ c }}</td></tr></tbody>
+          <thead><tr><td :colspan="totalRows[0].length" style="border:0;padding:0 0 8px" v-if="totalRows.length>2"><div class="flex flex-wrap gap-2"><span class="small muted" style="align-self:center">快速跳到：</span><button v-for="b in [...new Set(totalRows.slice(1).map(r=>String(r[0]).split(' ').pop()))]" :key="b" class="tag tag-link" :style="{ borderColor:toneOf(b), color:toneOf(b) }" @click="jumpRow('total', b)">{{ b }}</button></div></td></tr><tr><th v-for="h in totalRows[0]">{{ h }}</th></tr></thead>
+          <tbody><tr v-for="(r,i) in totalRows.slice(1,301)" :key="i" :data-jump="'total|'+String(r[0]).split(' ').pop()" v-bind="(t=>({ class:t.cls, style:t.style }))(toneRow(totalRows,i+1,null))"><td v-for="(c,ci) in r" :class="{ rep: ci===0 && !toneRow(totalRows,i+1,null).nb }">{{ c }}</td></tr></tbody>
         </table></div>
       </div>
 
@@ -1651,7 +1662,7 @@ html.ov-transparent body::before{ display:none; }
                   <div v-if="c.why" class="small muted">{{ c.why }}</div>
                   <details v-if="c.list && c.list.length" class="evc-list">
                     <summary class="small">看是哪{{ c.list.length>1 ? '幾' : '' }}組（{{ c.list.length }}）</summary>
-                    <div class="flex flex-wrap gap-1 mt-2"><span v-for="(x,j) in c.list" :key="j" class="tag">{{ x }}</span></div>
+                    <div class="flex flex-wrap gap-1 mt-2"><component :is="typeof x==='object' ? 'button' : 'span'" v-for="(x,j) in c.list" :key="j" :class="['tag',{ 'tag-link': typeof x==='object' }]" :style="typeof x==='object' && x.base ? { borderColor:toneOf(x.base), color:toneOf(x.base) } : null" :title="typeof x==='object' ? (x.id ? '點一下去登錄這一組的成績' : '點一下修改這個項目') : ''" @click="typeof x==='object' && jumpCheck(x)">{{ typeof x==='object' ? x.t : x }}<span v-if="typeof x==='object'" aria-hidden="true"> →</span></component></div>
                   </details>
                 </div>
                 <button v-if="c.fix" class="btn btn-sm btn-primary" @click="c.fix.fn()">{{ c.fix.label }}</button>
@@ -1687,9 +1698,9 @@ html.ov-transparent body::before{ display:none; }
           <!-- 項目總覽 -->
           <div class="small muted mb-2 flex flex-wrap gap-3 items-center">分組顏色：<span class="evchip st-none" style="min-height:28px">未開始</span><span class="evchip st-checkin" style="min-height:28px">檢錄中</span><span class="evchip st-review" style="min-height:28px">待審核</span><span class="evchip st-published" style="min-height:28px">已公布</span><span>數字＝選手人數</span></div>
           <div class="flex flex-col gap-2">
-            <div v-for="g in evGroups" :key="g.base" class="evrow">
+            <div v-for="g in evGroups" :key="g.base" class="evrow" :style="{ boxShadow:'inset 5px 0 '+toneOf(g.base) }">
               <div class="evrow-h">
-                <div style="min-width:0"><b style="font-size:18px">{{ g.base }}</b> <span class="small muted">{{ CAT_NAME[g.cat] }}・{{ unitLabel(g) }}・{{ g.stage==='day' ? '當天' : '會前賽' }}・取前 {{ g.awardTop }} 名</span></div>
+                <div style="min-width:0"><b style="font-size:18px" :style="{ color:toneOf(g.base) }">{{ g.base }}</b> <span class="small muted">{{ CAT_NAME[g.cat] }}・{{ unitLabel(g) }}・{{ g.stage==='day' ? '當天' : '會前賽' }}・取前 {{ g.awardTop }} 名</span></div>
                 <div class="flex gap-2"><button class="btn btn-sm" @click="openEvForm(g.base)">修改</button><button class="btn btn-sm btn-bad" @click="deleteEvGroup(g.base)">刪除</button></div>
               </div>
               <div class="flex flex-wrap gap-2 mt-2">
@@ -2353,6 +2364,8 @@ function makeEvent(d,g,gd,order){
 const MARK_CODES = ['NM','DNS','DNF','DQ'];
 /* 自訂比賽項目用：成績怎麼比 */
 const UNIT_OPTS = [ { v:'秒', better:'low', label:'時間（秒，越少越好）' }, { v:'公尺', better:'high', label:'距離（公尺，越遠越好）' }, { v:'次', better:'high', label:'次數（越多越好）' }, { v:'分', better:'high', label:'分數（越高越好）' }, { v:'名次', better:'place', label:'只排名次（直接填第幾名）' } ];
+/* 每個獎項一個色系（依項目順序輪流）：獎狀名單、獎品統計、成績總表、成績查詢、項目總覽共用 */
+const TONES = ['#1565B5','#2E8A45','#C44A1A','#7B3FB0','#0F7F86','#A87C00','#C2185B','#4A5B6B'];
 const CAT_NAME = { field:'田賽', track:'徑賽', relay:'接力・團體' };
 function seed(){
   const R=rng(127);
@@ -2712,6 +2725,13 @@ createApp({
 
     /* ===== 比賽項目與分組（新增、修改、刪除、自動檢查）===== */
     const evKey = e => String(e.id).split('-')[0];
+    const baseOrder = computed(()=>{ const m={}; evGroups.value.forEach((g,i)=>{ m[g.base]=i; }); return m; });
+    function toneOf(base){ base=String(base||'').replace(/（.*$/,''); if(base.includes(' ')) base=base.split(' ').pop(); let i=baseOrder.value[base];
+      if(i===undefined){ if(base==='全員賽跑') i=evGroups.value.length; else if(base==='總錦標') i=evGroups.value.length+1; else i=[...base].reduce((a,c)=>a+c.charCodeAt(0),0); }
+      return TONES[i % TONES.length]; }
+    /* 表格列樣式：同獎項同色系；換獎項粗線、換組別細虛線；重複的獎項／組別文字淡化 */
+    function toneRow(rows,i,gcol){ const r=rows[i], p=rows[i-1]; const t=toneOf(r[0]); const nb=!p || p[0]!==r[0]; const ng=nb || (gcol!=null && p[gcol]!==r[gcol]);
+      return { cls:['tone-row',{ 'tone-nb':nb && i>1, 'tone-ng':!nb && ng }], style:{ '--tc':t }, nb, ng }; }
     const evGroups = computed(()=>{ const m=new Map(); st.value.events.slice().sort((a,b)=>(a.order||0)-(b.order||0)).forEach(e=>{ if(!m.has(e.base)) m.set(e.base,{ base:e.base, cat:e.cat, unit:e.unit, better:e.better, stage:e.stage, team:e.team, awardTop:e.awardTop, key:evKey(e), events:[] }); m.get(e.base).events.push(e); });
       return [...m.values()].map(g=>{ const GO={'男':0,'女':1,'混':2}; g.events.sort((a,b)=>a.grade-b.grade || (GO[a.gender]||0)-(GO[b.gender]||0)); return g; }); });
     const unitLabel = g => g.better==='place' ? '依名次' : g.unit+(g.better==='low' ? '（越少越好）' : '（越多越好）');
@@ -2758,6 +2778,14 @@ createApp({
     function deleteEvGroup(base){ if(!need('config')) return; const evs=st.value.events.filter(e=>e.base===base); const withData=evs.filter(hasResult);
       ask('確定刪除「'+base+'」全部 '+evs.length+' 組嗎？'+(withData.length?'其中 '+withData.length+' 組已經有成績，會一起刪除，無法復原。':''), ()=>{ evs.forEach(removeEvent); log('刪除比賽項目：'+base); toast('已刪除「'+base+'」'); }); }
     /* 自動檢查：每次資料變動都重算 */
+    /* 檢查清單的標籤：點了跳到對應的地方 */
+    function jumpRow(kind, b){ const el=document.querySelector('[data-jump="'+kind+'|'+b+'"]'); if(!el) return; const box=el.closest('.tblwrap');
+      if(box){ box.scrollTo({ top: el.offsetTop - (box.querySelector('thead')||{offsetHeight:0}).offsetHeight - 4, behavior:'smooth' }); box.scrollIntoView({ behavior:'smooth', block:'nearest' }); }
+      el.classList.remove('flash-row'); void el.offsetWidth; el.classList.add('flash-row'); }
+    function jumpCheck(x){ if(x.edit) return openEvForm(x.base);
+      if(x.to==='awards') return go('awards');
+      if(x.to==='points'){ const el=document.getElementById('sm_'+x.id); if(el){ el.scrollIntoView({ behavior:'smooth', block:'center' }); el.focus(); } return; }
+      scEvId.value=x.id; go('score'); }
     const evWarnN = computed(()=>evChecks.value.filter(c=>c.level==='warn').length);
     const evInfoN = computed(()=>evChecks.value.filter(c=>c.level==='info').length);
     const evCheckOpen = ref((()=>{ try{ return localStorage.getItem(KEY+'-evchk')!=='0'; }catch(e){ return true; } })());
@@ -2765,22 +2793,22 @@ createApp({
     const evChecks = computed(()=>{ const out=[], E=st.value.events, nm=a=>a.map(e=>e.name).join('、');
       const inBatch=new Set(st.value.batches.flatMap(b=>b.eventIds||[]));
       const noBatch=E.filter(e=>!inBatch.has(e.id));
-      if(noBatch.length) out.push({ level:'warn', title:noBatch.length+' 組沒排進頒獎梯次', why:'成績公布後，頒獎通知與導師集合提醒不會出現這幾組', list:noBatch.map(e=>e.name),
+      if(noBatch.length) out.push({ level:'warn', title:noBatch.length+' 組沒排進頒獎梯次', why:'成績公布後，頒獎通知與導師集合提醒不會出現這幾組', list:noBatch.map(e=>({ t:e.name, id:e.id, base:e.base, to:'awards' })),
         fix:{ label:'自動排進頒獎梯次', fn:()=>{ if(!can('award') && !can('config')){ need('config'); return; } let n=0, made=0; noBatch.forEach(e=>{ if(attachToBatch(e)) n++; else { st.value.batches.splice(Math.max(0,st.value.batches.length-1),0,{ id:'b'+Date.now()+uid(), title:e.base+'頒獎', eventIds:[e.id], presenter:'', backup:'', override:'', place:'司令台前頒獎台', tl:'', status:'todo' }); made++; } }); log('自動排進頒獎梯次 '+(n+made)+' 組'); toast('已排進頒獎梯次'+(made?'（新增 '+made+' 個梯次，請到「頒獎梯次」設定時間與頒獎人）':'')); } } });
       const inTl=new Set(st.value.timeline.flatMap(t=>t.eventIds||[]));
       const dayNoTl=E.filter(e=>e.stage==='day' && !inTl.has(e.id));
-      if(dayNoTl.length) out.push({ level:'warn', title:dayNoTl.length+' 組當天比賽沒排進流程', why:'檢錄、司儀稿、看板不會跟著流程自動提醒', list:dayNoTl.map(e=>e.name), fix:{ label:'去流程表', fn:()=>{ const el=document.getElementById('tlCard'); if(el) el.scrollIntoView({ behavior:'smooth' }); } } });
+      if(dayNoTl.length) out.push({ level:'warn', title:dayNoTl.length+' 組當天比賽沒排進流程', why:'檢錄、司儀稿、看板不會跟著流程自動提醒', list:dayNoTl.map(e=>({ t:e.name, id:e.id, base:e.base })), fix:{ label:'去流程表', fn:()=>{ const el=document.getElementById('tlCard'); if(el) el.scrollIntoView({ behavior:'smooth' }); } } });
       const preEmpty=E.filter(e=>e.stage==='pre' && !e.team && !e.entries.length);
-      if(preEmpty.length) out.push({ level:'warn', title:preEmpty.length+' 組會前賽還沒有名單或成績', why:'比完後到資料匯入，一次匯入 Excel', list:preEmpty.map(e=>e.name), fix:{ label:'去資料匯入', fn:()=>go('import') } });
+      if(preEmpty.length) out.push({ level:'warn', title:preEmpty.length+' 組會前賽還沒有名單或成績', why:'比完後到資料匯入，一次匯入 Excel', list:preEmpty.map(e=>({ t:e.name, id:e.id, base:e.base })), fix:{ label:'去資料匯入', fn:()=>go('import') } });
       const badCls=[]; E.forEach(e=>e.entries.forEach(x=>{ const [g,c]=String(x.cls).split('-').map(Number); if(g && c>(st.value.settings.classes[g]||0)) badCls.push(e.name+' '+clsLabel(x.cls)); }));
       if(badCls.length) out.push({ level:'warn', title:badCls.length+' 筆選手的班級超過設定班級數', why:'請確認各年級班級數', list:[...new Set(badCls)], fix:{ label:'去改班級數', fn:()=>{ const el=document.getElementById('gc1'); if(el) el.scrollIntoView({ behavior:'smooth', block:'center' }); } } });
       const dup=[]; E.filter(e=>!e.team).forEach(e=>{ const seen=new Set(); e.entries.forEach(x=>{ if(!x.name) return; const k=x.cls+x.name; if(seen.has(k)) dup.push(e.name+' '+clsLabel(x.cls)+' '+x.name); seen.add(k); }); });
       if(dup.length) out.push({ level:'warn', title:dup.length+' 位選手在同一組重複出現', why:'可能重複匯入，請到成績登錄刪除多的那一筆', list:dup });
       if(overLimit.value.length) out.push({ level:'warn', title:overLimit.value.length+' 位學生超過個人項目上限', why:'每人限參加 '+st.value.settings.maxPerStudent+' 項個人項目', list:overLimit.value.map(o=>clsLabel(o.cls)+' '+o.name+'（'+o.events.join('、')+'）') });
       const noPts=E.filter(e=>st.value.settings.scoring.grades.includes(e.grade) && isPub(e) && !eventPoints(e).length && e.scoreMode!=='none');
-      if(noPts.length) out.push({ level:'info', title:noPts.length+' 組已公布但不列入總錦標積分', why:'如果要計分，請到下方「各項目名次得分」調整', list:noPts.map(e=>e.name) });
+      if(noPts.length) out.push({ level:'info', title:noPts.length+' 組已公布但不列入總錦標積分', why:'如果要計分，請到下方「各項目名次得分」調整', list:noPts.map(e=>({ t:e.name, id:e.id, base:e.base, to:'points' })) });
       const todo=evGroups.value.filter(g=>g.events.some(e=>e.todo));
-      if(todo.length) out.push({ level:'info', title:todo.length+' 個項目計畫書待確認', why:'確認後按該項目的「修改」調整即可', list:todo.map(g=>g.base+'：'+g.events.find(e=>e.todo).todo) });
+      if(todo.length) out.push({ level:'info', title:todo.length+' 個項目計畫書待確認', why:'確認後按該項目的「修改」調整即可', list:todo.map(g=>({ t:g.base+'：'+g.events.find(e=>e.todo).todo, base:g.base, edit:true })) });
       if(!out.some(c=>c.level==='warn')) out.unshift({ level:'ok', title:'所有項目和分組都沒有問題', why:'都排進頒獎梯次、班級數正確、沒有重複選手' });
       return out; });
     /* ----- 共用清單 ----- */
@@ -3021,9 +3049,8 @@ createApp({
       const rows=[['獎項','組數','取前','獎勵內容','預估份數','已確定']];
       const grp=(f)=>st.value.events.filter(f);
       const add=(label,evs,reward)=>{ if(!evs.length) return; const top=evs[0].awardTop; const sure=evs.filter(isPub).reduce((s,e)=>s+ranked(e).filter(x=>x.place && x.place<=e.awardTop).length,0); rows.push([label,evs.length,top,reward,evs.reduce((s,e)=>s+e.awardTop,0),sure]); };
-      add('跳遠',grp(e=>e.base==='跳遠'),'獎狀、獎牌、獎品'); add('壘球擲遠',grp(e=>e.base==='壘球擲遠'),'獎狀、獎牌、獎品'); add('樂樂棒球擲遠（待確認）',grp(e=>e.base==='樂樂棒球擲遠'),'獎狀、獎牌、獎品');
-      add('60公尺',grp(e=>e.base==='60公尺'),'獎狀、獎牌、獎品'); add('100公尺',grp(e=>e.base==='100公尺'),'獎狀、獎牌、獎品'); add('200公尺',grp(e=>e.base==='200公尺'),'獎狀、獎牌、獎品');
-      add('4×100公尺接力',grp(e=>e.base.startsWith('4×100')),'獎狀、獎牌、獎品'); add('大隊接力',grp(e=>e.base==='大隊接力'),'獎狀、獎品（其餘頒予獎狀）');
+      // 依「比賽項目與分組」實際的項目列出，自己新增的項目也會算進來
+      evGroups.value.forEach(g=>add(g.base+(g.events.some(e=>e.todo)?'（待確認）':''), g.events, g.base==='大隊接力' ? '獎狀、獎品（其餘頒予獎狀）' : '獎狀、獎牌、獎品'));
       const arGroups=allrunClasses.value.reduce((s,c)=>s+(st.value.allrun[c]?st.value.allrun[c].groups.length:5.5),0);
       const arSure=allrunClasses.value.reduce((s,c)=>s+(st.value.allrun[c]?st.value.allrun[c].groups.length*3:0),0);
       rows.push(['全員賽跑','約 '+Math.round(arGroups),3,'獎狀一張、獎勵品',Math.round(arGroups*3),arSure]);
@@ -3468,7 +3495,7 @@ createApp({
     onMounted(()=>{ readHash(); if(!hashGiven && isPublicView.value) page.value='board'; loadDraft(); syncLiveDraft(); renderQR(); if(FORMAL) fbInit(); else initCloud(); });
 
     return { st, role, page, helpOpen, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
-      SHORT, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
+      SHORT, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
       drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
       roleObj, myPages, navPages, myTasks, dateLabel, go, badge, kpi, ask, modalOk, clsLabel,
