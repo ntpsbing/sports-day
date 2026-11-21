@@ -224,6 +224,22 @@ label.lbl{ display:block; font-size:16px; font-weight:700; color:var(--ink2); ma
 .tone-row.tone-nb td{ border-top:3px solid var(--tc); }
 .tone-row.tone-ng td{ border-top:1.5px dashed color-mix(in srgb, var(--tc) 45%, transparent); }
 .tone-row td.rep{ opacity:.3; font-weight:400 !important; }
+.tl-donebar{ width:100%; min-height:44px; border-radius:12px; border:1.5px dashed var(--line); color:var(--ok); font-weight:700; background:var(--ok-soft); }
+.tl-donebar:hover{ border-color:var(--ok); }
+.fold{ padding:0; overflow:hidden; }
+.fold-h{ list-style:none; cursor:pointer; display:flex; align-items:center; gap:12px; padding:14px 18px; min-height:60px; user-select:none; transition:background .15s; }
+.fold-h::-webkit-details-marker{ display:none; }
+.fold-h:hover{ background:var(--surface2); }
+.fold-t{ font-family:var(--f-head); font-size:21px; font-weight:700; display:flex; align-items:center; gap:8px; flex:none; }
+.fold-s{ flex:1; min-width:0; display:flex; flex-wrap:wrap; gap:6px; justify-content:flex-end; align-items:center; font-size:15px; color:var(--ink2); }
+.fold-c{ width:30px; height:30px; border-radius:50%; background:var(--surface2); flex:none; position:relative; transition:transform .25s, background .15s; }
+.fold-c::before{ content:""; position:absolute; left:10px; top:8px; width:9px; height:9px; border-right:2.5px solid var(--ink2); border-bottom:2.5px solid var(--ink2); transform:rotate(45deg); }
+.fold[open] > .fold-h .fold-c{ transform:rotate(180deg); }
+.fold[open] > .fold-h{ border-bottom:1px solid var(--line); }
+.fold-b{ padding:16px 18px 18px; animation:fadeUp .22s ease-out; }
+@media (max-width:640px){ .fold-h{ flex-wrap:wrap; padding:12px 14px; } .fold-s{ order:3; flex-basis:100%; justify-content:flex-start; } .fold-c{ margin-left:auto; } .fold-b{ padding:14px; } }
+.sumchip{ background:var(--surface2); border-radius:999px; padding:2px 10px; font-weight:700; white-space:nowrap; }
+.sumchip.ok{ background:var(--ok-soft); color:var(--ok); } .sumchip.warn{ background:var(--bad); color:#fff; } .sumchip.info{ background:var(--brand-soft); color:var(--brand); }
 .evcheck{ background:var(--surface2); border-radius:14px; padding:10px 14px; }
 .evcheck-s{ list-style:none; cursor:pointer; display:flex; align-items:center; gap:10px; flex-wrap:wrap; min-height:40px; }
 .evcheck-s::-webkit-details-marker{ display:none; }
@@ -327,7 +343,8 @@ tr:hover .medal-svg, .pod:hover .medal-svg{ transform:translateY(-2px) rotate(-6
 .quick .btn{ white-space:normal; }
 .share-row{ display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
 .bump{ animation:pop .35s ease-out; }
-.kpi .v{ font-family:var(--f-num); font-size:44px; font-weight:800; line-height:1; }
+.kpi{ padding:14px 16px; }
+.kpi .v{ font-family:var(--f-num); font-size:38px; font-weight:800; line-height:1; }
 .kpi .l{ font-size:16px; color:var(--ink2); }
 .bar{ height:10px; border-radius:99px; background:var(--surface2); overflow:hidden; }
 .bar > i{ display:block; height:100%; background:var(--brand); border-radius:99px; transition:width .4s; }
@@ -552,8 +569,7 @@ html.ov-transparent body::before{ display:none; }
       <div class="whoami" v-if="!(FORMAL && !fb.user)">
         <div class="who-l">我現在的身分</div>
         <div class="who-n">{{ whoName }}</div>
-        <div v-if="FORMAL && fb.admin" class="small muted mb-1">管理員可切換身分，預覽各組看到的畫面</div>
-        <select v-if="!FORMAL || fb.admin" id="roleSel" class="inp" v-model="role" aria-label="切換身分">
+                <select v-if="!FORMAL || fb.admin" id="roleSel" class="inp" v-model="role" aria-label="切換身分" :title="FORMAL ? '管理員可切換身分，預覽各組看到的畫面' : '切換身分'">
           <optgroup v-for="c in ROLE_CATS" :key="c.name" :label="c.name">
             <option v-for="id in c.ids" :key="id" :value="id">{{ roleName(id) }}</option>
           </optgroup>
@@ -718,8 +734,9 @@ html.ov-transparent body::before{ display:none; }
           </div>
         </div>
         <!-- 快速分享：QR Code、複製連結、手機分享 -->
-        <div class="card">
-          <h2 class="h-sec">🔗 分享給家長、同事</h2>
+        <fold-card k="start-share" :open="false">
+  <template #title>🔗 分享給家長、同事</template>
+  <template #sum><span class="sumchip">QR Code・複製連結</span></template>
           <p class="small muted mb-3">選要分享的頁面，對方掃 QR Code 或點連結就能看到同一個即時畫面。</p>
           <div class="seg mb-3" role="group" aria-label="選擇分享的頁面">
             <button v-for="o in SHARE_OPTS" :key="o.id" :class="{on:shareTarget===o.id}" @click="shareTarget=o.id">{{ o.name }}</button>
@@ -732,7 +749,7 @@ html.ov-transparent body::before{ display:none; }
               <div class="small muted" style="word-break:break-all">{{ shareUrl }}</div>
             </div>
           </div>
-        </div>
+        </fold-card>
       </div>
     </section>
 
@@ -792,29 +809,6 @@ html.ov-transparent body::before{ display:none; }
         <p class="small muted my-2">器材組、醫護組、午餐組、環保組、體育闖關組、收禮組的功能已加入。按下面按鈕建立器材清單（依流程）、6 個闖關站點與午餐設定。</p>
         <button class="btn btn-primary" @click="initSupport">建立後勤支援資料</button>
       </div>
-      <!-- 發通知給老師：畫面頂端跳出、嗶一聲、手機震動 -->
-      <div class="card mb-5" v-if="can('mc') || can('flow')">
-        <div class="flex justify-between items-center gap-2 flex-wrap mb-2"><h2 class="h-sec">📢 發通知給老師</h2><span class="small muted">對方畫面上方會跳出通知並發出提示音</span></div>
-        <select class="inp mb-2" aria-label="套用範例" @change="$event.target.value && useTpl('ntText', $event.target.value); $event.target.value=''"><option value="">📋 套用範例（選了之後改「○」就好）</option><option v-for="t in NOTICE_TPL" :key="t" :value="t">{{ t }}</option></select>
-        <textarea id="ntText" class="inp" rows="2" v-model="ntText" maxlength="120" placeholder="輸入通知內容，或點上面的範例" @keydown="slotKey"></textarea>
-        <div class="flex flex-wrap items-center gap-2 mt-2">
-          <div class="seg"><button v-for="(v,k) in NOTICE_TO" :key="k" :class="{on:ntTo===k}" @click="ntTo=k">{{ v }}</button></div>
-          <label class="flex items-center gap-2 small"><input type="checkbox" v-model="ntAlsoMc" style="width:20px;height:20px"> 也請司儀廣播</label>
-          <button class="btn btn-primary" :disabled="!ntText.trim()" @click="sendNoticeForm">送出通知給{{ NOTICE_TO[ntTo] }}</button>
-        </div>
-        <div class="small mt-1" v-if="ntText.includes('○')" style="color:var(--warn);font-weight:700">還有「○」要填 <button class="btn btn-sm" @click="nextSlot('ntText')">下一個空格 →</button></div>
-      </div>
-      <div v-if="FORMAL && fb.user && (fb.admin || fb.myRoles.some(r=>['record','control'].includes(r)))" class="card mb-5">
-        <div class="flex justify-between items-center gap-2 flex-wrap mb-2"><h2 class="h-sec">各組裝置連線狀態</h2><span class="small muted">每 30 秒回報一次・{{ devicesOnline.length }} 台在線</span></div>
-        <div class="grid gap-2" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr))">
-          <div v-for="d in devicesSorted" :key="d.id" class="card-flat small">
-            <div class="flex justify-between gap-2"><b>{{ d.roleName || d.role }}</b><span :style="'font-weight:900;color:'+(isOnline(d)?'var(--ok)':'var(--bad)')">{{ isOnline(d) ? '● 在線' : '○ 離線' }}</span></div>
-            <div class="muted" style="word-break:break-all">{{ d.email }}</div>
-            <div class="muted">延遲 {{ d.latency!=null ? (d.latency/1000).toFixed(2)+' 秒' : '—' }}・未送出 {{ d.pending||0 }}・{{ d.online===false ? '曾離線' : '網路正常' }}</div>
-          </div>
-        </div>
-        <div v-if="!fb.devices.length" class="small muted">還沒有裝置回報。</div>
-      </div>
       <!-- 數字卡：「待處理」排前面，紅框＝有事要處理 -->
       <div class="kpis mb-5 stagger">
         <button :class="['card kpi text-left',{hot:openReports.length}]" @click="rFilter='open'; go('reports')"><div class="v num" :style="openReports.length?'color:var(--bad)':''">{{ openReports.length }}</div><div class="l">🚨 現場通報待處理</div></button>
@@ -827,10 +821,12 @@ html.ov-transparent body::before{ display:none; }
         <button class="card kpi text-left" @click="go('live')"><div class="v" style="font-size:28px;font-weight:900;line-height:1.3" :style="st.live.on?'color:#C8102E':''">{{ st.live.on ? '● 直播中' : '○ 未開播' }}</div><div class="l">📡 網路直播</div></button>
       </div>
 
-      <div class="grid gap-5" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,480px),1fr))">
-        <div class="card">
+      <div class="grid gap-5 items-start" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,480px),1fr))">
+        <fold-card k="home-flow" style="align-self:start">
+          <template #title>🏁 當天流程</template>
+          <template #sum><span class="sumchip info" v-if="nowTl">▶ {{ nowTl.title.length>10 ? nowTl.title.slice(0,10)+'…' : nowTl.title }}</span><span class="sumchip" v-else>尚未開始</span><span class="sumchip" v-if="st.delayMin">順延 {{ st.delayMin }} 分</span></template>
           <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-            <div><h2 class="h-sec">當天流程</h2><div class="small muted">{{ dateLabel }}・現在 <b class="num" style="font-size:20px">{{ clock }}</b></div></div>
+            <div class="small muted">{{ dateLabel }}・現在 <b class="num" style="font-size:20px">{{ clock }}</b></div>
             <div class="flex gap-2 flex-wrap">
               <button class="btn btn-sm" @click="delay(5)">流程延誤 +5 分</button>
               <button class="btn btn-sm" v-if="st.delayMin" @click="delay(-st.delayMin)">恢復準點</button>
@@ -838,7 +834,8 @@ html.ov-transparent body::before{ display:none; }
           </div>
           <div class="note mb-3" v-if="st.delayMin">目前流程順延 <b>{{ st.delayMin }}</b> 分鐘，未開始項目的時間已自動調整。</div>
           <div class="tl">
-            <div v-for="t in st.timeline" :key="t.id" :class="['tl-item',{now:t.status==='now',done:t.status==='done'}]">
+            <button v-if="tlDoneN" class="tl-donebar" @click="showDoneTl=!showDoneTl">{{ showDoneTl ? '▲ 收起已完成的項目' : '✔ 已完成 '+tlDoneN+' 項（點一下展開）' }}</button>
+            <div v-for="t in st.timeline.filter(t=>showDoneTl || t.status!=='done')" :key="t.id" :class="['tl-item',{now:t.status==='now',done:t.status==='done'}]">
               <div class="tl-time">{{ tlTime(t) }}</div>
               <div style="min-width:0">
                 <div class="font-bold">{{ t.title }}</div>
@@ -851,11 +848,46 @@ html.ov-transparent body::before{ display:none; }
               </div>
             </div>
           </div>
-        </div>
+        </fold-card>
 
         <div class="flex flex-col gap-4" style="min-width:0">
-          <div class="card">
-            <h2 class="h-sec mb-1">誰是主控？各組分工</h2>
+          <fold-card k="home-notice" :open="false" v-if="can('mc') || can('flow')">
+            <template #title>📢 發通知給老師</template>
+            <template #sum><span class="sumchip">全體・導師・工作人員</span></template>
+            <p class="small muted mb-2">對方畫面上方會跳出通知並發出提示音。</p>
+        <select class="inp mb-2" aria-label="套用範例" @change="$event.target.value && useTpl('ntText', $event.target.value); $event.target.value=''"><option value="">📋 套用範例（選了之後改「○」就好）</option><option v-for="t in NOTICE_TPL" :key="t" :value="t">{{ t }}</option></select>
+        <textarea id="ntText" class="inp" rows="2" v-model="ntText" maxlength="120" placeholder="輸入通知內容，或點上面的範例" @keydown="slotKey"></textarea>
+        <div class="flex flex-wrap items-center gap-2 mt-2">
+          <div class="seg"><button v-for="(v,k) in NOTICE_TO" :key="k" :class="{on:ntTo===k}" @click="ntTo=k">{{ v }}</button></div>
+          <label class="flex items-center gap-2 small"><input type="checkbox" v-model="ntAlsoMc" style="width:20px;height:20px"> 也請司儀廣播</label>
+          <button class="btn btn-primary" :disabled="!ntText.trim()" @click="sendNoticeForm">送出通知給{{ NOTICE_TO[ntTo] }}</button>
+        </div>
+        <div class="small mt-1" v-if="ntText.includes('○')" style="color:var(--warn);font-weight:700">還有「○」要填 <button class="btn btn-sm" @click="nextSlot('ntText')">下一個空格 →</button></div>
+          </fold-card>
+          <fold-card k="home-devices" :open="false" v-if="FORMAL && fb.user && (fb.admin || fb.myRoles.some(r=>['record','control'].includes(r)))">
+            <template #title>📶 裝置連線</template>
+            <template #sum><span class="sumchip ok">● {{ devicesOnline.length }} 台在線</span><span class="sumchip" v-if="devicesRecent.length-devicesOnline.length">{{ devicesRecent.length-devicesOnline.length }} 台剛離線</span></template>
+            <p class="small muted mb-2">每 30 秒回報一次；只列出 1 小時內有回報的裝置。</p>
+            <div class="flex flex-col gap-2">
+              <div v-for="d in devicesRecent" :key="d.id" class="card-flat small flex justify-between gap-2 items-center flex-wrap">
+                <div style="min-width:0"><b>{{ d.roleName || d.role }}</b>　<span class="muted" style="word-break:break-all">{{ d.email }}</span></div>
+                <span :style="'font-weight:900;color:'+(isOnline(d)?'var(--ok)':'var(--ink2)')">{{ isOnline(d) ? '● 在線' : '○ 離線' }}<span class="muted" style="font-weight:400" v-if="isOnline(d) && d.latency!=null">・{{ (d.latency/1000).toFixed(2) }} 秒</span></span>
+              </div>
+            </div>
+            <div v-if="!devicesRecent.length" class="small muted">1 小時內沒有裝置回報。</div>
+          </fold-card>
+          <fold-card k="home-check" :open="false">
+            <template #title>🔍 資料檢查</template>
+            <template #sum><span class="sumchip warn" v-if="overLimit.length">! {{ overLimit.length }} 人超過上限</span><span class="sumchip" v-if="preMissing.length">{{ preMissing.length }} 組還沒成績</span><span class="sumchip ok" v-if="!overLimit.length && !preMissing.length">✔ 沒有問題</span></template>
+            <ul class="small flex flex-col gap-2">
+              <li v-if="!overLimit.length" style="color:var(--ok)">✔ 沒有學生超過「每人限參加 {{ st.settings.maxPerStudent }} 項個人項目」</li>
+              <li v-for="o in overLimit" style="color:var(--bad)">✗ {{ clsLabel(o.cls) }} {{ o.name }} 報了 {{ o.count }} 項：{{ o.events.join('、') }}</li>
+              <li v-if="preMissing.length" class="muted">○ {{ preMissing.length }} 組尚未有成績（詳細請看「積分與設定 → 比賽項目與分組」）</li>
+            </ul>
+          </fold-card>
+          <fold-card k="home-duty" :open="false">
+            <template #title>👥 各組分工</template>
+            <template #sum><span class="sumchip">{{ ROLES.length }} 組</span></template>
             <p class="small muted mb-3">整場由<b>「總控」</b>在司令台按流程的「開始／完成」，看板、司儀、直播字卡都跟著走。<b>紀錄組</b>是系統管理員，負責成績審核公布與資料。其他各組只操作自己的頁面。</p>
             <div class="flex flex-col gap-1">
               <div v-for="r in ROLES" :key="r.id" :class="['duty',{me:r.id===role}]">
@@ -863,33 +895,24 @@ html.ov-transparent body::before{ display:none; }
                 <span class="small">{{ r.duty }}</span>
               </div>
             </div>
-          </div>
-
-          <div class="card">
-            <h2 class="h-sec mb-2">資料檢查</h2>
-            <ul class="small flex flex-col gap-2">
-              <li v-if="!overLimit.length" style="color:var(--ok)">✔ 沒有學生超過「每人限參加 {{ st.settings.maxPerStudent }} 項個人項目」</li>
-              <li v-for="o in overLimit" style="color:var(--bad)">✗ {{ clsLabel(o.cls) }} {{ o.name }} 報了 {{ o.count }} 項：{{ o.events.join('、') }}</li>
-              <li v-for="e in preMissing.slice(0,5)" class="muted">○ 尚未有成績：{{ e.name }}</li>
-              <li v-if="preMissing.length>5" class="muted">…還有 {{ preMissing.length-5 }} 組尚未有成績（到「資料匯入」一次匯入）</li>
-            </ul>
-          </div>
-
-          <details class="card">
-            <summary class="h-sec cursor-pointer" style="min-height:40px">計畫書待確認事項（{{ PLAN_QUESTIONS.length }}）</summary>
-            <p class="small muted my-2">系統先依合理解讀建好，確認後在「積分與設定」修改即可。</p>
+          </fold-card>
+          <fold-card k="home-plan" :open="false">
+            <template #title>📝 計畫書待確認</template>
+            <template #sum><span class="sumchip info">{{ PLAN_QUESTIONS.length }} 項</span></template>
+            <p class="small muted mb-2">系統先依合理解讀建好，確認後在「積分與設定」修改即可。</p>
             <ul class="small flex flex-col gap-2">
               <li v-for="q in PLAN_QUESTIONS"><span class="chip tag-todo">待確認</span> {{ q }}</li>
             </ul>
-          </details>
+          </fold-card>
         </div>
       </div>
     </section>
 
     <!-- ===================== 帳號與權限（只有系統管理員）===================== -->
     <section v-if="page==='accounts'" class="fade-up">
-      <div class="card mb-4">
-        <h2 class="h-sec mb-2">身分是怎麼給的？</h2>
+      <fold-card k="acc-how" :open="false" class="mb-4">
+  <template #title>💡 身分是怎麼給的？</template>
+  <template #sum><span class="sumchip">家長免登入・老師登入自動給組別</span></template>
         <ol class="small list-decimal pl-6 flex flex-col gap-1">
           <li><b>家長、觀眾</b>：不用登入，打開就是大會看板，只看得到大會看板、成績查詢（前 6 名）、看直播。</li>
           <li><b>工作人員</b>：按右上角「學校人員登入」，用學校 Google 帳號登入（第一次按一下，之後同一台裝置會自動登入）。</li>
@@ -897,7 +920,7 @@ html.ov-transparent body::before{ display:none; }
           <li>想省事：把「工作分配名單」（姓名＋組別）貼上，老師登入一次就會自動對到組別。</li>
           <li>一個人可以兼任多組；改了組別，對方重新整理頁面就生效。</li>
         </ol>
-      </div>
+      </fold-card>
       <div v-if="!FORMAL" class="card note note-info">體驗版沒有登入，用左上方的身分選單切換。正式版用學校帳號登入後，這一頁才能設定。</div>
       <div v-else-if="!fb.admin" class="card">只有系統管理員（config.js 的 ADMIN_EMAILS）可以設定帳號權限。</div>
           <div class="card" v-else>
@@ -1290,13 +1313,14 @@ html.ov-transparent body::before{ display:none; }
               <div class="seg"><button :class="{on:!mcNotify}" @click="mcNotify=''">不通知</button><button v-for="(v,k) in NOTICE_TO" :key="k" :class="{on:mcNotify===k}" @click="mcNotify=k">{{ v }}</button></div></div>
             <button class="btn btn-primary mt-2" @click="addInsert" :disabled="!mcText.trim()">{{ mcNotify ? '加入播報清單＋通知'+NOTICE_TO[mcNotify] : '加入播報清單' }}</button>
           </div>
-          <div class="card">
-            <h2 class="h-sec mb-2">已播報／已取消紀錄</h2>
+          <fold-card k="mc-done" :open="false">
+  <template #title>🗒️ 已播報／已取消</template>
+  <template #sum><span class="sumchip">{{ doneBcList.length }} 則</span></template>
             <div v-if="!doneBcList.length" class="muted small">尚無紀錄</div>
             <div v-for="b in doneBcList.slice(0,12)" :key="b.id" class="small py-2" style="border-bottom:1px solid var(--line)">
               <span class="num muted">{{ b.doneAt }}</span>　<b>{{ b.cancelled ? '✕ 已取消' : BC[b.type] }}</b>　<span :style="b.cancelled?'text-decoration:line-through;opacity:.6':''">{{ b.text.length>46 ? b.text.slice(0,46)+'…' : b.text }}</span>
             </div>
-          </div>
+          </fold-card>
         </div>
       </div>
     </section>
@@ -1332,8 +1356,9 @@ html.ov-transparent body::before{ display:none; }
           </div>
         </div>
       </div>
-      <div class="card">
-        <h2 class="h-sec mb-2">新增人員（臨時到場的來賓、代表頒獎的老師）</h2>
+      <fold-card k="guest-add" :open="false">
+  <template #title>➕ 新增人員</template>
+  <template #sum><span class="sumchip">臨時到場的來賓、代表頒獎的老師</span></template>
         <div class="grid gap-2" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
           <select class="inp" id="ngKind" v-model="ng.kind"><option>來賓</option><option>家長會</option><option>校內</option></select>
           <input class="inp" id="ngOrg" v-model.trim="ng.org" placeholder="單位（例：清豐里、六年級）" maxlength="30">
@@ -1341,7 +1366,7 @@ html.ov-transparent body::before{ display:none; }
           <input class="inp" id="ngTitle" v-model.trim="ng.title" placeholder="職稱（例：里長、老師）" maxlength="12">
           <button class="btn btn-primary" @click="addGuest" :disabled="!ng.name">新增並報到</button>
         </div>
-      </div>
+      </fold-card>
     </section>
 
     <!-- ===================== 頒獎梯次 ===================== -->
@@ -1506,8 +1531,8 @@ html.ov-transparent body::before{ display:none; }
         <button :class="{on:imType==='guests'}" @click="imType='guests'; imRaw=''; imRows=[]">來賓名單</button>
       </div>
       <div class="grid gap-4" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr))">
-        <div class="card">
-          <h2 class="h-sec mb-2">第 1 步：準備資料</h2>
+        <fold-card k="imp-step1">
+  <template #title>① 準備資料（看格式、下載範本）</template>
           <p class="small muted mb-2">第一列是標題，順序如下（{{ imType==='results' ? '「成績」「名次」沒有可以空白；接力項目「姓名」可空白' : '「備註」可空白' }}）：</p>
           <div class="tblwrap"><table class="tbl small"><thead><tr><th v-for="h in imTemplate[0]">{{ h }}</th></tr></thead><tbody><tr v-for="(r,i) in imTemplate.slice(1)" :key="i"><td v-for="c in r">{{ c }}</td></tr></tbody></table></div>
           <div class="flex gap-2 flex-wrap mt-3">
@@ -1515,7 +1540,7 @@ html.ov-transparent body::before{ display:none; }
             <button class="btn btn-sm btn-primary" @click="downloadTemplate">下載 Excel 範本</button>
           </div>
           <p class="small muted mt-2" v-if="imType==='results'">寫法很寬鬆：年級可寫 5 或 五；班級可寫 503、5-3、五年三班；項目可寫 60m、60公尺、壘球。</p>
-        </div>
+        </fold-card>
         <div class="card">
           <h2 class="h-sec mb-2">第 2 步：貼上或選擇檔案</h2>
           <textarea class="inp" id="imRaw" rows="6" v-model="imRaw" placeholder="從 Excel 選取整個表格（含標題列）→ 複製 → 貼在這裡" @input="parseImport"></textarea>
@@ -1554,103 +1579,17 @@ html.ov-transparent body::before{ display:none; }
     <!-- ===================== 積分與設定 ===================== -->
     <section v-if="page==='config'" class="fade-up">
       <fieldset :disabled="!can('config')">
-      <div class="card mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div style="min-width:0;flex:1 1 300px"><h2 class="h-sec">🔒 公開畫面姓名遮罩</h2><p class="small muted">開啟時，成績查詢、大會看板、看直播、直播字卡、PO 文與家長看到的畫面，學生姓名顯示為「王○明」；工作人員頁面仍是全名。</p></div>
+      <div class="card mb-4 flex flex-wrap items-center justify-between gap-3" style="padding:12px 18px">
+        <div style="min-width:0;flex:1 1 300px"><b style="font-size:18px">🔒 公開畫面姓名遮罩</b><span class="small muted">　家長畫面姓名顯示為「王○明」，工作人員看全名</span></div>
         <label class="flex items-center gap-2 font-bold" style="min-height:48px;cursor:pointer"><input type="checkbox" style="width:24px;height:24px" :checked="st.settings.maskNames!==false" @change="st.settings.maskNames=$event.target.checked"> {{ st.settings.maskNames!==false ? '已開啟（建議）' : '已關閉' }}</label>
       </div>
-      <div class="grid gap-4" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr))">
-        <div class="card">
-          <h2 class="h-sec mb-1">總錦標積分辦法</h2>
-          <p class="small muted mb-3">改了馬上生效，看板的積分排行會跟著重算。</p>
-          <label class="lbl">各名次得分</label>
-          <div class="grid gap-2 mb-2" style="grid-template-columns:repeat(auto-fill,minmax(84px,1fr))">
-            <div v-for="(p,i) in st.settings.scoring.points" :key="i">
-              <div class="small muted text-center">第 {{ i+1 }} 名</div>
-              <input class="inp num text-center" style="font-size:22px" type="number" min="0" max="99" :id="'pt'+i" v-model.number="st.settings.scoring.points[i]">
-            </div>
-          </div>
-          <div class="flex gap-2 mb-4">
-            <button class="btn btn-sm" @click="st.settings.scoring.points.push(0)" :disabled="st.settings.scoring.points.length>=10">＋ 增加名次</button>
-            <button class="btn btn-sm" @click="st.settings.scoring.points.pop()" :disabled="st.settings.scoring.points.length<=1">－ 減少名次</button>
-          </div>
-          <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
-            <div><label class="lbl" for="rm">接力項目分數倍數</label><input id="rm" class="inp num" type="number" min="1" max="5" step="0.5" v-model.number="st.settings.scoring.relayMult"></div>
-            <div><label class="lbl" for="ctop">總錦標每學年取前幾名</label><input id="ctop" class="inp num" type="number" min="1" max="6" v-model.number="st.settings.scoring.champTop"></div>
-          </div>
-          <label class="lbl mt-3">參加總錦標的年級</label>
-          <div class="flex gap-2 flex-wrap">
-            <label v-for="g in [1,2,3,4,5,6]" :key="g" class="btn btn-sm" :class="st.settings.scoring.grades.includes(g)?'btn-primary':''"><input type="checkbox" class="sr-only" :value="g" v-model="st.settings.scoring.grades">{{ ZH[g] }}年級</label>
-          </div>
-          <label class="lbl mt-3">列入積分的項目</label>
-          <div class="flex gap-4 flex-wrap">
-            <label class="flex gap-2 items-center"><input type="checkbox" id="ci" v-model="st.settings.scoring.countInd" style="width:22px;height:22px"> 個人田徑賽</label>
-            <label class="flex gap-2 items-center"><input type="checkbox" id="cr" v-model="st.settings.scoring.countRelay" style="width:22px;height:22px"> 4×100 與大隊接力</label>
-          </div>
-          <div class="card-flat mt-3 small"><b>同名次（成績相同）：</b>兩人並列第 2 名，<b>兩人都拿第 2 名的 {{ st.settings.scoring.points[1] }} 分</b>和第 2 名獎狀；下一位是第 4 名（沒有第 3 名）。</div>
-          <div class="card-flat mt-4 small">
-            <b>試算：</b>一位學生個人項目第一名得 {{ st.settings.scoring.points[0] }} 分；大隊接力第一名得 {{ (st.settings.scoring.points[0]||0)*st.settings.scoring.relayMult }} 分。
-          </div>
-          <div class="flex gap-2 mt-3 flex-wrap">
-            <button class="btn btn-sm" @click="setPreset('a')">套用建議：7・5・4・3・2・1</button>
-            <button class="btn btn-sm" @click="setPreset('b')">套用：8・6・5・4・3・2・1</button>
-            <button class="btn btn-sm" @click="setPreset('c')">套用：6・5・4・3・2・1</button>
-          </div>
-        </div>
-
-        <div class="flex flex-col gap-4" style="min-width:0">
-          <div class="card">
-            <h2 class="h-sec mb-2">基本資料</h2>
-            <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
-              <div style="grid-column:1/-1"><label class="lbl" for="stTitle">活動名稱</label><input id="stTitle" class="inp" v-model="st.settings.title" maxlength="40"></div>
-              <div><label class="lbl" for="stDate">運動會日期</label><input id="stDate" class="inp" type="date" v-model="st.settings.date"></div>
-              <div><label class="lbl" for="stMax">每人個人項目上限</label><input id="stMax" class="inp num" type="number" min="1" max="5" v-model.number="st.settings.maxPerStudent"></div>
-            </div>
-            <label class="lbl mt-3">各年級班級數</label>
-            <div class="grid gap-2" style="grid-template-columns:repeat(auto-fill,minmax(92px,1fr))">
-              <div v-for="g in [1,2,3,4,5,6]" :key="g"><div class="small muted">{{ ZH[g] }}年級</div><input class="inp num" type="number" min="1" max="15" :id="'gc'+g" v-model.number="st.settings.classes[g]"></div>
-              <div><div class="small muted">幼兒園</div><input class="inp num" type="number" min="0" max="10" id="gck" v-model.number="st.settings.kg"></div>
-              <div><div class="small muted">天使班</div><input class="inp num" type="number" min="0" max="5" id="gca" v-model.number="st.settings.angel"></div>
-            </div>
-            <p class="small muted mt-2">目前共 {{ totalClasses }} 班（一～六年級）。班級數會影響全員賽跑填報與積分表。</p>
-          </div>
-
-
-          <div class="card" id="tlCard">
-            <h2 class="h-sec mb-1">當天流程表</h2>
-            <p class="small muted mb-2">改時間或名稱後立刻同步到總控台、看板、司儀台。</p>
-            <div class="flex flex-col gap-2" style="max-height:340px;overflow:auto">
-              <div v-for="t in st.timeline" :key="t.id">
-                <div class="flex gap-2 items-center">
-                  <input class="inp num" type="time" style="width:120px" :id="'tt_'+t.id" v-model="t.time">
-                  <input class="inp" style="flex:1;min-width:0" :id="'tn_'+t.id" v-model="t.title" maxlength="60">
-                  <button class="btn btn-sm" @click="tlPick=tlPick===t.id?'':t.id" :aria-expanded="tlPick===t.id">比賽 {{ (t.eventIds||[]).length || '' }}</button>
-                  <button class="btn btn-sm" @click="removeTl(t)" :disabled="t.status!=='todo'" aria-label="刪除這一項">刪除</button>
-                </div>
-                <div v-if="tlPick===t.id" class="card-flat mt-1 mb-2 small fade-up">
-                  <div class="muted mb-1">勾選這個時段要比的項目（檢錄、司儀稿、看板、器材會跟著流程走）</div>
-                  <div v-for="g in evGroups.filter(g=>g.stage==='day')" :key="g.base" class="mb-1"><b :style="{ color:toneOf(g.base) }">{{ g.base }}</b>
-                    <label v-for="e in g.events" :key="e.id" class="btn btn-sm ml-1" :class="(t.eventIds||[]).includes(e.id)?'btn-primary':''" style="min-height:36px"><input type="checkbox" class="sr-only" :checked="(t.eventIds||[]).includes(e.id)" @change="toggleTlEv(t,e.id)">{{ ZH[e.grade] }}{{ e.gender==='混'?'':e.gender }}</label></div>
-                  <div v-if="!evGroups.some(g=>g.stage==='day')" class="muted">目前沒有「運動會當天」的比賽項目。</div>
-                </div>
-              </div>
-            </div>
-            <button class="btn btn-sm mt-2" @click="addTl">＋ 新增一項流程</button>
-          </div>
-          <div class="card" v-if="!FORMAL">
-            <h2 class="h-sec mb-2">體驗資料</h2>
-            <p class="small muted mb-2">裡面的學生姓名、成績都是系統隨機產生的範例。試用完可以還原成一開始的樣子。</p>
-            <div class="flex gap-2 flex-wrap">
-              <button class="btn btn-bad" @click="need('data') && ask('確定要把所有資料還原成範例嗎？你在這台電腦做的操作都會清除。', resetDemo)">還原範例資料</button>
-              <button class="btn btn-bad" @click="need('data') && ask('確定清空所有成績嗎？選手名單會保留。', clearMarks)">清空所有成績</button>
-            </div>
-          </div>
-        </div>
-
+      <div class="grid gap-3 items-start" style="grid-template-columns:minmax(0,1fr)">
         <!-- ===== 比賽項目與分組：新增、修改、刪除＋自動檢查 ===== -->
-        <div class="card" style="grid-column:1/-1" id="evManage">
+        <fold-card k="evManage" style="grid-column:1/-1" id="evManage">
+  <template #title>🏃 比賽項目與分組</template>
+  <template #sum><span class="sumchip">{{ evGroups.length }} 項目・{{ st.events.length }} 組</span><span class="sumchip warn" v-if="evWarnN">! {{ evWarnN }} 要處理</span><span class="sumchip ok" v-else>✔ 檢查通過</span></template>
           <div class="flex flex-wrap items-end justify-between gap-3 mb-3">
-            <div><h2 class="h-sec">🏃 比賽項目與分組</h2>
-              <p class="small muted">共 {{ evGroups.length }} 個項目、{{ st.events.length }} 組。點分組可以直接去登錄成績；項目可以自己新增、修改或刪除。</p></div>
+            <p class="small muted">點分組可以直接去登錄成績；項目可以自己新增、修改或刪除。</p>
             <button class="btn btn-primary" @click="openEvForm()">＋ 新增比賽項目</button>
           </div>
 
@@ -1721,12 +1660,104 @@ html.ov-transparent body::before{ display:none; }
               </div>
             </div>
           </div>
+        </fold-card>
+        <fold-card k="cfg-score" :open="false">
+  <template #title>🏆 總錦標積分辦法</template>
+  <template #sum><span class="sumchip">{{ st.settings.scoring.points.join('・') }}</span><span class="sumchip">接力 ×{{ st.settings.scoring.relayMult }}</span></template>
+          <p class="small muted mb-3">改了馬上生效，看板的積分排行會跟著重算。</p>
+          <label class="lbl">各名次得分</label>
+          <div class="grid gap-2 mb-2" style="grid-template-columns:repeat(auto-fill,minmax(84px,1fr))">
+            <div v-for="(p,i) in st.settings.scoring.points" :key="i">
+              <div class="small muted text-center">第 {{ i+1 }} 名</div>
+              <input class="inp num text-center" style="font-size:22px" type="number" min="0" max="99" :id="'pt'+i" v-model.number="st.settings.scoring.points[i]">
+            </div>
+          </div>
+          <div class="flex gap-2 mb-4">
+            <button class="btn btn-sm" @click="st.settings.scoring.points.push(0)" :disabled="st.settings.scoring.points.length>=10">＋ 增加名次</button>
+            <button class="btn btn-sm" @click="st.settings.scoring.points.pop()" :disabled="st.settings.scoring.points.length<=1">－ 減少名次</button>
+          </div>
+          <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
+            <div><label class="lbl" for="rm">接力項目分數倍數</label><input id="rm" class="inp num" type="number" min="1" max="5" step="0.5" v-model.number="st.settings.scoring.relayMult"></div>
+            <div><label class="lbl" for="ctop">總錦標每學年取前幾名</label><input id="ctop" class="inp num" type="number" min="1" max="6" v-model.number="st.settings.scoring.champTop"></div>
+          </div>
+          <label class="lbl mt-3">參加總錦標的年級</label>
+          <div class="flex gap-2 flex-wrap">
+            <label v-for="g in [1,2,3,4,5,6]" :key="g" class="btn btn-sm" :class="st.settings.scoring.grades.includes(g)?'btn-primary':''"><input type="checkbox" class="sr-only" :value="g" v-model="st.settings.scoring.grades">{{ ZH[g] }}年級</label>
+          </div>
+          <label class="lbl mt-3">列入積分的項目</label>
+          <div class="flex gap-4 flex-wrap">
+            <label class="flex gap-2 items-center"><input type="checkbox" id="ci" v-model="st.settings.scoring.countInd" style="width:22px;height:22px"> 個人田徑賽</label>
+            <label class="flex gap-2 items-center"><input type="checkbox" id="cr" v-model="st.settings.scoring.countRelay" style="width:22px;height:22px"> 4×100 與大隊接力</label>
+          </div>
+          <div class="card-flat mt-3 small"><b>同名次（成績相同）：</b>兩人並列第 2 名，<b>兩人都拿第 2 名的 {{ st.settings.scoring.points[1] }} 分</b>和第 2 名獎狀；下一位是第 4 名（沒有第 3 名）。</div>
+          <div class="card-flat mt-4 small">
+            <b>試算：</b>一位學生個人項目第一名得 {{ st.settings.scoring.points[0] }} 分；大隊接力第一名得 {{ (st.settings.scoring.points[0]||0)*st.settings.scoring.relayMult }} 分。
+          </div>
+          <div class="flex gap-2 mt-3 flex-wrap">
+            <button class="btn btn-sm" @click="setPreset('a')">套用建議：7・5・4・3・2・1</button>
+            <button class="btn btn-sm" @click="setPreset('b')">套用：8・6・5・4・3・2・1</button>
+            <button class="btn btn-sm" @click="setPreset('c')">套用：6・5・4・3・2・1</button>
+          </div>
+        </fold-card>
+
+        <div class="flex flex-col gap-3" style="min-width:0">
+          <fold-card k="cfg-basic" :open="false">
+  <template #title>🏫 基本資料</template>
+  <template #sum><span class="sumchip">{{ dateLabel }}</span><span class="sumchip">一～六年級 {{ totalClasses }} 班</span></template>
+            <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+              <div style="grid-column:1/-1"><label class="lbl" for="stTitle">活動名稱</label><input id="stTitle" class="inp" v-model="st.settings.title" maxlength="40"></div>
+              <div><label class="lbl" for="stDate">運動會日期</label><input id="stDate" class="inp" type="date" v-model="st.settings.date"></div>
+              <div><label class="lbl" for="stMax">每人個人項目上限</label><input id="stMax" class="inp num" type="number" min="1" max="5" v-model.number="st.settings.maxPerStudent"></div>
+            </div>
+            <label class="lbl mt-3">各年級班級數</label>
+            <div class="grid gap-2" style="grid-template-columns:repeat(auto-fill,minmax(92px,1fr))">
+              <div v-for="g in [1,2,3,4,5,6]" :key="g"><div class="small muted">{{ ZH[g] }}年級</div><input class="inp num" type="number" min="1" max="15" :id="'gc'+g" v-model.number="st.settings.classes[g]"></div>
+              <div><div class="small muted">幼兒園</div><input class="inp num" type="number" min="0" max="10" id="gck" v-model.number="st.settings.kg"></div>
+              <div><div class="small muted">天使班</div><input class="inp num" type="number" min="0" max="5" id="gca" v-model.number="st.settings.angel"></div>
+            </div>
+            <p class="small muted mt-2">目前共 {{ totalClasses }} 班（一～六年級）。班級數會影響全員賽跑填報與積分表。</p>
+          </fold-card>
+
+
+          <fold-card k="cfg-flow" :open="false" id="tlCard">
+  <template #title>🕘 當天流程表</template>
+  <template #sum><span class="sumchip">{{ st.timeline.length }} 個時段</span></template>
+            <p class="small muted mb-2">改時間或名稱後立刻同步到總控台、看板、司儀台。</p>
+            <div class="flex flex-col gap-2" style="max-height:340px;overflow:auto">
+              <div v-for="t in st.timeline" :key="t.id">
+                <div class="flex gap-2 items-center">
+                  <input class="inp num" type="time" style="width:120px" :id="'tt_'+t.id" v-model="t.time">
+                  <input class="inp" style="flex:1;min-width:0" :id="'tn_'+t.id" v-model="t.title" maxlength="60">
+                  <button class="btn btn-sm" @click="tlPick=tlPick===t.id?'':t.id" :aria-expanded="tlPick===t.id">比賽 {{ (t.eventIds||[]).length || '' }}</button>
+                  <button class="btn btn-sm" @click="removeTl(t)" :disabled="t.status!=='todo'" aria-label="刪除這一項">刪除</button>
+                </div>
+                <div v-if="tlPick===t.id" class="card-flat mt-1 mb-2 small fade-up">
+                  <div class="muted mb-1">勾選這個時段要比的項目（檢錄、司儀稿、看板、器材會跟著流程走）</div>
+                  <div v-for="g in evGroups.filter(g=>g.stage==='day')" :key="g.base" class="mb-1"><b :style="{ color:toneOf(g.base) }">{{ g.base }}</b>
+                    <label v-for="e in g.events" :key="e.id" class="btn btn-sm ml-1" :class="(t.eventIds||[]).includes(e.id)?'btn-primary':''" style="min-height:36px"><input type="checkbox" class="sr-only" :checked="(t.eventIds||[]).includes(e.id)" @change="toggleTlEv(t,e.id)">{{ ZH[e.grade] }}{{ e.gender==='混'?'':e.gender }}</label></div>
+                  <div v-if="!evGroups.some(g=>g.stage==='day')" class="muted">目前沒有「運動會當天」的比賽項目。</div>
+                </div>
+              </div>
+            </div>
+            <button class="btn btn-sm mt-2" @click="addTl">＋ 新增一項流程</button>
+          </fold-card>
+          <fold-card k="cfg-demo" :open="false" v-if="!FORMAL">
+  <template #title>🧪 體驗資料</template>
+            <p class="small muted mb-2">裡面的學生姓名、成績都是系統隨機產生的範例。試用完可以還原成一開始的樣子。</p>
+            <div class="flex gap-2 flex-wrap">
+              <button class="btn btn-bad" @click="need('data') && ask('確定要把所有資料還原成範例嗎？你在這台電腦做的操作都會清除。', resetDemo)">還原範例資料</button>
+              <button class="btn btn-bad" @click="need('data') && ask('確定清空所有成績嗎？選手名單會保留。', clearMarks)">清空所有成績</button>
+            </div>
+          </fold-card>
         </div>
 
-        <div class="card" style="grid-column:1/-1">
+
+
+        <fold-card k="cfg-pts" :open="false" style="grid-column:1/-1">
+  <template #title>🎯 各項目名次得分</template>
+  <template #sum><span class="sumchip">{{ st.events.filter(e=>e.scoreMode==='custom').length }} 組自訂</span><span class="sumchip">{{ st.events.filter(e=>e.scoreMode==='none').length }} 組不計分</span></template>
           <div class="flex flex-wrap items-end justify-between gap-3 mb-2">
-            <div><h2 class="h-sec">各項目名次得分（可自訂）</h2>
-            <p class="small muted">每一組都可以選「通用」（用上方積分辦法）、「自訂」（自己填分數）或「不計分」。分數用逗號分開，依序是第 1、2、3… 名。</p></div>
+            <div><p class="small muted">每一組都可以選「通用」（用上方積分辦法）、「自訂」（自己填分數）或「不計分」。分數用逗號分開，依序是第 1、2、3… 名。</p></div>
           </div>
           <div class="card-flat mb-3 flex flex-wrap items-end gap-2">
             <div><label class="lbl" for="bBase">一次設定整個項目</label><select id="bBase" class="inp" style="width:auto" v-model="bulk.base"><option v-for="b in baseNames" :key="b" :value="b">{{ b }}</option></select></div>
@@ -1747,15 +1778,16 @@ html.ov-transparent body::before{ display:none; }
               <td data-label="狀態"><span :class="['chip','st-'+e.status]">{{ STATUS[e.status] }}</span></td>
             </tr></tbody>
           </table></div>
-        </div>
+        </fold-card>
 
-        <div class="card" style="grid-column:1/-1">
-          <h2 class="h-sec mb-2">操作紀錄（誰在什麼時候做了什麼）</h2>
+        <fold-card k="cfg-log" :open="false" style="grid-column:1/-1">
+  <template #title>🗒️ 操作紀錄</template>
+  <template #sum><span class="sumchip" v-if="st.logs[0]">最近 {{ st.logs[0].at }}：{{ st.logs[0].text.length>14 ? st.logs[0].text.slice(0,14)+'…' : st.logs[0].text }}</span></template>
           <div class="tblwrap" style="max-height:300px;overflow:auto"><table class="tbl cards small">
             <thead><tr><th>時間</th><th>身分</th><th>內容</th></tr></thead>
             <tbody><tr v-for="(l,i) in st.logs.slice(0,80)" :key="i"><td data-label="時間" class="num">{{ l.at }}</td><td data-label="身分">{{ l.role }}</td><td data-label="內容">{{ l.text }}</td></tr></tbody>
           </table></div>
-        </div>
+        </fold-card>
       </div>
       </fieldset>
     </section>
@@ -1856,7 +1888,8 @@ html.ov-transparent body::before{ display:none; }
           </div>
         </div>
       </div>
-      <div class="card mt-4"><h2 class="h-sec mb-2">新增器材</h2>
+      <fold-card k="equip-add" :open="false" class="mt-4">
+  <template #title>➕ 新增器材</template>
         <div class="grid gap-2" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
           <select class="inp" id="neTl" v-model="ne.tl"><option v-for="t in st.timeline" :key="t.id" :value="t.id">{{ t.time }} {{ t.title }}</option></select>
           <input class="inp" id="neItem" v-model.trim="ne.item" placeholder="器材名稱" maxlength="20">
@@ -1864,7 +1897,7 @@ html.ov-transparent body::before{ display:none; }
           <input class="inp" id="nePlace" v-model.trim="ne.place" placeholder="送到哪裡" maxlength="20">
           <button class="btn btn-primary" @click="addEquip" :disabled="!ne.item">新增</button>
         </div>
-      </div>
+      </fold-card>
     </section>
 
     <!-- ===================== 午餐 ===================== -->
@@ -1983,8 +2016,9 @@ html.ov-transparent body::before{ display:none; }
           <p class="small muted">開播後，大會看板和導師頁都會出現「看直播」，家長在現場掃描就能看。</p>
         </div>
 
-        <div class="card">
-          <h2 class="h-sec mb-1">③ 直播疊字畫面</h2>
+        <fold-card k="live-ov" :open="false">
+  <template #title>③ 直播疊字畫面</template>
+  <template #sum><span class="sumchip">字卡疊在直播畫面</span></template>
           <p class="small muted mb-3">把最新成績、目前流程、積分排行疊在直播畫面下方（像電視轉播的字卡），每 8 秒自動輪播。</p>
           <div class="lt-preview" :style="ovPrevStyle">
             <div class="lt" :key="'p'+ovSlide.key+ovIdx"><div class="lt-tag"><small>LIVE</small>{{ ovSlide.tag }}</div><div class="lt-body"><div class="lt-title">{{ ovSlide.title }}</div><div class="lt-line">{{ ovSlide.line }}</div></div></div>
@@ -1995,15 +2029,17 @@ html.ov-transparent body::before{ display:none; }
           <div class="flex gap-2 flex-wrap"><button v-for="m in OV_MODES" :key="m.id" :class="['btn btn-sm', st.live.overlayModes.includes(m.id)?'btn-primary':'']" @click="toggleOvMode(m.id)">{{ st.live.overlayModes.includes(m.id) ? '✔ ' : '' }}{{ m.name }}</button></div>
           <button class="btn btn-primary mt-3" @click="go('overlay')">開啟全螢幕疊字畫面</button>
           <p class="small muted mt-2">直播軟體 OBS 用「視窗擷取」加「色彩鍵（綠幕）」去背，就能疊上去。正式版會給一個專用網址，直接放進 OBS 的「瀏覽器來源」。</p>
-        </div>
+        </fold-card>
 
-        <div class="card">
-          <div class="flex justify-between items-center flex-wrap gap-2 mb-1"><h2 class="h-sec">④ 精彩時刻標記</h2><button class="btn btn-sm" @click="copy(marksText)" :disabled="!st.live.marks.length">複製清單</button></div>
+        <fold-card k="live-marks" :open="false">
+  <template #title>④ 精彩時刻標記</template>
+  <template #sum><span class="sumchip">{{ st.live.marks.length }} 則</span></template>
+          <div class="flex justify-end items-center flex-wrap gap-2 mb-1"><button class="btn btn-sm" @click="copy(marksText)" :disabled="!st.live.marks.length">複製清單</button></div>
           <p class="small muted mb-3">比賽精彩時按一下，記下時間與項目，賽後剪精華影片就知道從哪裡找。</p>
           <div class="flex gap-2 flex-wrap mb-3"><input class="inp" id="markNote" style="flex:1 1 200px;width:auto" v-model="markNote" placeholder="備註（例：最後一棒逆轉）" maxlength="40"><button class="btn btn-primary" @click="addMark">標記精彩時刻</button></div>
           <div v-if="!st.live.marks.length" class="small muted">尚未標記。</div>
           <div v-for="m in st.live.marks.slice().reverse()" :key="m.id" class="small py-2" style="border-bottom:1px solid var(--line)"><b class="num" style="font-size:18px">{{ m.at }}</b><span v-if="m.offset">（直播第 {{ m.offset }}）</span>　{{ m.item }}<span v-if="m.note">｜{{ m.note }}</span></div>
-        </div>
+        </fold-card>
       </div>
     </section>
 
@@ -2796,13 +2832,15 @@ createApp({
     /* 自動檢查：每次資料變動都重算 */
     /* 檢查清單的標籤：點了跳到對應的地方 */
     const tlPick = ref('');
+    const showDoneTl = ref(false);
+    const tlDoneN = computed(()=>st.value.timeline.filter(t=>t.status==='done').length);
     function toggleTlEv(t,id){ if(!need('flow')) return; t.eventIds=t.eventIds||[]; if(t.eventIds.includes(id)) t.eventIds=t.eventIds.filter(x=>x!==id); else { st.value.timeline.forEach(x=>{ if(x!==t && x.eventIds) x.eventIds=x.eventIds.filter(y=>y!==id); }); t.eventIds=[...t.eventIds,id]; } }
     function jumpRow(kind, b){ const el=document.querySelector('[data-jump="'+kind+'|'+b+'"]'); if(!el) return; const box=el.closest('.tblwrap');
       if(box){ box.scrollTo({ top: el.offsetTop - (box.querySelector('thead')||{offsetHeight:0}).offsetHeight - 4, behavior:'smooth' }); box.scrollIntoView({ behavior:'smooth', block:'nearest' }); }
       el.classList.remove('flash-row'); void el.offsetWidth; el.classList.add('flash-row'); }
     function jumpCheck(x){ if(x.edit) return openEvForm(x.base);
       if(x.to==='awards') return go('awards');
-      if(x.to==='points'){ const el=document.getElementById('sm_'+x.id); if(el){ el.scrollIntoView({ behavior:'smooth', block:'center' }); el.focus(); } return; }
+      if(x.to==='points'){ const el=document.getElementById('sm_'+x.id); const d=el && el.closest('details'); if(d) d.open=true; if(el){ el.scrollIntoView({ behavior:'smooth', block:'center' }); el.focus(); } return; }
       scEvId.value=x.id; go('score'); }
     const evWarnN = computed(()=>evChecks.value.filter(c=>c.level==='warn').length);
     const evInfoN = computed(()=>evChecks.value.filter(c=>c.level==='info').length);
@@ -2815,11 +2853,11 @@ createApp({
         fix:{ label:'自動排進頒獎梯次', fn:()=>{ if(!can('award') && !can('config')){ need('config'); return; } let n=0, made=0; noBatch.forEach(e=>{ if(attachToBatch(e)) n++; else { st.value.batches.splice(Math.max(0,st.value.batches.length-1),0,{ id:'b'+Date.now()+uid(), title:e.base+'頒獎', eventIds:[e.id], presenter:'', backup:'', override:'', place:'司令台前頒獎台', tl:'', status:'todo' }); made++; } }); log('自動排進頒獎梯次 '+(n+made)+' 組'); toast('已排進頒獎梯次'+(made?'（新增 '+made+' 個梯次，請到「頒獎梯次」設定時間與頒獎人）':'')); } } });
       const inTl=new Set(st.value.timeline.flatMap(t=>t.eventIds||[]));
       const dayNoTl=E.filter(e=>e.stage==='day' && !inTl.has(e.id));
-      if(dayNoTl.length) out.push({ level:'warn', title:dayNoTl.length+' 組當天比賽沒排進流程', why:'檢錄、司儀稿、看板不會跟著流程自動提醒', list:dayNoTl.map(e=>({ t:e.name, id:e.id, base:e.base })), fix:{ label:'去流程表排', fn:()=>{ const el=document.getElementById('tlCard'); if(el) el.scrollIntoView({ behavior:'smooth' }); } } });
+      if(dayNoTl.length) out.push({ level:'warn', title:dayNoTl.length+' 組當天比賽沒排進流程', why:'檢錄、司儀稿、看板不會跟著流程自動提醒', list:dayNoTl.map(e=>({ t:e.name, id:e.id, base:e.base })), fix:{ label:'去流程表排', fn:()=>{ const el=document.getElementById('tlCard'); if(el){ el.open=true; el.scrollIntoView({ behavior:'smooth' }); } } } });
       const preEmpty=E.filter(e=>e.stage==='pre' && !e.team && !e.entries.length);
       if(preEmpty.length) out.push({ level:'warn', title:preEmpty.length+' 組會前賽還沒有名單或成績', why:'比完後到資料匯入，一次匯入 Excel', list:preEmpty.map(e=>({ t:e.name, id:e.id, base:e.base })), fix:{ label:'去資料匯入', fn:()=>go('import') } });
       const badCls=[]; E.forEach(e=>e.entries.forEach(x=>{ const [g,c]=String(x.cls).split('-').map(Number); if(g && c>(st.value.settings.classes[g]||0)) badCls.push(e.name+' '+clsLabel(x.cls)); }));
-      if(badCls.length) out.push({ level:'warn', title:badCls.length+' 筆選手的班級超過設定班級數', why:'請確認各年級班級數', list:[...new Set(badCls)], fix:{ label:'去改班級數', fn:()=>{ const el=document.getElementById('gc1'); if(el) el.scrollIntoView({ behavior:'smooth', block:'center' }); } } });
+      if(badCls.length) out.push({ level:'warn', title:badCls.length+' 筆選手的班級超過設定班級數', why:'請確認各年級班級數', list:[...new Set(badCls)], fix:{ label:'去改班級數', fn:()=>{ const el=document.getElementById('gc1'); const d=el && el.closest('details'); if(d) d.open=true; if(el) el.scrollIntoView({ behavior:'smooth', block:'center' }); } } });
       const dup=[]; E.filter(e=>!e.team).forEach(e=>{ const seen=new Set(); e.entries.forEach(x=>{ if(!x.name) return; const k=x.cls+x.name; if(seen.has(k)) dup.push(e.name+' '+clsLabel(x.cls)+' '+x.name); seen.add(k); }); });
       if(dup.length) out.push({ level:'warn', title:dup.length+' 位選手在同一組重複出現', why:'可能重複匯入，請到成績登錄刪除多的那一筆', list:dup });
       if(overLimit.value.length) out.push({ level:'warn', title:overLimit.value.length+' 位學生超過個人項目上限', why:'每人限參加 '+st.value.settings.maxPerStudent+' 項個人項目', list:overLimit.value.map(o=>clsLabel(o.cls)+' '+o.name+'（'+o.events.join('、')+'）') });
@@ -3411,6 +3449,7 @@ createApp({
     function isOnline(d){ return d.tsMs && nowTick.value-d.tsMs < 75000; }
     const devicesSorted = computed(()=>fb.devices.slice().sort((a,b)=>(isOnline(b)?1:0)-(isOnline(a)?1:0) || String(a.roleName||'').localeCompare(String(b.roleName||''))));
     const devicesOnline = computed(()=>fb.devices.filter(isOnline));
+    const devicesRecent = computed(()=>devicesSorted.value.filter(d=>isOnline(d) || (d.tsMs && nowTick.value-d.tsMs < 3600000)));
     function beat(){ if(!fdb || !fb.user) return; fref('devices',deviceId).set({ email:fb.email, role:role.value, roleName:roleObj.value.name, page:page.value, ts:firebase.firestore.FieldValue.serverTimestamp(), latency:fb.latency, pending:fb.pending, online:fb.online }).catch(()=>{}); }
     if(FORMAL) setInterval(beat,30000);
     async function loadRole(){
@@ -3515,7 +3554,7 @@ createApp({
     onMounted(()=>{ readHash(); if(!hashGiven && isPublicView.value) page.value='board'; loadDraft(); syncLiveDraft(); renderQR(); if(FORMAL) fbInit(); else initCloud(); });
 
     return { st, role, page, helpOpen, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
-      SHORT, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
+      SHORT, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
       drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
       roleObj, myPages, navPages, myTasks, dateLabel, go, badge, kpi, ask, modalOk, clsLabel,
@@ -3526,7 +3565,7 @@ createApp({
       scEvId, scEv, scRows, scShake, scIssues, needsMark, markWarn, submitReview,
       rvTab, rvNote, publish, sendBack, askReopen,
       mcText, doneBc, addInsert, bcStyle,
-      FORMAL, fb, roleTab, roleGroups, roleRowsTab, signIn, signOut, initFormal, roleForm, setRole, editRole, removeRole, roleBulk, roleBulkRows, applyRoleBulk, roleQ, roleRowsShown, rosterDraft, onRosterInput, rosterMap, loginMatches, pendingMatches, saveRoster, setRosterAuto, applyMatches, isOnline, devicesSorted, devicesOnline, addTl, removeTl, removeGuest,
+      FORMAL, fb, roleTab, roleGroups, roleRowsTab, signIn, signOut, initFormal, roleForm, setRole, editRole, removeRole, roleBulk, roleBulkRows, applyRoleBulk, roleQ, roleRowsShown, rosterDraft, onRosterInput, rosterMap, loginMatches, pendingMatches, saveRoster, setRosterAuto, applyMatches, isOnline, devicesSorted, devicesOnline, devicesRecent, addTl, removeTl, removeGuest,
       RTYPES, STA, rf, rFilter, canHandle, openReports, myOpenReports, reportList, openMedicReports, submitReport, setReport, md, addMedical, medicalRows, eqFilter, ne, tlLabel, equipGroups, nextEquip, setEquip, addEquip, lunchInfo, lunchMissing, setLunchInfo, toggleLunch, callLunch, gf, addGift, announceGift, giftRows, giftText, setStation, supportMissing, initSupport,
       dockOpen, setDock, qa, quickAssign, person, useBackup, restorePrimary, eventPoints, setCustomPts, baseNames, bulk, applyBulk,
       gFilter, gKind, guestList, ng, arrive, addGuest, personText, personMark, shortTitle, batchesOf, presenterOf, toggleAbsent, readyBatchObj, batchTime, winnersOf, winnerGroups, awardIssues, teacherCalls, sync, toggleCloud, canEmbed, embedUrl,
@@ -3552,6 +3591,14 @@ createApp({
       <text x="20" y="36.2" text-anchor="middle" class="mnum">{{ p }}</text>
     </svg></span>
   <span v-else class="medal" :style="{width:size*0.84+'px',height:size*0.84+'px'}">{{ p || '—' }}</span>`
+})
+/* <fold-card k="記憶用名稱" title="標題" :open="預設是否展開">：可收合卡片
+   標題列右邊放 <template #sum>摘要</template>（收起時也看得到重點），內容放預設插槽；會記住每個人上次收起或展開 */
+.component('fold-card', {
+  props:{ k:{ type:String, required:true }, title:{ default:'' }, open:{ default:true }, cls:{ default:'' } },
+  data(){ let o=this.open; try{ const v=localStorage.getItem('nanzi-sportsday-fold-'+this.k); if(v!==null) o = v==='1'; }catch(e){} return { o }; },
+  methods:{ t(e){ this.o=e.target.open; try{ localStorage.setItem('nanzi-sportsday-fold-'+this.k, this.o?'1':'0'); }catch(err){} } },
+  template:`<details :class="['card','fold',cls]" :open="o" @toggle="t"><summary class="fold-h"><span class="fold-t"><slot name="title">{{ title }}</slot></span><span class="fold-s"><slot name="sum"></slot></span><span class="fold-c" aria-hidden="true"></span></summary><div class="fold-b"><slot></slot></div></details>`
 }).mount('#app');
 </script>
 
