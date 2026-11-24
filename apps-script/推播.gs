@@ -1,6 +1,6 @@
 /* =========================================================
    楠梓國小 運動會即時通報系統：手機推播（Google Apps Script）
-   用途：每分鐘檢查資料庫有沒有新的「通知老師」，有就用兩條路送出：
+   用途：每分鐘檢查資料庫有沒有新的「通知老師」和「現場通報」（通報只送負責的組別），有就用兩條路送出：
         ① Email 到老師的學校 Gmail：任何手機的 Gmail App 都會跳通知（不用任何手機設定，最通用）
         ② 手機推播：老師在網站允許通知的裝置，瀏覽器關掉也會跳（要先完成推播金鑰設定）
    設定步驟請看同資料夾的「設定說明.md」。
@@ -13,6 +13,10 @@ var SITE_URL   = 'https://ntpsbing.github.io/sports-day/';  // 點通知要打�
 var LOOKBACK_MIN = 10;                                      // 只推送最近幾分鐘內發出的通知
 var EMAIL_ON   = true;                                      // 是否同時寄 Email 到老師的學校信箱（true 寄／false 不寄）
 var MAIL_NAME  = '楠梓國小運動會';                           // 寄件人顯示名稱
+/* 現場通報：哪些組別要收到（和網站 PERMS 一致） */
+var REPORT_ROLES = { equip:['equip','control','record'], env:['env','affairs','control','record'], lunch:['lunch','control','record'],
+  medic:['medic','control','record'], site:['affairs','control','record'], other:['control','record'] };
+var REPORT_NAME  = { equip:'器材', env:'環境清潔', lunch:'午餐', medic:'醫護', site:'場地事務', other:'其他' };
 
 /* ---------- 1. 第一次使用：執行這個函式（會建立「每分鐘自動檢查」） ---------- */
 function 設定() {
@@ -49,7 +53,7 @@ function 檢查並推播() {
   var props = PropertiesService.getScriptProperties();
   var sent = JSON.parse(props.getProperty('SENT') || '{}');      // 已推送過的通知（避免重複）
   var cutoff = Date.now() - LOOKBACK_MIN * 60 * 1000;
-  var notices = 讀取新通知_(cutoff).filter(function (n) { return !sent[n.id]; });
+  var notices = 讀取新通知_(cutoff).concat(讀取新通報_(cutoff)).filter(function (n) { return !sent[n.id]; });
   if (!notices.length) return;                                    // 沒有新通知：結束（不讀裝置清單，省額度）
 
   var tokens = 讀取裝置_();
@@ -57,13 +61,13 @@ function 檢查並推播() {
   notices.sort(function (a, b) { return (a.ts || 0) - (b.ts || 0); }).forEach(function (n) {
     var targets = tokens.filter(function (t) { return !t.dead && 是對象_(t, n); });
     if (targets.length) {
-      var r = 送出_(targets, { title: '運動會通知', body: String(n.text || ''), tag: String(n.id) });
+      var r = 送出_(targets, { title: n.title || '運動會通知', body: String(n.text || ''), tag: String(n.id) });
       Logger.log('推播「' + String(n.text).slice(0, 20) + '」→ ' + r.ok + ' 台成功、' + r.fail + ' 台失敗');
     }
     if (EMAIL_ON) {
       var mails = people.filter(function (p) { return 是對象_(p, n); }).map(function (p) { return p.email; });
       if (n.to === 'me' && n.byEmail && mails.indexOf(String(n.byEmail).toLowerCase()) < 0) mails.push(String(n.byEmail).toLowerCase());
-      if (mails.length) { 寄信_(mails, { body: String(n.text || ''), by: n.by, at: n.at }); Logger.log('Email「' + String(n.text).slice(0, 20) + '」→ ' + mails.length + ' 位'); }
+      if (mails.length) { 寄信_(mails, { body: String(n.text || ''), by: n.by, at: n.at, title: n.title }); Logger.log('Email「' + String(n.text).slice(0, 20) + '」→ ' + mails.length + ' 位'); }
     }
     sent[n.id] = Date.now();
   });
@@ -75,11 +79,28 @@ function 檢查並推播() {
 
 /* 通知對象：all 全體人員、teachers 全體導師（每個學校帳號都是）、staff 全體工作人員、me 自己（測試） */
 function 是對象_(t, n) {
+  if (n.roles) {                                               // 現場通報：負責的組別，送出的人自己不收
+    if (t.email && t.email === String(n.byEmail || '').toLowerCase()) return false;
+    return (t.roles || []).some(function (r) { return n.roles.indexOf(r) >= 0; });
+  }
   var to = n.to || 'all';
   if (to === 'all' || to === 'teachers') return true;
   if (to === 'me') return t.email && t.email === String(n.byEmail || '').toLowerCase();
   if (to === 'staff') return (t.roles || []).some(function (r) { return r !== 'teacher' && r !== 'public'; });
   return (t.roles || []).indexOf(to) >= 0;
+}
+
+/* ---------- 現場通報 → 負責組別 ---------- */
+function 讀取新通報_(cutoff) {
+  var url = 'https://firestore.googleapis.com/v1/projects/' + PROJECT_ID + '/databases/(default)/documents:runQuery';
+  var res = 呼叫_(url, 'post', { structuredQuery: { from: [{ collectionId: 'reports' }],
+    where: { fieldFilter: { field: { fieldPath: 'ts' }, op: 'GREATER_THAN', value: { integerValue: String(cutoff) } } }, limit: 100 } });
+  return (res || []).filter(function (r) { return r.document; }).map(function (r) {
+    var o = 解析_(r.document.fields || {}); var id = o.id || r.document.name.split('/').pop();
+    return { id: 'report:' + id, ts: o.ts, at: o.at, by: o.by, byEmail: o.byEmail, status: o.status,
+      roles: REPORT_ROLES[o.type] || REPORT_ROLES.other, title: o.urgent ? '🚨 緊急通報' : '🚨 現場通報',
+      text: '【' + (REPORT_NAME[o.type] || '其他') + '】' + (o.place ? o.place + '：' : '') + (o.text || '') };
+  }).filter(function (o) { return o.status === 'open' && o.text; });
 }
 
 /* ---------- 資料庫（Firestore REST） ---------- */
@@ -167,7 +188,7 @@ function 列出_(col) {
 }
 /* 一封信最多 50 位收件人（密件副本，彼此看不到信箱）；額度不夠時記錄下來 */
 function 寄信_(mails, n) {
-  var subject = '【運動會通知】' + String(n.body).slice(0, 40);
+  var subject = (n.title ? '【' + n.title.replace(/^🚨\s*/, '') + '】' : '【運動會通知】') + String(n.body).slice(0, 40);
   var html = '<div style="font-family:sans-serif;font-size:17px;line-height:1.6">'
     + '<div style="background:#0E4D8C;color:#fff;padding:12px 16px;border-radius:10px 10px 0 0;font-weight:bold">📢 楠梓國小運動會通知</div>'
     + '<div style="border:1px solid #DBE1DA;border-top:0;padding:16px;border-radius:0 0 10px 10px">'
