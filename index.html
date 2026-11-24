@@ -1393,11 +1393,29 @@ html.ov-transparent body::before{ display:none; }
           <button :class="{on:gFilter==='absent'}" @click="gFilter='absent'">無法出席 {{ st.guests.filter(g=>g.absent).length }}</button>
         </div>
       </div>
+      <!-- 還沒填姓名的人（系統預設「○○○」）：一次補齊 -->
+      <fold-card k="guest-fill" v-if="noNameGuests.length" class="mb-4" style="border:2px solid var(--warn)">
+        <template #title>✏️ 還有 {{ noNameGuests.length }} 位沒填姓名</template>
+        <template #sum><span class="sumchip warn">! 看板、司儀稿、成績單會顯示「○○○」</span></template>
+        <p class="small muted mb-3">直接輸入姓名，按 Enter 或點別處就存好，全部畫面同步更新。</p>
+        <div class="grid gap-2" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr))">
+          <label v-for="g in noNameGuests" :key="g.id" class="card-flat flex items-center gap-2">
+            <span style="flex:none;min-width:7.5em" class="font-bold">{{ (g.org ? g.org+' ' : '') + g.title }}</span>
+            <input class="inp" :id="'gn_'+g.id" value="" placeholder="輸入姓名" maxlength="12" :disabled="!can('guest')" @change="setGuestName(g, $event.target.value)" @keydown.enter="$event.target.blur()">
+          </label>
+        </div>
+      </fold-card>
       <div class="grid-auto mb-4">
         <div v-for="g in guestList" :key="g.id" class="card flex flex-col gap-2" :style="g.absent?'opacity:.75':''">
           <div class="flex justify-between gap-2">
-            <div style="min-width:0"><div class="small muted"><span class="chip st-none" style="font-size:13px">{{ g.kind }}</span> {{ g.org }}</div><div class="h-sec">{{ g.name }} {{ g.title }}</div></div>
-            <span :class="['chip', g.absent ? 'tag-todo' : g.arrived ? 'st-published' : 'st-none']" style="align-self:flex-start">{{ g.absent ? '✗ 無法出席' : g.arrived ? '✔ '+g.arrivedAt : '○ 未到' }}</span>
+            <div style="min-width:0" v-if="gEdit!==g.id"><div class="small muted"><span class="chip st-none" style="font-size:13px">{{ g.kind }}</span> {{ g.org }}</div><div class="h-sec">{{ g.name }} {{ g.title }}</div></div>
+            <div v-else class="grid gap-2" style="grid-template-columns:1fr 1fr;flex:1;min-width:0">
+              <select class="inp" v-model="g.kind" aria-label="類別"><option>校內</option><option>家長會</option><option>來賓</option></select>
+              <input class="inp" v-model.trim="g.org" placeholder="單位" maxlength="30" aria-label="單位">
+              <input class="inp" v-model.trim="g.name" placeholder="姓名" maxlength="12" aria-label="姓名">
+              <input class="inp" v-model.trim="g.title" placeholder="職稱" maxlength="12" aria-label="職稱">
+            </div>
+            <span v-if="gEdit!==g.id" :class="['chip', g.absent ? 'tag-todo' : g.arrived ? 'st-published' : 'st-none']" style="align-self:flex-start">{{ g.absent ? '✗ 無法出席' : g.arrived ? '✔ '+g.arrivedAt : '○ 未到' }}</span>
           </div>
           <div class="small muted">
             <span v-if="g.arrived && g.kind!=='校內'">{{ g.introduced ? '✔ 司儀已介紹' : '⧗ 等待司儀介紹' }}</span>
@@ -1406,6 +1424,7 @@ html.ov-transparent body::before{ display:none; }
           <button v-if="!g.arrived && !g.absent" class="btn btn-primary btn-big" @click="arrive(g)">報到{{ g.kind==='校內' ? '' : '（通知司儀介紹）' }}</button>
           <div class="flex gap-2 flex-wrap">
             <button v-if="g.arrived" class="btn btn-sm" @click="unarrive(g)">取消報到</button>
+            <button v-if="can('guest')" class="btn btn-sm" :class="gEdit===g.id?'btn-primary':''" @click="toggleGEdit(g)">{{ gEdit===g.id ? '✔ 完成' : '✏️ 修改' }}</button>
             <button v-if="can('data')" class="btn btn-sm" @click="removeGuest(g)">刪除</button>
             <button class="btn btn-sm" :class="g.absent?'':'btn-bad'" @click="toggleAbsent(g)">{{ g.absent ? '改為可以出席' : '無法出席' }}</button>
           </div>
@@ -2293,7 +2312,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261124120000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261124133000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -3145,6 +3164,12 @@ createApp({
     const ng = reactive({ kind:'來賓', org:'', name:'', title:'' });
     function guestText(g){ return (g.org?g.org+' ':'')+g.name+' '+g.title; }
     function personText(g){ return g ? guestText(g).trim() : ''; }
+    /* 補姓名／修改人員資料 */
+    const isNoName = n => !n || /^[○〇O]+$/.test(String(n).trim());
+    const noNameGuests = computed(()=>st.value.guests.filter(g=>isNoName(g.name)));
+    function setGuestName(g, v){ v=String(v||'').trim(); if(!v || !need('guest')) return; g.name=v; log('填寫姓名：'+(g.org?g.org+' ':'')+g.title+' '+v); toast('已存：'+guestText(g).trim()); }
+    const gEdit = ref('');
+    function toggleGEdit(g){ if(gEdit.value===g.id){ gEdit.value=''; log('修改人員：'+guestText(g).trim()); toast('已更新'); return; } if(!need('guest')) return; gEdit.value=g.id; }
     function personMark(g){ return g.absent ? '✗ ' : g.arrived ? '✔ ' : '○ '; }
     function shortTitle(t){ return t.replace(/（.*）/,''); }
     function arrive(g){ if(!need('guest')) return; g.arrived=true; g.arrivedAt=hhmm(); g.absent=false; g.introduced=g.kind==='校內'; if(g.kind!=='校內') bc('guest','熱烈歡迎 '+guestText(g)+' 蒞臨指導，請大家掌聲歡迎！',{ guestId:g.id }); log('報到：'+guestText(g)); toast(g.kind==='校內'?'已報到':'已報到，司儀台會介紹'); }
@@ -3743,10 +3768,13 @@ createApp({
       try{ const t=await fetch(location.pathname+'?ver='+Date.now(), { cache:'no-store' }).then(r=>r.ok?r.text():''); const m=t.match(/const BUILD_ID = '([^']+)'/); if(m && m[1]!==BUILD_ID) newVersion.value=true; }catch(e){} }
     function reloadApp(){ location.replace(location.pathname+'?v='+Date.now()+location.hash); }
     setInterval(checkVersion, 60000); document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) checkVersion(); });
+    /* 校長姓名（config.js 的 PRINCIPAL_NAME）：資料裡還是「○○○ 校長」時自動補上；只有能修改來賓資料的人會寫入資料庫 */
+    watch(()=>[st.value.guests.length, fb.user && fb.email, role.value], ()=>{ const n=window.PRINCIPAL_NAME; if(!n) return; if(FORMAL && !can('guest')) return;
+      st.value.guests.forEach(g=>{ if(g.kind==='校內' && g.title==='校長' && isNoName(g.name)){ g.name=n; log('自動填入校長姓名：'+n); } }); }, { immediate:true });
     onMounted(()=>{ readHash(); if(!hashGiven && isPublicView.value) page.value='board'; loadDraft(); syncLiveDraft(); renderQR(); if(FORMAL) fbInit(); else initCloud(); });
 
     return { st, role, page, helpOpen, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
-      SHORT, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
+      SHORT, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
       drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
       roleObj, myPages, navPages, myTasks, dateLabel, go, badge, kpi, ask, modalOk, clsLabel,

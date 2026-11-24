@@ -20,3 +20,5 @@ window.ADMIN_EMAILS = ["bing5201314@e1.ntps.kh.edu.tw"];
 // 校徽：校徽圖檔（SVG 最清楚；PNG 也可，建議正方形、透明背景、至少 200×200）放在和 index.html 同一個資料夾。
 // 檔名不同就改這裡；找不到圖檔時，左上角會自動顯示「楠」字圓章。
 window.SCHOOL_LOGO = "logo.svg";
+// 校長姓名：系統預設的「○○○ 校長」會自動換成這個名字（看板、司儀稿、頒獎人、成績單都會用到）
+window.PRINCIPAL_NAME = "鍾榮茂";
