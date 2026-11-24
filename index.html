@@ -2428,7 +2428,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261125060000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261125070000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -3953,7 +3953,7 @@ createApp({
        網址填在 config.js 的 PUSH_HOOK_URL；沒填就照舊每分鐘檢查 */
     let pingT=null;
     function pingPush(){ const u=window.PUSH_HOOK_URL; if(!u) return; clearTimeout(pingT);
-      pingT=setTimeout(()=>{ try{ fetch(u, { method:'POST', mode:'no-cors', body:'ping', keepalive:true }).catch(()=>{}); }catch(e){} }, 300); }
+      pingT=setTimeout(()=>{ try{ fetch(u, { method:'POST', mode:'no-cors', body:'ping', keepalive:true, credentials:'include' }).catch(()=>{}); // 帶學校帳號登入資訊：部署成「網域內的所有人」也叫得動 }catch(e){} }, 300); }
     function fbDelete(col,id){ if(!fdb || !fb.user) return; delete remoteSer[col][id]; fref(col,id).delete().catch(e=>toast('刪除失敗：'+((e&&e.code)||''),true)); }
     function fbPush(){
       if(!FORMAL || !fb.ready || !fb.user) return;
