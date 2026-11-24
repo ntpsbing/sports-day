@@ -599,7 +599,8 @@ html.ov-transparent body::before{ display:none; }
   </header>
   <div v-if="unreadNotices.length && page!=='overlay' && !(boardMode && page==='board')" class="noticebar no-print" role="alert">
     <span class="nb-ico" aria-hidden="true">📢</span>
-    <div class="nb-body"><b>{{ unreadNotices[0].text }}</b><div class="small">{{ unreadNotices[0].at }}・{{ unreadNotices[0].by || '大會' }} → {{ NOTICE_TO[unreadNotices[0].to] || '全體人員' }}<span v-if="unreadNotices.length>1">・還有 {{ unreadNotices.length-1 }} 則</span></div></div>
+    <div class="nb-body"><b>{{ unreadNotices[0].text }}</b><div class="small">{{ unreadNotices[0].at }}・{{ unreadNotices[0].by || '大會' }} → {{ unreadNotices[0].kind==='report' ? '你這組' : unreadNotices[0].to==='me' ? '自己（測試）' : NOTICE_TO[unreadNotices[0].to] || '全體人員' }}<span v-if="unreadNotices.length>1">・還有 {{ unreadNotices.length-1 }} 則</span></div></div>
+    <button v-if="unreadNotices[0].kind==='report'" class="btn btn-sm btn-primary" @click="markRead(unreadNotices[0]); rFilter='mine'; go('reports')">去處理</button>
     <button class="btn btn-sm" @click="markRead(unreadNotices[0])">知道了</button>
   </div>
   <div class="modal-bg" v-if="noticeOpen" @click.self="noticeOpen=false">
@@ -633,7 +634,7 @@ html.ov-transparent body::before{ display:none; }
       <div v-if="!myNotices.length" class="muted small">目前沒有通知。司儀或總控發送通知時，會在這裡和畫面上方出現。</div>
       <div v-for="n in myNotices" :key="n.id" class="card-flat mb-2" :style="isUnread(n)?'border-left:4px solid var(--sun)':''">
         <div class="font-bold">{{ n.text }}</div>
-        <div class="small muted">{{ n.at }}・{{ n.by || '大會' }} → {{ n.to==='me' ? '自己（測試）' : NOTICE_TO[n.to] || '全體人員' }}<span v-if="isUnread(n)" style="color:var(--warn);font-weight:700">・未讀</span></div>
+        <div class="small muted">{{ n.at }}・{{ n.by || '大會' }} → {{ n.kind==='report' ? '你這組' : n.to==='me' ? '自己（測試）' : NOTICE_TO[n.to] || '全體人員' }}<span v-if="isUnread(n)" style="color:var(--warn);font-weight:700">・未讀</span></div>
         <button v-if="canWithdrawB(n)" class="btn btn-sm btn-bad mt-1" @click="withdrawNotice(n)">撤回這則通知</button>
       </div>
     </div>
@@ -1993,7 +1994,8 @@ html.ov-transparent body::before{ display:none; }
             <textarea id="rfText" class="inp" rows="2" v-model.trim="rf.text" maxlength="120" placeholder="點上面的範例，或自己輸入" @keydown="slotKey"></textarea>
             <div class="flex gap-2 items-center mt-1 small" v-if="(rf.place+rf.text).includes('○')"><span style="color:var(--warn);font-weight:700">還有「○」要填</span><button class="btn btn-sm" @click="nextSlot(rf.place.includes('○') ? 'rfPlace' : 'rfText')">下一個空格 →</button></div></div>
           <label class="flex items-center gap-2"><input type="checkbox" id="rfUrgent" v-model="rf.urgent" style="width:22px;height:22px"> 緊急（醒目提醒負責組別）</label>
-          <label class="flex items-center gap-2" v-if="rf.urgent"><input type="checkbox" id="rfMc" v-model="rf.mc" style="width:22px;height:22px"> 同時請司儀廣播</label>
+          <label class="flex items-center gap-2" v-if="canBc"><input type="checkbox" id="rfMc" v-model="rf.mc" style="width:22px;height:22px"> 同時請司儀廣播</label>
+          <p class="small muted" style="margin-top:-4px">送出後，「{{ whoCan(RTYPES[rf.type] ? RTYPES[rf.type].perm : 'flow') }}」的畫面會立刻跳出提醒；設定好 Apps Script 後，手機也會在約 1 分鐘內收到推播與 Email。</p>
           <button class="btn btn-primary btn-big" @click="submitReport" :disabled="!rf.text">送出通報</button>
           <p class="small muted" v-if="rf.type==='medic'">學生受傷的詳細資料請醫護組登記在「醫護站」，這裡只要寫地點與大概狀況。</p>
         </div>
@@ -2339,7 +2341,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261124210000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261124220000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -3149,11 +3151,14 @@ createApp({
     const ntText = ref(''), ntTo = ref('all'), ntAlsoMc = ref(false), noticeOpen = ref(false);
     const canReceive = computed(()=>FORMAL ? !!fb.user : role.value!=='public');
     const isStaffRole = r => r && !['teacher','public'].includes(r);
+    // 能寫廣播稿的人（資料庫規則：工作人員才能寫），導師送通報時不顯示「請司儀廣播」
+    const canBc = computed(()=>FORMAL ? !!fb.user && (fb.admin || (fb.myRoles||[]).some(isStaffRole)) : isStaffRole(role.value));
     function noticeForMe(n){ if(!canReceive.value) return false; if(n.to==='me') return FORMAL ? n.byEmail===fb.email : true; if(n.to==='all' || !n.to) return true;
       const rs = FORMAL && !previewing.value ? fb.myRoles : [role.value];
       if(n.to==='teachers') return rs.includes('teacher') || FORMAL; // 正式版每個學校帳號都有導師身分
       if(n.to==='staff') return rs.some(isStaffRole); return rs.includes(n.to); }
-    const myNotices = computed(()=>st.value.broadcasts.filter(b=>b.type==='notice' && !b.cancelled && noticeForMe(b)).sort((a,b)=>(b.ts||0)-(a.ts||0)).slice(0,30));
+    const reportNotices = ref([]); // 現場通報 → 負責組別的提醒（在 openReports 定義之後填入）
+    const myNotices = computed(()=>[...reportNotices.value, ...st.value.broadcasts.filter(b=>b.type==='notice' && !b.cancelled && noticeForMe(b))].sort((a,b)=>(b.ts||0)-(a.ts||0)).slice(0,30));
     const readIds = ref((()=>{ try{ return JSON.parse(localStorage.getItem(KEY+'-read')||'[]'); }catch(e){ return []; } })());
     // 「自己發的」用分頁判斷：同一個帳號用電腦發，自己的手機（或另一個分頁）一樣收得到
     const tabId = (()=>{ try{ let t=sessionStorage.getItem(KEY+'-tab'); if(!t){ t='t'+Date.now().toString(36)+Math.random().toString(36).slice(2,8); sessionStorage.setItem(KEY+'-tab',t); } return t; }catch(e){ return 't'+Math.random().toString(36).slice(2); } })();
@@ -3662,9 +3667,9 @@ createApp({
     const myOpenReports = computed(()=>openReports.value.filter(r=>canHandle(r) && !(FORMAL && fb.admin && role.value==='record' && false)).sort((a,b)=>(b.urgent?1:0)-(a.urgent?1:0)||(a.ts||0)-(b.ts||0)));
     const reportList = computed(()=>{ const a=st.value.reports.slice().sort((x,y)=>(y.ts||0)-(x.ts||0)); if(rFilter.value==='open') return a.filter(isOpenR); if(rFilter.value==='mine') return a.filter(r=>isOpenR(r) && (canHandle(r) || mine(r))); return a; });
     const openMedicReports = computed(()=>openReports.value.filter(r=>r.type==='medic'));
-    function newReport(o){ st.value.reports.push(Object.assign({ id:'r'+Date.now()+uid(), ts:Date.now(), at:hhmm(), by:roleObj.value.name, byEmail:FORMAL?fb.email:'', byRole:role.value, status:'open', handledBy:'', doneAt:'', urgent:false, place:'', text:'' }, o)); }
+    function newReport(o){ st.value.reports.push(Object.assign({ id:'r'+Date.now()+uid(), ts:Date.now(), at:hhmm(), by:roleObj.value.name, byEmail:FORMAL?fb.email:'', byRole:role.value, byDev:tabId, status:'open', handledBy:'', doneAt:'', urgent:false, place:'', text:'' }, o)); }
     function submitReport(){ if(!need('report')) return; if((rf.place+rf.text).includes('○')){ ask('地點或狀況還有「○」沒有改，確定送出嗎？', doSubmitReport); return; } doSubmitReport(); }
-    function doSubmitReport(){ newReport({ type:rf.type, place:rf.place, text:rf.text, urgent:rf.urgent }); if(rf.urgent && rf.mc) bc('insert','大會報告：'+(rf.place?rf.place+'，':'')+rf.text+'，請相關人員協助處理。',{ reportId:st.value.reports[st.value.reports.length-1].id }); log('現場通報：'+RTYPES[rf.type].name+' '+rf.place+' '+rf.text); toast('已送出，'+RTYPES[rf.type].name+'負責組別會即時收到'); rf.place=''; rf.text=''; rf.urgent=false; rf.mc=false; }
+    function doSubmitReport(){ newReport({ type:rf.type, place:rf.place, text:rf.text, urgent:rf.urgent }); if(rf.mc && canBc.value) bc('insert','大會報告：'+(rf.place?rf.place+'，':'')+rf.text+'，請相關人員協助處理。',{ reportId:st.value.reports[st.value.reports.length-1].id }); log('現場通報：'+RTYPES[rf.type].name+' '+rf.place+' '+rf.text); toast('已送出，'+RTYPES[rf.type].name+'負責組別會即時收到'); rf.place=''; rf.text=''; rf.urgent=false; rf.mc=false; }
     function setReport(r,stt){ if(!canHandle(r)){ need(RTYPES[r.type]?RTYPES[r.type].perm:'flow'); return; } r.status=stt; r.handledBy=roleObj.value.name; if(stt==='done') r.doneAt=hhmm(); log('通報'+(stt==='done'?'完成':'處理中')+'：'+r.place+' '+r.text); }
     const md = reactive({ cls:'', name:'', issue:'', care:'', parent:false });
     function addMedical(){ if(!need('medic')) return; st.value.medical.push({ id:'m'+Date.now()+uid(), ts:Date.now(), at:hhmm(), cls:md.cls, name:md.name, issue:md.issue, care:md.care, parent:md.parent, notified:false, status:'open', by:roleObj.value.name }); log('醫護：登記一筆'); toast('已登記'); md.name=''; md.issue=''; md.care=''; md.parent=false; }
@@ -3914,10 +3919,14 @@ createApp({
     watch(()=>[st.value.guests.length, fb.user && fb.email, role.value], ()=>{ const n=window.PRINCIPAL_NAME; if(!n) return; if(FORMAL && !can('guest')) return;
       st.value.guests.forEach(g=>{ if(g.kind==='校內' && g.title==='校長' && isNoName(g.name)){ g.name=n; log('自動填入校長姓名：'+n); } }); }, { immediate:true });
     watch(()=>[fb.user && fb.email, notifyPerm.value], ()=>{ registerPush(); }); // 登入或允許通知後，登記這台裝置的推播
+    /* 新的現場通報：負責的組別畫面上方跳出、叮咚（自己送的不提醒）；處理完或撤回就自動消失 */
+    watch(()=>openReports.value.filter(r=>canHandle(r) && !sentByMe(r)).map(r=>r.id+r.status).join(','), ()=>{
+      reportNotices.value = openReports.value.filter(r=>canHandle(r) && !sentByMe(r)).map(r=>({ id:'rp_'+r.id, kind:'report', ts:r.ts||0, at:r.at, by:r.by,
+        text:(r.urgent?'🚨 緊急通報':'🚨 現場通報')+'【'+(RTYPES[r.type]?RTYPES[r.type].name:'其他')+'】'+(r.place?r.place+'：':'')+r.text })); }, { immediate:true });
     onMounted(()=>{ readHash(); if(!hashGiven && isPublicView.value) page.value='board'; loadDraft(); syncLiveDraft(); renderQR(); if(FORMAL) fbInit(); else initCloud(); });
 
     return { st, role, page, helpOpen, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
-      SHORT, pushState, registerPush, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
+      SHORT, canBc, pushState, registerPush, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
       drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
       roleObj, myPages, navPages, myTasks, dateLabel, go, badge, kpi, ask, modalOk, clsLabel,
