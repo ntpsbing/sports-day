@@ -27,4 +27,4 @@ window.PRINCIPAL_NAME = "鍾榮茂";
 window.FCM_VAPID_KEY = "BGngxASzdI-CqZ-R-8R93k9WJ0ftvfUnmXPpowOEku3W01oTnAl0No-32iO2XsXFtD5RonNxt6GOjexpX9yg5h8";
 /* 立即推播（可不填）：Apps Script「部署 → 網頁應用程式」的網址。填了以後，通知一送出就馬上寄信／推播（約 5～10 秒）；
    沒填就靠每分鐘自動檢查（約 1～2 分鐘）。設定方法見 apps-script/設定說明.md */
-window.PUSH_HOOK_URL = "";
+window.PUSH_HOOK_URL = "https://script.google.com/macros/s/AKfycbwf8A5oQ2K0s9NXx-5bowiUVzDBB2elHHNmfyWCzRV9jtKySdFdJcJXPaijujv4Fzvw/exec";
