@@ -25,3 +25,6 @@ window.PRINCIPAL_NAME = "鍾榮茂";
 // 推播金鑰（讓手機在瀏覽器關掉時也收得到通知）：Firebase 主控台 → 專案設定 → Cloud Messaging → 網路設定「網路推播憑證」→ 產生金鑰組，把「金鑰組」那一長串貼在下面。
 // 這是公開金鑰，放在這裡是安全的。空白時就只有網頁開著才收得到通知。
 window.FCM_VAPID_KEY = "BGngxASzdI-CqZ-R-8R93k9WJ0ftvfUnmXPpowOEku3W01oTnAl0No-32iO2XsXFtD5RonNxt6GOjexpX9yg5h8";
+/* 立即推播（可不填）：Apps Script「部署 → 網頁應用程式」的網址。填了以後，通知一送出就馬上寄信／推播（約 5～10 秒）；
+   沒填就靠每分鐘自動檢查（約 1～2 分鐘）。設定方法見 apps-script/設定說明.md */
+window.PUSH_HOOK_URL = "";
