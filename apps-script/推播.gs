@@ -50,8 +50,25 @@ function 停用() {
   Logger.log('✔ 已停止自動推播');
 }
 
-/* ---------- 每分鐘自動執行 ---------- */
+/* ---------- 立即推播：網站一送出通知就呼叫這裡（要先「部署 → 網頁應用程式」，網址填到網站 config.js 的 PUSH_HOOK_URL） ----------
+   網站寫入資料庫後才呼叫；保險起見，沒讀到新通知會再等 2 秒重試，最多 3 次。任何人呼叫都只會「檢查」，不會亂發。 */
+function doPost() { return 立即_(); }
+function doGet() { return 立即_(); }
+function 立即_() {
+  for (var i = 0; i < 3; i++) {
+    if (檢查並推播() > 0) break;
+    Utilities.sleep(2000);
+  }
+  return ContentService.createTextOutput('ok');
+}
+
+/* ---------- 每分鐘自動執行（立即推播的備援；也負責「再次提醒」） ---------- */
 function 檢查並推播() {
+  var lock = LockService.getScriptLock();                        // 立即推播和每分鐘檢查同時跑時，排隊，避免重複寄
+  if (!lock.tryLock(25000)) return 0;
+  try { return 檢查並推播_(); } finally { lock.releaseLock(); }
+}
+function 檢查並推播_() {
   var props = PropertiesService.getScriptProperties();
   var sent = JSON.parse(props.getProperty('SENT') || '{}');      // 推送紀錄 { 通知id: { t:第一次時間, n:已送次數 } }（舊版是數字＝已完成）
   var cutoff = Date.now() - LOOKBACK_MIN * 60 * 1000;
@@ -62,7 +79,7 @@ function 檢查並推播() {
     if (typeof s === 'number') return false;                      // 舊版紀錄
     return s.n <= REPEAT_TIMES && now - s.last >= 50 * 1000;     // 還要再提醒，且距上次約 1 分鐘
   });
-  if (!notices.length) return;                                    // 沒有要送的：結束（不讀裝置清單，省額度）
+  if (!notices.length) return 0;                                  // 沒有要送的：結束（不讀裝置清單，省額度）
 
   var tokens = 讀取裝置_();
   var people = EMAIL_ON ? 讀取收件人_() : [];
@@ -85,6 +102,7 @@ function 檢查並推播() {
   var dayAgo = Date.now() - 86400000;
   Object.keys(sent).forEach(function (k) { var v = sent[k]; if ((typeof v === 'number' ? v : v.t) < dayAgo) delete sent[k]; });
   props.setProperty('SENT', JSON.stringify(sent));
+  return notices.length;
 }
 
 /* 通知對象：all 全體人員、teachers 全體導師（每個學校帳號都是）、staff 全體工作人員、me 自己（測試） */
