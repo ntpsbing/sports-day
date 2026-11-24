@@ -1262,6 +1262,16 @@ html.ov-transparent body::before{ display:none; }
 
     <!-- ===================== 成績登錄 ===================== -->
     <section v-if="page==='score'" class="fade-up">
+      <!-- 等裁判確認的成績（例如紀錄組匯入的會前賽成績） -->
+      <div v-if="needRef.length && can('score')" class="card mb-4" style="border:2px solid var(--warn)">
+        <h2 class="h-sec">📝 {{ needRef.length }} 組成績等裁判確認</h2>
+        <p class="small muted mb-2">紀錄組匯入或修改過的成績，要由裁判核對無誤後才能公布。點項目打開核對，確認後按「裁判確認無誤」。</p>
+        <div class="flex flex-wrap gap-2"><button v-for="e in needRef" :key="e.id" :class="['btn btn-sm', scEvId===e.id ? 'btn-primary' : '']" @click="scEvId=e.id">{{ e.name }}<span v-if="refChanged(e)">（有改動）</span></button></div>
+      </div>
+      <div v-if="scEv && scEv.status==='review' && can('score')" class="card mb-4 flex flex-wrap items-center justify-between gap-3" :style="refOk(scEv)?'':'border:2px solid var(--warn)'">
+        <div><b>{{ scEv.name }}</b>：{{ refOk(scEv) ? '✔ 裁判 '+scEv.refConfirm.by+' '+scEv.refConfirm.at+' 已確認，等紀錄組公布' : refChanged(scEv) ? '⚠ 確認後成績有改動，請重新核對' : '⧗ 等裁判確認' }}</div>
+        <button v-if="!refOk(scEv)" class="btn btn-ok btn-big" @click="confirmRef(scEv)">✔ 裁判確認無誤</button>
+      </div>
       <div class="card mb-4">
         <label class="lbl" for="scEv">選擇比賽項目</label>
         <select id="scEv" class="inp" v-model="scEvId">
@@ -1304,7 +1314,7 @@ html.ov-transparent body::before{ display:none; }
           </table>
         </div>
         <div class="flex flex-wrap gap-2 mt-4" v-if="!isLocked(scEv) && can('score')">
-          <button class="btn btn-primary btn-big" @click="submitReview(scEv)">送出審核</button>
+          <button class="btn btn-primary btn-big" @click="submitReview(scEv)">✔ 裁判確認無誤，送紀錄組公布</button>
           <span class="small muted self-center">成績邊打邊存，不怕當機；送出後交給紀錄組確認。</span>
         </div>
       </div>
@@ -1318,9 +1328,13 @@ html.ov-transparent body::before{ display:none; }
       </div>
       <div v-if="rvTab==='review'">
         <div v-if="!reviewEvents.length" class="card muted">目前沒有等待審核的項目。裁判送出成績後會出現在這裡。</div>
+        <div v-else class="note note-info mb-3">公布前要先經過<b>裁判確認</b>：裁判在「成績登錄」按「確認無誤」後，這裡的「公布成績」才能按。確認後成績若再被修改，要請裁判重新確認。<span v-if="needRef.length">目前有 <b>{{ needRef.length }}</b> 組在等裁判確認。</span></div>
         <div class="grid gap-4" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,420px),1fr))">
-          <div v-for="e in reviewEvents" :key="e.id" class="card fade-up">
-            <div class="flex justify-between gap-2 flex-wrap"><h2 class="h-sec">{{ e.name }}</h2><span class="chip st-review">⧗ 待審核</span></div>
+          <div v-for="e in reviewEvents" :key="e.id" class="card fade-up" :style="refOk(e)?'':'border:2px dashed var(--warn)'">
+            <div class="flex justify-between gap-2 flex-wrap"><h2 class="h-sec">{{ e.name }}</h2>
+              <span v-if="refOk(e)" class="chip st-published">✔ 裁判 {{ e.refConfirm.by }} {{ e.refConfirm.at }} 確認</span>
+              <span v-else-if="refChanged(e)" class="chip tag-todo">⚠ 確認後有改動，等裁判重新確認</span>
+              <span v-else class="chip tag-todo">⧗ 等裁判確認</span></div>
             <table class="tbl mt-2">
               <tbody><tr v-for="x in ranked(e).filter(x=>x.place && x.place<=e.awardTop)" :key="x.e.id">
                 <td style="width:3em"><span :class="['place','p'+x.place]">{{ x.place }}</span></td>
@@ -1329,7 +1343,7 @@ html.ov-transparent body::before{ display:none; }
             </table>
             <div class="small muted mt-1" v-if="ranked(e).some(x=>!x.place)">另有 {{ ranked(e).filter(x=>!x.place).length }} 筆無成績或棄權</div>
             <div class="flex gap-2 mt-3 flex-wrap">
-              <button class="btn btn-ok" @click="publish(e)">公布成績</button>
+              <button class="btn btn-ok" @click="publish(e)" :disabled="!refOk(e)" :title="refOk(e) ? '' : '要先由裁判在「成績登錄」確認'">{{ refOk(e) ? '公布成績' : '等裁判確認' }}</button>
               <input class="inp" style="flex:1 1 160px;width:auto" :id="'rn_'+e.id" v-model="rvNote[e.id]" placeholder="退回原因（例：第3名秒數待確認）" maxlength="60">
               <button class="btn btn-bad" @click="sendBack(e)">退回修改</button>
             </div>
@@ -1771,7 +1785,7 @@ html.ov-transparent body::before{ display:none; }
           </div>
           <div v-if="imType==='results'" class="grid gap-2 mt-3" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
             <div><label class="lbl" for="imMode">匯入方式</label><select id="imMode" class="inp" v-model="imMode"><option value="replace">取代該組全部資料</option><option value="merge">只新增或更新</option></select></div>
-            <div><label class="lbl" for="imAfter">匯入後</label><select id="imAfter" class="inp" v-model="imAfter"><option value="review">送紀錄組審核</option><option value="published">直接公布</option><option value="none">只匯入名單</option></select></div>
+            <div><label class="lbl" for="imAfter">匯入後</label><select id="imAfter" class="inp" v-model="imAfter"><option value="review">送裁判確認，再由紀錄組公布</option><option value="none">只匯入名單</option></select></div>
           </div>
         </div>
       </div>
@@ -1781,7 +1795,7 @@ html.ov-transparent body::before{ display:none; }
           <h2 class="h-sec">第 3 步：檢查後匯入</h2>
           <div class="small"><b style="color:var(--ok)">✔ 可匯入 {{ imOk.length }} 筆</b>　<b style="color:var(--bad)" v-if="imBad.length">✗ 有問題 {{ imBad.length }} 筆（不會匯入）</b></div>
         </div>
-        <div class="note note-info mb-2" v-if="imSheetPlan.published || imSheetPlan.none">依工作表名稱自動處理：<b v-if="imSheetPlan.published">直接公布 {{ imSheetPlan.published }} 筆</b><span v-if="imSheetPlan.published && imSheetPlan.none">、</span><b v-if="imSheetPlan.none">只匯入名單（不公布）{{ imSheetPlan.none }} 筆</b>。按下面按鈕一次完成。</div>
+        <div class="note note-info mb-2" v-if="imSheetPlan.review || imSheetPlan.published || imSheetPlan.none">依工作表名稱自動處理：<b v-if="imSheetPlan.review">送裁判確認 {{ imSheetPlan.review }} 筆</b><b v-if="imSheetPlan.published">直接公布 {{ imSheetPlan.published }} 筆</b><span v-if="(imSheetPlan.review || imSheetPlan.published) && imSheetPlan.none">、</span><b v-if="imSheetPlan.none">只匯入名單（不公布）{{ imSheetPlan.none }} 筆</b>。按下面按鈕一次完成。</div>
         <div class="tblwrap" style="max-height:420px;overflow:auto">
           <table class="tbl cards">
             <thead><tr><th>列</th><th>檢查</th><th v-for="h in imHeaders">{{ h }}</th></tr></thead>
@@ -2383,7 +2397,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261125000000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261125010000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -3128,7 +3142,7 @@ createApp({
     const allrunMissing = computed(()=>allrunClasses.value.filter(c=>!st.value.allrun[c]));
     const totalClasses = computed(()=>[1,2,3,4,5,6].reduce((s,g)=>s+(+st.value.settings.classes[g]||0),0));
     const kpi = computed(()=>({ pub:preEvents.value.filter(isPub).length, preTotal:preEvents.value.length, review:reviewEvents.value.length, mc:pendingBc.value.length, guestIn:st.value.guests.filter(g=>g.arrived).length }));
-    function badge(p){ if(p==='reports') return myOpenReports.value.length; if(p==='equip') return can('equipH') ? nextEquip.value.length : 0; if(p==='review') return kpi.value.review; if(p==='mc') return kpi.value.mc + urgentBc.value.length; if(p==='guests') return st.value.guests.length-kpi.value.guestIn; if(p==='checkin') return checkinEvents.value.length; return 0; }
+    function badge(p){ if(p==='reports') return myOpenReports.value.length; if(p==='score' && isReferee.value) return needRef.value.length; if(p==='equip') return can('equipH') ? nextEquip.value.length : 0; if(p==='review') return kpi.value.review; if(p==='mc') return kpi.value.mc + urgentBc.value.length; if(p==='guests') return st.value.guests.length-kpi.value.guestIn; if(p==='checkin') return checkinEvents.value.length; return 0; }
     const preMissing = computed(()=>preEvents.value.filter(e=>e.status==='none'));
     const overLimit = computed(()=>{
       const m={}; st.value.events.filter(e=>!e.team).forEach(e=>e.entries.forEach(x=>{ if(!x.name) return; const k=x.cls+'|'+x.name; (m[k]=m[k]||{cls:x.cls,name:x.name,events:[]}).events.push(e.base); }));
@@ -3173,9 +3187,18 @@ createApp({
       const odd=ev.entries.filter(x=>markWarn(ev,x)); if(odd.length) out.push({ block:false, text:odd.length+' 筆成績看起來不太合理（已標紅），請再確認' });
       return out;
     });
+    /* ===== 裁判確認：公布前必須由裁判確認；確認後成績若被改動，要重新確認 ===== */
+    function refSig(ev){ return canon(ev.entries.map(x=>[x.id, String(x.mark??''), String(x.place??''), !!x.dq, x.code||'']).sort((a,b)=>String(a[0]).localeCompare(String(b[0])))); }
+    const refOk = ev => !!(ev.refConfirm && ev.refConfirm.sig===refSig(ev));
+    const refChanged = ev => !!(ev.refConfirm && ev.refConfirm.sig!==refSig(ev));
+    const refName = () => FORMAL ? ((fb.user && fb.user.name) || fb.email) : roleObj.value.name;
+    function confirmRef(ev){ if(!need('score')) return;
+      ev.refConfirm={ by:refName(), email:FORMAL?fb.email:'', at:hhmm(), ts:Date.now(), sig:refSig(ev) }; log('裁判確認成績：'+ev.name); toast('已確認「'+ev.name+'」，紀錄組可以公布了'); }
+    const needRef = computed(()=>st.value.events.filter(e=>e.status==='review' && !refOk(e)));
+    const isReferee = computed(()=>FORMAL ? !!fb.user && (fb.myRoles||[]).includes('sport') && !previewing.value || (previewing.value && role.value==='sport') : role.value==='sport');
     function submitReview(ev){ if(!need('score')) return;
       if(scIssues.value.some(m=>m.block)){ scShake.value=true; setTimeout(()=>scShake.value=false,400); toast('還有資料沒填完，請看紅字提示',true); return; }
-      ev.status='review'; ev.returnNote=''; log('送出審核：'+ev.name); toast('已送出，等待紀錄組審核');
+      ev.status='review'; ev.returnNote=''; ev.refConfirm={ by:refName(), email:FORMAL?fb.email:'', at:hhmm(), ts:Date.now(), sig:refSig(ev) }; log('裁判確認並送出：'+ev.name); toast('已確認並送出，等待紀錄組公布');
     }
 
     /* ----- 審核公布 ----- */
@@ -3185,7 +3208,7 @@ createApp({
       const tops=ranked(ev).filter(x=>x.place && x.place<=Math.min(ev.awardTop,6));
       return '現在宣布 '+ev.name+' 成績：'+tops.map(x=>'第'+ZH[x.place]+'名，'+clsLabel(x.e.cls)+(x.e.name?' '+x.e.name:'')+(fmtMark(ev,x.e)?'，成績 '+fmtMark(ev,x.e).replace('″',' 秒').replace(' m',' 公尺'):'')).join('；')+'。恭喜以上得獎同學！';
     }
-    function publish(ev){ if(!need('publish')) return; ev.status='published'; ev.ts=Date.now(); ev.publishedAt=(new Date().getMonth()+1)+'/'+pad(new Date().getDate())+' '+hhmm(); bc('result', annText(ev)); log('公布成績：'+ev.name); toast('已公布！看板、司儀台、導師頁同步更新'); boardIdx.value=0; }
+    function publish(ev){ if(!need('publish')) return; if(!refOk(ev)){ toast(refChanged(ev) ? '「'+ev.name+'」在裁判確認後有改動，請裁判重新確認' : '「'+ev.name+'」還沒經過裁判確認，不能公布', true); return; } ev.status='published'; ev.ts=Date.now(); ev.publishedAt=(new Date().getMonth()+1)+'/'+pad(new Date().getDate())+' '+hhmm(); bc('result', annText(ev)); log('公布成績：'+ev.name); toast('已公布！看板、司儀台、導師頁同步更新'); boardIdx.value=0; }
     function sendBack(ev){ if(!need('publish')) return; const n=(rvNote[ev.id]||'').trim(); if(!n){ toast('請先寫退回原因，裁判才知道要改哪裡',true); return; } ev.status='running'; ev.returnNote=n; rvNote[ev.id]=''; log('退回修改：'+ev.name+'（'+n+'）'); toast('已退回給裁判組'); }
     function askReopen(ev){ if(!need('publish')) return; modal.value={ title:'申請修改「'+ev.name+'」', text:'已公布的成績要修改，請寫明原因，系統會留下紀錄。', input:'', placeholder:'例：第2名與第3名秒數登錄顛倒', okText:'退回重新登錄', onOk:(reason)=>{ ev.status='review'; log('申請修改已公布成績：'+ev.name+'（原因：'+reason+'）'); bc('flow','大會報告：'+ev.name+' 成績重新核對中，正確成績稍後公布。'); toast('已改為待審核，請重新登錄或確認'); scEvId.value=ev.id; } }; }
 
@@ -3612,7 +3635,7 @@ createApp({
       const use = names.includes('成績登錄') ? ['成績登錄'] : names;
       imRows.value=[];
       use.forEach(n=>{ const rows=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:false,defval:''});
-        const after = imType.value!=='results' ? undefined : /公布/.test(n) ? 'published' : /名單/.test(n) ? 'none' : undefined;
+        const after = imType.value!=='results' ? undefined : /公布/.test(n) ? 'review' : /名單/.test(n) ? 'none' : undefined;
         analyze(rows, after, true, use.length>1 ? '「'+n+'」' : ''); });
       imRaw.value='（已讀取檔案：'+fname+(use.length>1?'，共 '+use.length+' 個工作表':'')+'）'; toast('已讀取 '+fname);
     }
@@ -4014,7 +4037,7 @@ createApp({
     onMounted(()=>{ readHash(); if(!hashGiven && isPublicView.value) page.value='board'; loadDraft(); syncLiveDraft(); renderQR(); if(FORMAL) fbInit(); else initCloud(); });
 
     return { st, role, page, helpOpen, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
-      SHORT, doneTab, doneShown, restoreBc, scriptLib, scriptsOf, scriptGroups, nextScriptGroup, sf, editScript, saveScript, removeScript, moveScript, queueScript, sPaste, sParsed, importScripts, canBc, pushState, registerPush, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
+      SHORT, refOk, refChanged, confirmRef, needRef, doneTab, doneShown, restoreBc, scriptLib, scriptsOf, scriptGroups, nextScriptGroup, sf, editScript, saveScript, removeScript, moveScript, queueScript, sPaste, sParsed, importScripts, canBc, pushState, registerPush, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
       drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
       roleObj, myPages, navPages, myTasks, dateLabel, go, badge, kpi, ask, modalOk, clsLabel,
