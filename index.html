@@ -922,7 +922,7 @@ html.ov-transparent body::before{ display:none; }
               <div class="tl-time">{{ tlTime(t) }}</div>
               <div style="min-width:0">
                 <div class="font-bold">{{ t.title }}</div>
-                <div class="small muted">{{ t.status==='done'?'✔ 已完成':t.status==='now'?'▶ 進行中':'○ 未開始' }}<span v-if="t.eventIds && t.eventIds.length">・{{ t.eventIds.length }} 個比賽項目</span></div>
+                <div class="small muted">{{ t.status==='done'?'✔ 已完成':t.status==='now'?'▶ 進行中':'○ 未開始' }}<span v-if="t.eventIds && t.eventIds.length">・{{ t.eventIds.length }} 個比賽項目</span><span v-if="scriptsOf(t.id).length">・📜 {{ scriptsOf(t.id).length }} 篇講稿</span></div>
               </div>
               <div class="tl-act flex gap-2 justify-end">
                 <button class="btn btn-sm btn-primary" v-if="t.status==='todo'" @click="startTl(t)">開始</button>
@@ -1368,7 +1368,7 @@ html.ov-transparent body::before{ display:none; }
           <div v-if="!pendingBc.length" class="card muted">目前沒有待播報的內容。各組有新消息時，播報稿會自動出現在這裡。</div>
           <div v-for="(b,i) in pendingBc" :key="b.id" class="card mb-3 fade-up" :style="i===0?'border:2px solid var(--brand)':''">
             <div class="flex items-center justify-between gap-2 mb-1 flex-wrap">
-              <span class="chip" :style="bcStyle(b.type)">{{ BC[b.type] }}</span>
+              <span class="chip" :style="bcStyle(b.type)">{{ BC[b.type] }}<span v-if="b.title">：{{ b.title }}</span></span>
               <span class="small muted num">{{ b.at }}</span>
             </div>
             <div class="mc-card">{{ b.text }}</div>
@@ -1396,12 +1396,54 @@ html.ov-transparent body::before{ display:none; }
               <div class="seg"><button :class="{on:!mcNotify}" @click="mcNotify=''">不通知</button><button v-for="(v,k) in NOTICE_TO" :key="k" :class="{on:mcNotify===k}" @click="mcNotify=k">{{ v }}</button></div></div>
             <button class="btn btn-primary mt-2" @click="addInsert" :disabled="!mcText.trim()">{{ mcNotify ? '加入播報清單＋通知'+NOTICE_TO[mcNotify] : '加入播報清單' }}</button>
           </div>
+          <!-- 📜 司儀自己的講稿：綁定流程，總控按「開始」時自動加入待播報 -->
+          <fold-card k="mc-scripts" :open="false" id="mcScripts">
+            <template #title>📜 我的講稿</template>
+            <template #sum><span class="sumchip">{{ scriptLib.length }} 篇</span><span class="sumchip info" v-if="nextScriptGroup">下一段：{{ nextScriptGroup.label.slice(0,14) }}</span></template>
+            <p class="small muted mb-3">講稿綁定流程後，總控按該流程「開始」時會<b>自動依順序加入待播報</b>；也可以隨時按「加入播報」。</p>
+            <div v-for="g in scriptGroups" :key="g.id" class="mb-3">
+              <div class="font-bold small mb-1" :style="g.status==='now'?'color:var(--brand)':g.status==='done'?'color:var(--ink2)':''">{{ g.status==='now' ? '▶ ' : g.status==='done' ? '✔ ' : '' }}{{ g.label }}</div>
+              <div v-for="(x,i) in g.list" :key="x.id" class="card-flat mb-1 flex gap-2 items-start">
+                <div style="flex:1;min-width:0"><b>{{ i+1 }}. {{ x.title }}</b><div class="small muted" style="white-space:pre-line">{{ x.text.length>60 ? x.text.slice(0,60)+'…' : x.text }}</div></div>
+                <div class="flex gap-1 flex-wrap justify-end" style="flex:none">
+                  <button class="btn btn-sm btn-primary" @click="queueScript(x)">加入播報</button>
+                  <button class="btn btn-sm" @click="moveScript(x,-1)" :disabled="i===0" aria-label="往上">↑</button>
+                  <button class="btn btn-sm" @click="moveScript(x,1)" :disabled="i===g.list.length-1" aria-label="往下">↓</button>
+                  <button class="btn btn-sm" @click="editScript(x)">修改</button>
+                  <button class="btn btn-sm btn-bad" @click="removeScript(x)">刪除</button>
+                </div>
+              </div>
+            </div>
+            <div v-if="!scriptLib.length" class="muted small mb-3">還沒有講稿。可以一篇一篇新增，或把整份講稿一次貼上。</div>
+            <div class="card-flat mb-3">
+              <b class="small">{{ sf.id ? '✏️ 修改講稿' : '＋ 新增一篇講稿' }}</b>
+              <div class="grid gap-2 mt-2" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr))">
+                <input id="sfTitle" class="inp" v-model="sf.title" placeholder="標題（例：開幕致詞前）" maxlength="30">
+                <select class="inp" v-model="sf.tl" aria-label="綁定流程"><option value="">不綁定流程</option><option v-for="t in st.timeline" :key="t.id" :value="t.id">{{ t.time }}　{{ t.title }}</option></select>
+              </div>
+              <textarea class="inp mt-2" rows="4" v-model="sf.text" placeholder="講稿內容" maxlength="1500"></textarea>
+              <div class="flex gap-2 mt-2"><button class="btn btn-primary btn-sm" @click="saveScript" :disabled="!sf.text.trim()">{{ sf.id ? '儲存修改' : '新增講稿' }}</button><button v-if="sf.id" class="btn btn-sm" @click="editScript(null)">取消</button></div>
+            </div>
+            <details class="card-flat">
+              <summary class="font-bold small cursor-pointer" style="min-height:36px">📋 一次貼上整份講稿（司儀自己有一套時用）</summary>
+              <p class="small muted my-2">從 Word 複製整份貼上。每段開頭寫<b>【標題】</b>、<b># 標題</b>或<b>時間＋標題</b>（例：08:30 開幕典禮），系統會自動分段、對到同時間或同名稱的流程；沒有標題就用空白行分段。</p>
+              <textarea class="inp" rows="6" v-model="sPaste" :placeholder="'【08:30 開幕典禮】\\n各位來賓、各位家長、親愛的同學，大家早安……\\n\\n【大隊接力】\\n接下來是本日最精彩的大隊接力……'"></textarea>
+              <div v-if="sParsed.length" class="mt-2 small">
+                <div class="font-bold mb-1">會匯入 {{ sParsed.length }} 篇：</div>
+                <div v-for="(o,i) in sParsed" :key="i" class="py-1" style="border-bottom:1px solid var(--line)">{{ i+1 }}. <b>{{ o.title }}</b> → <span :style="o.tl?'color:var(--ok)':'color:var(--warn)'">{{ o.tl ? '綁定「'+(st.timeline.find(t=>t.id===o.tl)||{}).title+'」' : '不綁定流程（之後可在「修改」選）' }}</span></div>
+                <button class="btn btn-primary btn-sm mt-2" @click="importScripts">匯入 {{ sParsed.length }} 篇講稿</button>
+              </div>
+            </details>
+          </fold-card>
           <fold-card k="mc-done" :open="false">
   <template #title>🗒️ 已播報／已取消</template>
   <template #sum><span class="sumchip">{{ doneBcList.length }} 則</span></template>
             <div v-if="!doneBcList.length" class="muted small">尚無紀錄</div>
-            <div v-for="b in doneBcList.slice(0,12)" :key="b.id" class="small py-2" style="border-bottom:1px solid var(--line)">
-              <span class="num muted">{{ b.doneAt }}</span>　<b>{{ b.cancelled ? '✕ 已取消' : BC[b.type] }}</b>　<span :style="b.cancelled?'text-decoration:line-through;opacity:.6':''">{{ b.text.length>46 ? b.text.slice(0,46)+'…' : b.text }}</span>
+            <div class="seg mb-2"><button :class="{on:doneTab==='all'}" @click="doneTab='all'">全部 {{ doneBcList.length }}</button><button :class="{on:doneTab==='done'}" @click="doneTab='done'">已播報 {{ doneBcList.filter(b=>!b.cancelled).length }}</button><button :class="{on:doneTab==='cancel'}" @click="doneTab='cancel'">已取消 {{ doneBcList.filter(b=>b.cancelled).length }}</button></div>
+            <div v-for="b in doneShown.slice(0,40)" :key="b.id" class="small py-2 flex gap-2 items-start" style="border-bottom:1px solid var(--line)">
+              <div style="flex:1;min-width:0"><span class="num muted">{{ b.doneAt }}</span>　<b>{{ b.cancelled ? '✕ 已取消' : BC[b.type] }}</b>　<span :style="b.cancelled?'text-decoration:line-through;opacity:.6':''">{{ b.text.length>46 ? b.text.slice(0,46)+'…' : b.text }}</span>
+                <div class="muted" v-if="b.cancelled && b.cancelBy">由 {{ b.cancelBy }} 取消</div><div class="muted" v-else-if="!b.cancelled && b.doneBy">由 {{ b.doneBy }} 標記已播報</div></div>
+              <button class="btn btn-sm" style="flex:none" @click="restoreBc(b)">↩ 放回待播報</button>
             </div>
           </fold-card>
         </div>
@@ -2341,7 +2383,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261124220000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261125000000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -2364,7 +2406,7 @@ const PLAN_QUESTIONS = [
   '當天時程表：計畫書沒有，系統內是草案，請體育組修改',
 ];
 const STATUS = { none:'○ 未開始', checkin:'◐ 檢錄中', running:'▶ 比賽中', review:'⧗ 待審核', published:'✔ 已公布', awarded:'★ 已頒獎' };
-const BC = { notice:'通知', thanks:'感謝', urgent:'緊急更正', check:'檢錄', result:'成績宣布', guest:'來賓介紹', award:'頒獎', flow:'大會報告', insert:'插播' };
+const BC = { script:'講稿', notice:'通知', thanks:'感謝', urgent:'緊急更正', check:'檢錄', result:'成績宣布', guest:'來賓介紹', award:'頒獎', flow:'大會報告', insert:'插播' };
 /* ▶ 接手的老師：司儀插播範例。「○」是要填的地方，點範例後會自動選取第一個○，直接打字就會換掉（Tab 跳下一個）
    想新增範例，照格式加一行即可 */
 const QUICK_BC = [
@@ -3076,9 +3118,9 @@ createApp({
     const latestPublished = computed(()=>publishedEvents.value.slice(0,8));
     const checkinEvents = computed(()=>st.value.events.filter(e=>e.status==='checkin'));
     const bcRank = t => t==='urgent' ? 0 : t==='insert' ? 1 : 2;
-    const pendingBc = computed(()=>st.value.broadcasts.filter(b=>!b.done && b.type!=='urgent' && b.type!=='notice').sort((a,b)=>bcRank(a.type)-bcRank(b.type) || a.at.localeCompare(b.at)));
+    const pendingBc = computed(()=>st.value.broadcasts.filter(b=>!b.done && b.type!=='urgent' && b.type!=='notice' && b.type!=='scriptlib').sort((a,b)=>bcRank(a.type)-bcRank(b.type) || String(a.at||'').localeCompare(String(b.at||''))));
     const urgentBc = computed(()=>st.value.broadcasts.filter(b=>!b.done && b.type==='urgent'));
-    const doneBcList = computed(()=>st.value.broadcasts.filter(b=>b.done && b.type!=='notice').sort((a,b)=>(b.doneAt||'').localeCompare(a.doneAt||'')));
+    const doneBcList = computed(()=>st.value.broadcasts.filter(b=>b.done && b.type!=='notice' && b.type!=='scriptlib').sort((a,b)=>String(b.doneAt||'').localeCompare(String(a.doneAt||''))));
     const nowTl = computed(()=>st.value.timeline.find(t=>t.status==='now'));
     const nextTl = computed(()=>st.value.timeline.find(t=>t.status==='todo'));
     const allrunClasses = computed(()=>{ const s=st.value.settings, a=[]; for(let k=1;k<=s.kg;k++) a.push('K'+k); for(let k=1;k<=s.angel;k++) a.push('A'+k); for(let g=1;g<=6;g++) for(let c=1;c<=(s.classes[g]||0);c++) a.push(clsId(g,c)); return a; });
@@ -3099,7 +3141,9 @@ createApp({
       st.value.timeline.forEach(x=>{ if(x.status==='now') x.status='done'; }); t.status='now';
       const nx=st.value.timeline.find(x=>x.status==='todo');
       bc('flow','大會報告：現在進行「'+t.title+'」。'+(nx?'下一個項目是「'+nx.title+'」，請相關班級做好準備。':''));
-      log('流程開始：'+t.title); toast('已開始「'+t.title+'」，司儀台已收到報告稿');
+      // 司儀自己的講稿：綁定這個流程的，依順序加入待播報
+      scriptsOf(t.id).forEach((sc,i)=>bc('script', sc.text, { title:sc.title, libId:sc.id, ts:Date.now()+i+1 }));
+      log('流程開始：'+t.title); toast('已開始「'+t.title+'」，司儀台已收到報告稿'+(scriptsOf(t.id).length?'與 '+scriptsOf(t.id).length+' 篇講稿':''));
     }
     function undoTl(t){ if(!need('flow')) return; t.status='todo'; }
     function finishTl(t){ if(!need('flow')) return; t.status='done'; const nx=st.value.timeline.find(x=>x.status==='todo'); log('流程完成：'+t.title); if(nx) startTl(nx); else toast('全部流程完成，辛苦了！'); }
@@ -3262,10 +3306,47 @@ createApp({
       nextTick(()=>{ const el=document.getElementById(id); if(el) selectSlot(el,0); }); }
     function slotKey(e){ if(e.key==='Tab' && !e.shiftKey && e.target.value.includes('○')){ e.preventDefault(); selectSlot(e.target, e.target.selectionEnd); } }
     function nextSlot(id){ const el=document.getElementById(id); if(el) selectSlot(el, el.selectionEnd||0); }
-    function doneBc(b){ if(!need('mc')) return; b.done=true; b.doneAt=hhmm(); if(b.guestId){ const g=st.value.guests.find(x=>x.id===b.guestId); if(g) g.introduced=true; } toast('已標記播報'); }
+    function doneBc(b){ if(!need('mc')) return; b.done=true; b.doneAt=hhmm(); b.doneBy=roleObj.value.name; if(b.guestId){ const g=st.value.guests.find(x=>x.id===b.guestId); if(g) g.introduced=true; } toast('已標記播報'); }
     function addInsert(){ if(!need('mc')) return; if(mcText.value.includes('○')){ ask('內容還有「○」沒有改，確定加入嗎？', doInsert); return; } doInsert(); }
     function doInsert(){ if(mcNotify.value){ sendNotice(mcText.value.trim(), mcNotify.value); } bc('insert', mcText.value.trim()); log('新增插播'); mcText.value=''; toast('已加入，排在最前面'); }
-    function bcStyle(t){ return { thanks:'background:var(--ok-soft);color:var(--ok)', urgent:'background:#B42318;color:#fff', check:'background:var(--warn-soft);color:var(--warn)', result:'background:var(--ok-soft);color:var(--ok)', guest:'background:#FFF4CC;color:#6B4E00', award:'background:#FFF4CC;color:#6B4E00', flow:'background:var(--brand-soft);color:var(--brand)', insert:'background:var(--bad-soft);color:var(--bad)' }[t]; }
+    /* ===== 司儀講稿庫：存在廣播資料（type:'scriptlib'，不出現在待播報），不用另外改資料庫規則 ===== */
+    const scriptLib = computed(()=>st.value.broadcasts.filter(b=>b.type==='scriptlib' && !b.cancelled));
+    const tlOrder = id => { const i=st.value.timeline.findIndex(t=>t.id===id); return i<0 ? 9999 : i; };
+    function scriptsOf(tlId){ return scriptLib.value.filter(x=>(x.tl||'')===(tlId||'')).sort((a,b)=>(a.order||0)-(b.order||0)); }
+    const scriptGroups = computed(()=>{ const ids=[...new Set(scriptLib.value.map(x=>x.tl||''))].sort((a,b)=>tlOrder(a)-tlOrder(b));
+      return ids.map(id=>{ const t=st.value.timeline.find(x=>x.id===id); return { id, label: t ? tlTime(t)+'　'+t.title : '不綁定流程（隨時手動加入）', status: t ? t.status : '', list:scriptsOf(id) }; }); });
+    const nextScriptGroup = computed(()=>scriptGroups.value.find(g=>g.status==='todo' || g.status==='now'));
+    const sf = reactive({ id:'', title:'', tl:'', text:'' });
+    function editScript(x){ if(!need('mc')) return; Object.assign(sf, x ? { id:x.id, title:x.title||'', tl:x.tl||'', text:x.text||'' } : { id:'', title:'', tl:'', text:'' });
+      nextTick(()=>{ const el=document.getElementById('sfTitle'); if(el){ el.scrollIntoView({ behavior:'smooth', block:'center' }); el.focus(); } }); }
+    function saveScript(){ if(!need('mc')) return; const text=sf.text.trim(); if(!text) return;
+      const title=sf.title.trim() || text.slice(0,12);
+      if(sf.id){ const x=st.value.broadcasts.find(b=>b.id===sf.id); if(x){ if((x.tl||'')!==sf.tl) x.order=scriptsOf(sf.tl).length+1; x.title=title; x.text=text; x.tl=sf.tl; } toast('已更新講稿'); }
+      else { bc('scriptlib', text, { title, tl:sf.tl, order:scriptsOf(sf.tl).length+1 }); toast('已新增講稿'); }
+      log('講稿：'+title); Object.assign(sf, { id:'', title:'', tl:sf.tl, text:'' }); }
+    function removeScript(x){ if(!need('mc')) return; ask('確定刪除講稿「'+(x.title||'')+'」嗎？', ()=>{ x.cancelled=true; x.done=true; log('刪除講稿：'+(x.title||'')); toast('已刪除'); }); }
+    function moveScript(x,d){ if(!need('mc')) return; const list=scriptsOf(x.tl); const i=list.indexOf(x), j=i+d; if(j<0||j>=list.length) return;
+      list.forEach((y,k)=>{ y.order=k+1; }); const o=list[j].order; list[j].order=x.order; x.order=o; }
+    function queueScript(x){ if(!need('mc')) return; bc('script', x.text, { title:x.title, libId:x.id }); toast('已加入待播報'); }
+    /* 一次貼上整份講稿：遇到【標題】、# 標題、或「08:30 標題」開頭的行就分段；沒有標題就用空白行分段，並依時間或名稱自動對到流程 */
+    const sPaste = ref('');
+    function matchTl(head){ const h=String(head||''); const tm=h.match(/(\d{1,2})[:：](\d{2})/);
+      if(tm){ const key=String(tm[1]).padStart(2,'0')+':'+tm[2]; const t=st.value.timeline.find(x=>x.time===key); if(t) return t.id; }
+      const core=h.replace(/(\d{1,2})[:：](\d{2})/,'').replace(/[【】#\s（）()]/g,'');
+      if(core.length<2) return '';
+      const t=st.value.timeline.find(x=>{ const tt=x.title.replace(/[\s（）()]/g,''); return tt.includes(core) || core.includes(tt.slice(0,4)); });
+      return t ? t.id : ''; }
+    const sParsed = computed(()=>{ const lines=sPaste.value.replace(/\r/g,'').split('\n'); const out=[]; let cur=null;
+      const head=l=>{ const m=l.match(/^\s*(?:【(.+?)】|#+\s*(.+)|((?:\d{1,2})[:：]\d{2}\s*.*))\s*$/); return m ? (m[1]||m[2]||m[3]).trim() : null; };
+      const hasHead=lines.some(l=>head(l));
+      if(hasHead){ lines.forEach(l=>{ const h=head(l); if(h!==null){ cur={ title:h, body:[] }; out.push(cur); } else if(cur) cur.body.push(l); else if(l.trim()){ cur={ title:'', body:[l] }; out.push(cur); } }); }
+      else { sPaste.value.split(/\n\s*\n/).forEach(par=>{ if(par.trim()) out.push({ title:'', body:[par] }); }); }
+      return out.map(o=>{ const text=o.body.join('\n').trim(); const title=(o.title||text.slice(0,12)).replace(/^\d{1,2}[:：]\d{2}\s*/,'')||text.slice(0,12);
+        return { title, text, tl:matchTl(o.title||title) }; }).filter(o=>o.text); });
+    function importScripts(){ if(!need('mc')) return; const n=sParsed.value.length; const base={};
+      sParsed.value.forEach((o,i)=>{ base[o.tl]=(base[o.tl]||scriptsOf(o.tl).length)+1; bc('scriptlib', o.text, { title:o.title, tl:o.tl, order:base[o.tl], ts:Date.now()+i }); });
+      log('匯入講稿 '+n+' 篇'); toast('已匯入 '+n+' 篇講稿'); sPaste.value=''; }
+    function bcStyle(t){ return { script:'background:#EDE7F6;color:#4527A0', thanks:'background:var(--ok-soft);color:var(--ok)', urgent:'background:#B42318;color:#fff', check:'background:var(--warn-soft);color:var(--warn)', result:'background:var(--ok-soft);color:var(--ok)', guest:'background:#FFF4CC;color:#6B4E00', award:'background:#FFF4CC;color:#6B4E00', flow:'background:var(--brand-soft);color:var(--brand)', insert:'background:var(--bad-soft);color:var(--bad)' }[t]; }
 
     /* ----- 來賓・頒獎人 ----- */
     const gFilter = ref('all'); const gKind = ref('全部');
@@ -3662,6 +3743,10 @@ createApp({
     function withdrawReport(r){ ask('確定撤回這則通報嗎？負責的組別就不會再收到提醒。', ()=>{ r.status='cancel'; r.doneAt=hhmm(); r.handledBy='撤回：'+roleObj.value.name;
       st.value.broadcasts.forEach(b=>{ if(b.reportId===r.id && !b.done){ b.done=true; b.cancelled=true; b.doneAt=hhmm(); } });
       log('撤回通報：'+(r.place||'')+' '+r.text); toast('已撤回通報'); }); }
+    /* 已播報／已取消的稿子可以放回待播報（按錯時用） */
+    const doneTab = ref('all');
+    const doneShown = computed(()=>doneBcList.value.filter(b=>doneTab.value==='all' || (doneTab.value==='cancel') === !!b.cancelled));
+    function restoreBc(b){ if(!need('mc')) return; b.done=false; b.cancelled=false; b.doneAt=''; b.restoredBy=roleObj.value.name; log('放回待播報：'+String(b.text).slice(0,30)); toast('已放回待播報'); }
     function withdrawBc(b){ ask('確定取消這則廣播稿嗎？司儀台會移除它。', ()=>{ b.done=true; b.cancelled=true; b.doneAt=hhmm(); b.cancelBy=roleObj.value.name; log('取消廣播稿：'+b.text.slice(0,30)); toast('已取消這則廣播'); }); }
     const openReports = computed(()=>st.value.reports.filter(isOpenR));
     const myOpenReports = computed(()=>openReports.value.filter(r=>canHandle(r) && !(FORMAL && fb.admin && role.value==='record' && false)).sort((a,b)=>(b.urgent?1:0)-(a.urgent?1:0)||(a.ts||0)-(b.ts||0)));
@@ -3739,13 +3824,14 @@ createApp({
     setInterval(()=>{ if(!FORMAL) return; const off = (typeof navigator!=='undefined' && navigator.onLine===false) || (fb.pending>0 && Date.now()-lastServer>5000); fb.online=!off; },1000);
     window.addEventListener('online', ()=>{ fb.online=true; }); window.addEventListener('offline', ()=>{ fb.online=false; });
     function checkReady(){ if(!fb.ready && fb.seen.events && fb.seen.meta && fb.seen.timeline) fb.ready=true; }
-    function listenArr(name,q){
+    /* opt.keep：離開查詢範圍（例如超過最近 200 則）時保留在畫面上；opt.onLeave：離開時要做的事 */
+    function listenArr(name,q,opt){ opt=opt||{};
       return q.onSnapshot({ includeMetadataChanges:true }, snap=>{
         markNet(snap); fb.seen[name]=true; if(name==='events' && !snap.metadata.fromCache) fb.empty=snap.empty; checkReady();
         const ch=snap.docChanges(); if(!ch.length) return;
         applyRemote(()=>{ const arr=st.value[name]; let touched=false;
           ch.forEach(c=>{ const id=c.doc.id;
-            if(c.type==='removed'){ const i=arr.findIndex(x=>x.id===id); if(i>=0){ arr.splice(i,1); touched=true; } delete remoteSer[name][id]; return; }
+            if(c.type==='removed'){ const i=arr.findIndex(x=>x.id===id); if(opt.onLeave && i>=0){ opt.onLeave(arr[i]); remoteSer[name][id]=canon(Object.assign({}, arr[i], { id })); touched=true; return; } if(opt.keep) return; if(i>=0){ arr.splice(i,1); touched=true; } delete remoteSer[name][id]; return; }
             const item=Object.assign({}, c.doc.data(), { id }); const ser=canon(item);
             if(remoteSer[name][id]===ser || pend[name+'/'+id]>0) return; // 自己剛送出的回音、還在送出中、或內容沒變：略過，避免打字時被蓋掉
             remoteSer[name][id]=ser; const i=arr.findIndex(x=>x.id===id); if(i>=0) arr.splice(i,1,item); else arr.push(item); touched=true; });
@@ -3790,7 +3876,9 @@ createApp({
       fUnsubs.push(listenArr('stations', fdb.collection('stations')));
       if(fb.user){ fUnsubs.push(listenArr('reports', fdb.collection('reports').orderBy('ts','desc').limit(300))); fUnsubs.push(listenArr('equip', fdb.collection('equip'))); fUnsubs.push(listenMap('lunch', fdb.collection('lunch'), (id,d)=>{ if(d) st.value.lunch[id]=d; else delete st.value.lunch[id]; })); }
       if(fb.user && (fb.admin || fb.myRoles.some(r=>['medic','control','record'].includes(r)))) fUnsubs.push(listenArr('medical', fdb.collection('medical')));
-      fUnsubs.push(listenArr('broadcasts', fdb.collection('broadcasts').orderBy('ts','desc').limit(200)));
+      // 司儀稿與通知：最近 200 則（看紀錄用，舊的離開範圍時保留）＋所有「還沒唸」的稿子（不限數量，避免被新紀錄擠掉）
+      fUnsubs.push(listenArr('broadcasts', fdb.collection('broadcasts').orderBy('ts','desc').limit(200), { keep:true }));
+      fUnsubs.push(listenArr('broadcasts', fdb.collection('broadcasts').where('done','==',false), { onLeave:b=>{ if(!b.done){ b.done=true; } } }));
       fUnsubs.push(listenMap('meta', fdb.collection('meta'), (id,d)=>{ if(!d) return; if(id==='settings') st.value.settings=d; else if(id==='live') st.value.live=Object.assign(liveDefault(), d); else if(id==='flow') st.value.delayMin=d.delayMin||0; }));
       if(fb.user) fUnsubs.push(listenMap('allrun', fdb.collection('allrun'), (id,d)=>{ if(d) st.value.allrun[id]=d; else delete st.value.allrun[id]; }));
       if(fb.user && (fb.admin || fb.myRoles.some(r=>['record','control'].includes(r)))){
@@ -3926,7 +4014,7 @@ createApp({
     onMounted(()=>{ readHash(); if(!hashGiven && isPublicView.value) page.value='board'; loadDraft(); syncLiveDraft(); renderQR(); if(FORMAL) fbInit(); else initCloud(); });
 
     return { st, role, page, helpOpen, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
-      SHORT, canBc, pushState, registerPush, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
+      SHORT, doneTab, doneShown, restoreBc, scriptLib, scriptsOf, scriptGroups, nextScriptGroup, sf, editScript, saveScript, removeScript, moveScript, queueScript, sPaste, sParsed, importScripts, canBc, pushState, registerPush, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
       drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
       roleObj, myPages, navPages, myTasks, dateLabel, go, badge, kpi, ask, modalOk, clsLabel,
