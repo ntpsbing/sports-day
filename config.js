@@ -22,3 +22,6 @@ window.ADMIN_EMAILS = ["bing5201314@e1.ntps.kh.edu.tw"];
 window.SCHOOL_LOGO = "logo.svg";
 // 校長姓名：系統預設的「○○○ 校長」會自動換成這個名字（看板、司儀稿、頒獎人、成績單都會用到）
 window.PRINCIPAL_NAME = "鍾榮茂";
+// 推播金鑰（讓手機在瀏覽器關掉時也收得到通知）：Firebase 主控台 → 專案設定 → Cloud Messaging → 網路設定「網路推播憑證」→ 產生金鑰組，把「金鑰組」那一長串貼在下面。
+// 這是公開金鑰，放在這裡是安全的。空白時就只有網頁開著才收得到通知。
+window.FCM_VAPID_KEY = "";
