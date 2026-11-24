@@ -327,6 +327,12 @@ tr:hover .medal-svg, .pod:hover .medal-svg{ transform:translateY(-2px) rotate(-6
 .cd-box{ background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.3); border-radius:14px; padding:8px 10px 6px; min-width:68px; text-align:center; line-height:1; }
 .cd-box b{ display:block; font-size:clamp(30px,6vw,46px); font-weight:900; }
 .cd-box span{ display:block; font-size:13px; opacity:.9; margin-top:4px; }
+.cd-big{ gap:14px; flex-wrap:nowrap; }
+
+.cd-big .cd-box{ min-width:clamp(90px,12vw,180px); padding:14px 12px 10px; border-radius:20px; }
+.cd-big .cd-box b{ font-size:clamp(48px,8vw,120px); }
+.cd-big .cd-box span{ font-size:clamp(15px,1.6vw,24px); }
+@media (max-width:600px){ .cd-big{ gap:8px; } .cd-big .cd-box{ min-width:0; flex:1; padding:10px 4px 8px; } .cd-big .cd-box b{ font-size:clamp(34px,11vw,56px); } }
 .cd-tip{ background:rgba(255,255,255,.14); border-radius:10px; padding:6px 10px; font-size:14px; display:inline-block; }
 .hero-grid{ display:grid; gap:14px; margin-top:12px; grid-template-columns:1fr; }
 @media (min-width:860px){ .hero-grid{ grid-template-columns:1.3fr 1fr; align-items:stretch; } }
@@ -397,7 +403,9 @@ tr:hover .medal-svg, .pod:hover .medal-svg{ transform:translateY(-2px) rotate(-6
 .b-award{ grid-area:award; }
 .b-head{ grid-area:head; }
 .b-now{ grid-area:now; } .b-latest{ grid-area:latest; } .b-stand{ grid-area:stand; } .b-tick{ grid-area:tick; }
+.board.board-cd{ grid-template-areas:"head head" "now now" "latest latest" "award award" "stand stand" "tick tick"; }
 @media (max-width:900px){ .board{ grid-template-columns:1fr; grid-template-areas:"head" "now" "latest" "award" "stand" "tick"; padding:16px 14px 40px; } }
+@media (max-width:900px){ .board.board-cd{ grid-template-areas:"head" "now" "latest" "award" "stand" "tick"; } }
 .glass{ background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.22); border-radius:16px; padding:16px; min-width:0; }
 .whitecard{ background:#fff; color:#0E2132; border-radius:16px; padding:16px; min-width:0; }
 .b-label{ font-size:15px; letter-spacing:.12em; font-weight:700; opacity:.85; }
@@ -1100,7 +1108,7 @@ html.ov-transparent body::before{ display:none; }
         <button class="btn btn-sm" @click="fullscreen">全螢幕</button>
       </div>
       <div class="sky">
-        <div class="board">
+        <div :class="['board', { 'board-cd': cd }]">
           <div class="b-head flex items-center justify-between gap-3 flex-wrap">
             <div class="flex items-center gap-3" style="min-width:0">
               <img v-if="logoOk" :src="LOGO" alt="楠梓國小校徽" class="logo-img" style="width:64px;height:64px" @error="logoOk=false">
@@ -1112,7 +1120,18 @@ html.ov-transparent body::before{ display:none; }
             <div class="num" style="font-size:clamp(34px,4vw,56px);font-weight:800">{{ clock }}</div>
           </div>
 
-          <div class="b-now glass">
+          <!-- ⏳ 開幕前：看板顯示大字倒數（可投影在穿堂、教室電視當宣傳） -->
+          <div class="b-now glass cd-wide" v-if="cd" style="text-align:center">
+            <div class="b-label">⏳ {{ cd.today ? '今天就是運動會！距離開幕' : '距離運動會開幕還有' }}</div>
+            <div class="cd-row cd-big mt-3" style="justify-content:center">
+              <div class="cd-box" v-if="cd.d"><b class="num">{{ cd.d }}</b><span>天</span></div>
+              <div class="cd-box"><b class="num">{{ pad(cd.h) }}</b><span>時</span></div>
+              <div class="cd-box"><b class="num">{{ pad(cd.m) }}</b><span>分</span></div>
+              <div class="cd-box"><b class="num">{{ pad(cd.s) }}</b><span>秒</span></div>
+            </div>
+            <div class="mt-3" style="font-size:clamp(18px,2vw,28px);font-weight:700">{{ cd.when }} 開幕・歡迎家長蒞臨加油！</div>
+          </div>
+          <div class="b-now glass" v-else>
             <div class="b-label">正在進行</div>
             <div class="b-big mt-1">{{ nowTl ? nowTl.title : '尚未開始' }}</div>
             <div class="mt-4 b-label">下一個項目</div>
@@ -2445,7 +2464,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261125090000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261125100000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -3022,7 +3041,7 @@ createApp({
     const navPages = computed(()=>[...myPages.value.map(id=>PAGES.find(p=>p.id===id)), ...PAGES.filter(p=>!myPages.value.includes(p.id))]);
     const myTasks = computed(()=>myPages.value.filter(p=>p!=='home').map(p=>({ page:p, title:PAGES.find(x=>x.id===p).name, desc:TASK_DESC[p] })));
     /* ⏳ 開幕倒數：運動會日期＋第一個流程時間；有任何流程開始過就不顯示 */
-    const secTick = ref(Date.now()); setInterval(()=>{ if(page.value==='start') secTick.value=Date.now(); }, 1000);
+    const secTick = ref(Date.now()); setInterval(()=>{ if(page.value==='start' || page.value==='board') secTick.value=Date.now(); }, 1000);
     const cd = computed(()=>{
       const m=String(st.value.settings.date||'').match(/^(\d{4})-(\d{2})-(\d{2})$/); if(!m) return null;
       if(st.value.timeline.some(t=>t.status==='now' || t.status==='done')) return null;
