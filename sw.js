@@ -33,7 +33,8 @@ self.addEventListener('push', (event) => {
   const title = d.title || '運動會通知';
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
-      if (list.some((c) => c.visibilityState === 'visible')) return; // 網頁開在畫面上：網頁自己會叮咚＋顯示
+      // 網頁開在畫面上時，正式通知由網頁自己叮咚＋顯示（不重複跳）；測試推播一律跳出，方便確認
+      if (d.kind !== 'test' && list.some((c) => c.visibilityState === 'visible')) return;
       return self.registration.showNotification(title, {
         body: d.body || '', tag: d.tag || ('push-' + Date.now()), renotify: false,
         icon: 'icon-192.png', badge: 'icon-192.png', vibrate: [200, 100, 200], data: { url: d.url || './' }
