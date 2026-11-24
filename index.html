@@ -611,7 +611,8 @@ html.ov-transparent body::before{ display:none; }
         <span v-if="notifyPerm==='granted'" class="chip st-published">✔ 已開啟系統通知</span>
         <button class="btn btn-sm" @click="testNotify">🔊 測試這台裝置</button>
         <button class="btn btn-sm" v-if="can('mc') || can('flow')" @click="testAllMyDevices">📲 傳到我所有裝置（電腦＋手機）</button>
-        <button class="btn btn-sm" @click="toggleSound">{{ soundOn ? '🔔 叮咚提示音：開' : '🔇 叮咚提示音：關' }}</button>
+        <button class="btn btn-sm" @click="toggleSound">{{ soundOn ? '🔔 響鈴：開' : '🔇 響鈴：關' }}</button>
+        <button class="btn btn-sm" v-if="soundOn" @click="toggleRing">{{ ringLong ? '⏱ 響 4 秒（加強）' : '⏱ 響 2 秒' }}</button>
         <button class="btn btn-sm" @click="toggleVoice">{{ voiceOn ? '🗣️ 語音唸出：開' : '🗣️ 語音唸出：關' }}</button>
         <button class="btn btn-sm" v-if="unreadNotices.length" @click="unreadNotices.forEach(markRead)">全部標為已讀</button>
       </div>
@@ -619,13 +620,14 @@ html.ov-transparent body::before{ display:none; }
         <b :style="{ color: pushState==='ok' ? 'var(--ok)' : 'var(--warn)' }">{{ { ok:'✔ 這台已登記', nokey:'○ 管理員尚未設定推播金鑰', unsupported:'✗ 這個瀏覽器不支援（iPhone 請從主畫面圖示打開）', error:'✗ 登記失敗，請重新整理再試', '':'登記中…' }[pushState] }}</b>
         <button v-if="pushState==='error'" class="btn btn-sm ml-1" @click="registerPush">重試</button></div>
       <div v-if="isIOS && !isStandalone" class="card-flat mb-2 small" style="background:var(--warn-soft);color:var(--warn)">
-        <b>📱 iPhone 開啟通知步驟：</b>點 Safari 下方「分享（□↑）」→「加入主畫面」，再從主畫面圖示打開並點「開啟手機／桌面通知」；靜音鍵關閉時會響叮咚聲（iPhone 網頁不支援震動）。
+        <b>📱 iPhone 開啟通知步驟：</b>點 Safari 下方「分享（□↑）」→「加入主畫面」，再從主畫面圖示打開並點「開啟手機／桌面通知」；靜音鍵要關掉才會響鈴（iPhone 網頁不支援震動）。
       </div>
       <details class="card-flat mb-3 small muted">
         <summary style="cursor:pointer;font-weight:700;color:var(--ink)">📱 手機怎麼接收提醒？（Android／iPhone 說明）</summary>
         <ul class="mt-2" style="padding-left:18px;list-style:disc;line-height:1.6">
           <li><b>開啟後建議按一次「測試提醒音／通知」</b>，可解鎖手機聲音並確認提醒正常。</li>
-          <li><b>聲音與震動</b>：收到新通知會響起「叮咚」提示音，Android 手機同時會短震兩下；開啟「語音唸出」可直接用語音播報內容。</li>
+          <li><b>聲音與震動</b>：收到新通知會<b>響鈴 2 秒</b>（可改 4 秒加強）、Android 長震三下，並<b>跳出手機通知</b>；沒按「知道了」20 秒、45 秒後會再響。操場很吵時建議再開「語音唸出」。</li>
+          <li><b>音量</b>：響鈴用的是手機「媒體音量」，請先把音量鍵調大；跳出的系統通知則依手機「通知鈴聲」。</li>
           <li><b>Android 手機</b>：允許通知後，切到別的 App 時也會在手機上方通知列跳出（依手機通知鈴聲／震動）。</li>
           <li><b>iPhone</b>：需先透過 Safari「分享 → 加入主畫面」打開才能開啟系統通知；靜音開關須關閉才會出聲。</li>
           <li><b>保持網頁開啟</b>：網頁可放背景，但若把瀏覽器整個滑掉關閉，將暫停接收即時通知。</li>
@@ -2397,7 +2399,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261125010000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261125020000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -3265,7 +3267,7 @@ createApp({
     }
     async function showSysNotice(title, body, tag){
       if(!notifySupported || notifyPerm.value!=='granted') return false;
-      const opts={ body, tag:tag||('n-'+Date.now()), icon:LOGO, badge:LOGO, vibrate:[200,100,200], renotify:true };
+      const opts={ body, tag:tag||('n-'+Date.now()), icon:'icon-192.png', badge:'icon-192.png', vibrate:ringLong.value?VIB_LONG:VIB_2S, renotify:true, requireInteraction:true, silent:false, data:{ url:location.href.split('#')[0]+'#start' } };
       try{
         let reg=swReg;
         if(!reg && 'serviceWorker' in navigator){ reg=await navigator.serviceWorker.getRegistration(); if(reg) swReg=reg; }
@@ -3310,18 +3312,25 @@ createApp({
     }
     async function testNotify(){
       unlockAudio();
-      beep(false, true);
-      if(voiceOn.value) speakNotice('測試通知，這是一則運動會提醒');
+      const sec = beep(false, true);
+      if(voiceOn.value) setTimeout(()=>speakNotice('測試通知，這是一則運動會提醒'), sec*1000+200);
       const sent = await showSysNotice('測試通知（運動會系統）', '看到這則訊息代表手機通知運作正常！', 'test-'+Date.now());
-      toast(sent ? '已發出測試提示音、震動與系統通知' : '已發出測試提示音'+(isIOS?'（iPhone 不支援網頁震動）':'與震動'));
+      toast(sent ? '已響鈴、震動並跳出系統通知' : '已響鈴'+(isIOS?'（iPhone 網頁不支援震動）':'與震動'));
     }
     let seenNotice = null;
     watch(()=>unreadNotices.value.map(n=>n.id).join(','), ()=>{ const ids=unreadNotices.value.map(n=>n.id);
       if(seenNotice===null){ seenNotice=new Set(ids); return; } // 剛打開頁面：不重複提醒舊通知
       const fresh=unreadNotices.value.filter(n=>!seenNotice.has(n.id)); ids.forEach(id=>seenNotice.add(id)); if(!fresh.length) return;
-      beep();
-      if(voiceOn.value) speakNotice(fresh[0].text);
-      if(notifyPerm.value==='granted' && document.hidden){ showSysNotice('運動會通知', fresh[0].text, fresh[0].id); } });
+      alertNotice(fresh[0], true); });
+    /* 響鈴＋跳系統通知＋語音；還沒按「知道了」→ 20 秒、45 秒後再響（最多再 2 次） */
+    let reRing=[];
+    function alertNotice(n, first){
+      const sec = beep(!!n.urgent);
+      if(voiceOn.value) setTimeout(()=>speakNotice('運動會通知，'+n.text), sec*1000+200);
+      if(first && notifyPerm.value==='granted') showSysNotice(n.kind==='report' ? '📍 現場通報' : '📢 運動會通知', n.text, n.kind==='report' ? 'report:'+String(n.id).slice(3) : String(n.id)); // 和 Apps Script 推播用同一個標籤，不會重複跳
+      if(first){ reRing.forEach(clearTimeout); reRing=[20000,45000].map(ms=>setTimeout(()=>{ if(isUnread(n) && unreadNotices.value.some(x=>x.id===n.id)) alertNotice(n, false); }, ms)); }
+    }
+    watch(()=>unreadNotices.value.length, n=>{ if(!n){ reRing.forEach(clearTimeout); reRing=[]; } });
     /* 範例套用：填入後自動選取第一個「○」，直接打字就換掉；Tab 跳到下一個○ */
     function selectSlot(el, from){ const v=el.value, re=/○+/g; re.lastIndex=from||0; let m=re.exec(v); if(!m && from){ re.lastIndex=0; m=re.exec(v); }
       el.focus(); if(m){ el.setSelectionRange(m.index, m.index+m[0].length); return true; } el.setSelectionRange(v.length, v.length); return false; }
@@ -3509,22 +3518,36 @@ createApp({
       window.addEventListener('pointerdown', onFirstTap, { passive:true });
       window.addEventListener('keydown', onFirstTap, { passive:true });
     }
+    /* 鈴聲：操場很吵，改成約 2 秒的「嗶嗶—嗶嗶」高音（手機喇叭最響的 2～3kHz）＋壓縮器拉大音量；加強模式 4 秒 */
+    const ringLong = ref((()=>{ try{ return localStorage.getItem(KEY+'-ring')==='long'; }catch(e){ return false; } })());
+    function toggleRing(){ ringLong.value=!ringLong.value; try{ localStorage.setItem(KEY+'-ring', ringLong.value?'long':'2s'); }catch(e){} unlockAudio(); beep(false, true); }
+    const VIB_2S = [500,150,500,150,800];            // 約 2.1 秒
+    const VIB_LONG = [600,150,600,150,600,150,1200]; // 約 3.5 秒
     function beep(urgent=false, forceSound=false){
+      const long = ringLong.value || urgent;
       if(soundOn.value || forceSound){
         try{
           const C=window.AudioContext||window.webkitAudioContext; if(C){
             audioCtx=audioCtx||new C();
             const play=()=>{
               const now=audioCtx.currentTime;
-              const notes = urgent ? [[988,0,0.18],[988,0.26,0.18],[988,0.52,0.22]] : [[880,0,0.22],[659.25,0.22,0.34]];
+              const comp=audioCtx.createDynamicsCompressor ? audioCtx.createDynamicsCompressor() : null;
+              const out=audioCtx.createGain(); out.gain.value=1;
+              if(comp){ comp.threshold.value=-24; comp.knee.value=6; comp.ratio.value=12; comp.attack.value=0.002; comp.release.value=0.1; out.connect(comp); comp.connect(audioCtx.destination); }
+              else out.connect(audioCtx.destination);
+              // 一組 = 嗶(高)嗶(低)，0.5 秒；2 秒版 4 組，加強版 8 組
+              const reps = long ? 8 : 4, notes=[];
+              for(let i=0;i<reps;i++){ const t=i*0.5; notes.push([2093,t,0.18],[1568,t+0.22,0.2]); }
               notes.forEach(([freq, t, dur])=>{
-                const o=audioCtx.createOscillator(), g=audioCtx.createGain();
-                o.type='sine'; o.frequency.setValueAtTime(freq, now+t);
-                g.gain.setValueAtTime(0.001, now+t);
-                g.gain.linearRampToValueAtTime(0.32, now+t+0.02);
-                g.gain.exponentialRampToValueAtTime(0.001, now+t+dur);
-                o.connect(g); g.connect(audioCtx.destination);
-                o.start(now+t); o.stop(now+t+dur+0.02);
+                const o=audioCtx.createOscillator(), o2=audioCtx.createOscillator(), g=audioCtx.createGain();
+                o.type='square'; o.frequency.setValueAtTime(freq, now+t);
+                o2.type='sine'; o2.frequency.setValueAtTime(freq/2, now+t); // 加一點低頻，喇叭小也聽得出來
+                g.gain.setValueAtTime(0.0001, now+t);
+                g.gain.linearRampToValueAtTime(0.55, now+t+0.01);
+                g.gain.setValueAtTime(0.55, now+t+dur-0.03);
+                g.gain.exponentialRampToValueAtTime(0.0001, now+t+dur);
+                o.connect(g); o2.connect(g); g.connect(out);
+                o.start(now+t); o2.start(now+t); o.stop(now+t+dur+0.02); o2.stop(now+t+dur+0.02);
               });
               soundUnlocked.value=true;
             };
@@ -3533,7 +3556,8 @@ createApp({
           }
         }catch(e){}
       }
-      try{ navigator.vibrate && navigator.vibrate(urgent ? [250,100,250,100,250] : [200,100,200]); }catch(e){}
+      try{ navigator.vibrate && navigator.vibrate(long ? VIB_LONG : VIB_2S); }catch(e){}
+      return long ? 4 : 2;
     }
     watch(()=>urgentBc.value.length, (n,o)=>{ if(n>o && page.value==='mc') beep(true); });
     function undoBatch(b){ if(!need('award')) return; b.status='todo'; }
@@ -4032,12 +4056,12 @@ createApp({
     watch(()=>[fb.user && fb.email, notifyPerm.value], ()=>{ registerPush(); }); // 登入或允許通知後，登記這台裝置的推播
     /* 新的現場通報：負責的組別畫面上方跳出、叮咚（自己送的不提醒）；處理完或撤回就自動消失 */
     watch(()=>openReports.value.filter(r=>canHandle(r) && !sentByMe(r)).map(r=>r.id+r.status).join(','), ()=>{
-      reportNotices.value = openReports.value.filter(r=>canHandle(r) && !sentByMe(r)).map(r=>({ id:'rp_'+r.id, kind:'report', ts:r.ts||0, at:r.at, by:r.by,
+      reportNotices.value = openReports.value.filter(r=>canHandle(r) && !sentByMe(r)).map(r=>({ id:'rp_'+r.id, kind:'report', urgent:!!r.urgent, ts:r.ts||0, at:r.at, by:r.by,
         text:(r.urgent?'🚨 緊急通報':'🚨 現場通報')+'【'+(RTYPES[r.type]?RTYPES[r.type].name:'其他')+'】'+(r.place?r.place+'：':'')+r.text })); }, { immediate:true });
     onMounted(()=>{ readHash(); if(!hashGiven && isPublicView.value) page.value='board'; loadDraft(); syncLiveDraft(); renderQR(); if(FORMAL) fbInit(); else initCloud(); });
 
     return { st, role, page, helpOpen, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
-      SHORT, refOk, refChanged, confirmRef, needRef, doneTab, doneShown, restoreBc, scriptLib, scriptsOf, scriptGroups, nextScriptGroup, sf, editScript, saveScript, removeScript, moveScript, queueScript, sPaste, sParsed, importScripts, canBc, pushState, registerPush, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
+      SHORT, ringLong, toggleRing, refOk, refChanged, confirmRef, needRef, doneTab, doneShown, restoreBc, scriptLib, scriptsOf, scriptGroups, nextScriptGroup, sf, editScript, saveScript, removeScript, moveScript, queueScript, sPaste, sParsed, importScripts, canBc, pushState, registerPush, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
       drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
       roleObj, myPages, navPages, myTasks, dateLabel, go, badge, kpi, ask, modalOk, clsLabel,
