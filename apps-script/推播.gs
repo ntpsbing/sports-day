@@ -55,10 +55,13 @@ function 停用() {
 function doPost() { return 立即_(); }
 function doGet() { return 立即_(); }
 function 立即_() {
+  var t0 = Date.now(), n = 0;
   for (var i = 0; i < 3; i++) {
-    if (檢查並推播() > 0) break;
-    Utilities.sleep(2000);
+    n = 檢查並推播();
+    if (n > 0) break;
+    Utilities.sleep(1500);
   }
+  Logger.log('⚡ 立即推播：' + (n ? '送出 ' + n + ' 則' : '沒有新通知') + '，花 ' + ((Date.now() - t0) / 1000).toFixed(1) + ' 秒');
   return ContentService.createTextOutput('ok');
 }
 
