@@ -28,6 +28,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <script src="config.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -613,6 +614,9 @@ html.ov-transparent body::before{ display:none; }
         <button class="btn btn-sm" @click="toggleVoice">{{ voiceOn ? '🗣️ 語音唸出：開' : '🗣️ 語音唸出：關' }}</button>
         <button class="btn btn-sm" v-if="unreadNotices.length" @click="unreadNotices.forEach(markRead)">全部標為已讀</button>
       </div>
+      <div v-if="FORMAL && fb.user && notifyPerm==='granted'" class="card-flat mb-2 small">📲 瀏覽器關掉也收得到（推播）：
+        <b :style="{ color: pushState==='ok' ? 'var(--ok)' : 'var(--warn)' }">{{ { ok:'✔ 這台已登記', nokey:'○ 管理員尚未設定推播金鑰', unsupported:'✗ 這個瀏覽器不支援（iPhone 請從主畫面圖示打開）', error:'✗ 登記失敗，請重新整理再試', '':'登記中…' }[pushState] }}</b>
+        <button v-if="pushState==='error'" class="btn btn-sm ml-1" @click="registerPush">重試</button></div>
       <div v-if="isIOS && !isStandalone" class="card-flat mb-2 small" style="background:var(--warn-soft);color:var(--warn)">
         <b>📱 iPhone 開啟通知步驟：</b>點 Safari 下方「分享（□↑）」→「加入主畫面」，再從主畫面圖示打開並點「開啟手機／桌面通知」；靜音鍵關閉時會響叮咚聲（iPhone 網頁不支援震動）。
       </div>
@@ -2335,7 +2339,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261124160000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261124170000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -3198,6 +3202,24 @@ createApp({
       try{ new Notification(title, { body, tag:opts.tag, icon:LOGO }); return true; }catch(e){}
       return false;
     }
+    /* ===== 推播（瀏覽器關掉也收得到）=====
+       這台裝置允許通知後，向 Google 推播服務（FCM）取得「裝置代碼」，存到資料庫 pushTokens；
+       Apps Script 每分鐘檢查新通知，用這些代碼送推播（程式在 apps-script 資料夾）。
+       ▶ 要先在 config.js 填 FCM_VAPID_KEY（Firebase 主控台 → 專案設定 → Cloud Messaging → 網路推播憑證） */
+    const pushState = ref(''); // '', 'ok', 'nokey', 'unsupported', 'error'
+    async function registerPush(){
+      if(!FORMAL || !fb.user || notifyPerm.value!=='granted') return;
+      if(!window.FCM_VAPID_KEY){ pushState.value='nokey'; return; }
+      try{
+        if(!(window.firebase && firebase.messaging && await firebase.messaging.isSupported())){ pushState.value='unsupported'; return; }
+        const reg = swReg || await navigator.serviceWorker.register('./sw.js'); await navigator.serviceWorker.ready;
+        const token = await firebase.messaging().getToken({ vapidKey:window.FCM_VAPID_KEY, serviceWorkerRegistration:reg });
+        if(!token){ pushState.value='error'; return; }
+        await fref('pushTokens', token).set({ email:fb.email.toLowerCase(), roles:fb.myRoles.slice(), ts:Date.now(), ua:(isIOS?'iPhone':/Android/.test(navigator.userAgent)?'Android':'電腦')+(isStandalone?'（主畫面）':'') });
+        try{ localStorage.setItem(KEY+'-push', token); }catch(e){}
+        pushState.value='ok';
+      }catch(e){ pushState.value='error'; console.warn('推播登記失敗', e); }
+    }
     async function askNotify(){
       unlockAudio();
       if(!notifySupported){ toast(isIOS ? 'iPhone 請先點 Safari「分享 → 加入主畫面」再開啟通知' : '這個瀏覽器不支援系統通知'); return; }
@@ -3205,7 +3227,7 @@ createApp({
         notifyPerm.value = await Notification.requestPermission();
         if(notifyPerm.value==='granted'){
           toast('已開啟手機／桌面通知');
-          showSysNotice('運動會通知已開啟', '大會發送通知時，手機會跳出提醒。', 'welcome');
+          showSysNotice('運動會通知已開啟', '大會發送通知時，手機會跳出提醒。', 'welcome'); registerPush();
         } else if(notifyPerm.value==='denied'){
           toast('通知已被封鎖，請到瀏覽器網站設定開啟');
         }
@@ -3888,10 +3910,11 @@ createApp({
     /* 校長姓名（config.js 的 PRINCIPAL_NAME）：資料裡還是「○○○ 校長」時自動補上；只有能修改來賓資料的人會寫入資料庫 */
     watch(()=>[st.value.guests.length, fb.user && fb.email, role.value], ()=>{ const n=window.PRINCIPAL_NAME; if(!n) return; if(FORMAL && !can('guest')) return;
       st.value.guests.forEach(g=>{ if(g.kind==='校內' && g.title==='校長' && isNoName(g.name)){ g.name=n; log('自動填入校長姓名：'+n); } }); }, { immediate:true });
+    watch(()=>[fb.user && fb.email, notifyPerm.value], ()=>{ registerPush(); }); // 登入或允許通知後，登記這台裝置的推播
     onMounted(()=>{ readHash(); if(!hashGiven && isPublicView.value) page.value='board'; loadDraft(); syncLiveDraft(); renderQR(); if(FORMAL) fbInit(); else initCloud(); });
 
     return { st, role, page, helpOpen, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
-      SHORT, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
+      SHORT, pushState, registerPush, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
       drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
       roleObj, myPages, navPages, myTasks, dateLabel, go, badge, kpi, ask, modalOk, clsLabel,

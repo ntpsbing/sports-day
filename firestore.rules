@@ -38,5 +38,7 @@ service cloud.firestore {
     match /lunch/{id}      { allow read: if isSchool(); allow write: if hasRole(['lunch','control','record']); }
     match /gifts/{id}      { allow read: if true; allow write: if hasRole(['gift','control','record']); }
     match /stations/{id}   { allow read: if true; allow write: if hasRole(['quest','control','record']); }
+    // 推播裝置代碼：學校帳號只能登記／刪除自己的；任何人都不能讀（Apps Script 用服務帳號讀取）
+    match /pushTokens/{t}  { allow create, update: if isSchool() && request.resource.data.email == email(); allow delete: if isSchool() && resource.data.email == email(); allow read: if false; }
   }
 }
