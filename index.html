@@ -2399,7 +2399,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261125020000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261125030000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -3234,7 +3234,12 @@ createApp({
     const sentByMe = n => n.byDev ? n.byDev===tabId : (FORMAL ? n.byEmail===fb.email : false);
     const isUnread = n => !readIds.value.includes(n.id) && (!sentByMe(n) || n.to==='me');
     const unreadNotices = computed(()=>myNotices.value.filter(isUnread));
-    function markRead(n){ if(!readIds.value.includes(n.id)) readIds.value=[...readIds.value, n.id].slice(-200); try{ localStorage.setItem(KEY+'-read', JSON.stringify(readIds.value)); }catch(e){} }
+    function markRead(n){ if(!readIds.value.includes(n.id)) readIds.value=[...readIds.value, n.id].slice(-200); try{ localStorage.setItem(KEY+'-read', JSON.stringify(readIds.value)); }catch(e){} ackPush(n); }
+    /* 按「知道了」→ 告訴手機推播（sw.js）這則已看到：瀏覽器關掉後的「再次提醒」不再響，並收掉通知列上的這則 */
+    const pushTag = n => n.kind==='report' ? 'report:'+String(n.id).slice(3) : String(n.id);
+    function ackPush(n){ const tag=pushTag(n);
+      try{ caches.open('nanzi-ack').then(c=>c.put(new Request('./__ack__/'+encodeURIComponent(tag)), new Response('1'))).catch(()=>{}); }catch(e){}
+      try{ navigator.serviceWorker && navigator.serviceWorker.getRegistration().then(r=>r && r.getNotifications().then(list=>list.forEach(x=>{ if(String(x.tag).replace(/~r\d+$/,'')===tag) x.close(); }))).catch(()=>{}); }catch(e){} }
     function sendNotice(text,to){ bc('notice', text.replace(/^大會報告：/,''), { to }); log('發送通知（'+(NOTICE_TO[to]||'自己（測試）')+'）：'+text.slice(0,30)); }
     /* 測試：送一則只給自己的通知，同一帳號登入的電腦、手機都會收到 */
     function testAllMyDevices(){ if(!can('mc') && !can('flow')){ need('mc'); return; } unlockAudio();
@@ -3327,7 +3332,7 @@ createApp({
     function alertNotice(n, first){
       const sec = beep(!!n.urgent);
       if(voiceOn.value) setTimeout(()=>speakNotice('運動會通知，'+n.text), sec*1000+200);
-      if(first && notifyPerm.value==='granted') showSysNotice(n.kind==='report' ? '📍 現場通報' : '📢 運動會通知', n.text, n.kind==='report' ? 'report:'+String(n.id).slice(3) : String(n.id)); // 和 Apps Script 推播用同一個標籤，不會重複跳
+      if(first && notifyPerm.value==='granted') showSysNotice(n.kind==='report' ? '📍 現場通報' : '📢 運動會通知', n.text, pushTag(n)); // 和 Apps Script 推播用同一個標籤，不會重複跳
       if(first){ reRing.forEach(clearTimeout); reRing=[20000,45000].map(ms=>setTimeout(()=>{ if(isUnread(n) && unreadNotices.value.some(x=>x.id===n.id)) alertNotice(n, false); }, ms)); }
     }
     watch(()=>unreadNotices.value.length, n=>{ if(!n){ reRing.forEach(clearTimeout); reRing=[]; } });

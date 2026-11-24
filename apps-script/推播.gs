@@ -1,6 +1,7 @@
 /* =========================================================
    楠梓國小 運動會即時通報系統：手機推播（Google Apps Script）
    用途：每分鐘檢查資料庫有沒有新的「通知老師」和「現場通報」（通報只送負責的組別），有就用兩條路送出：
+        （手機沒點開、沒滑掉通知時，之後每分鐘再響一次，共 REPEAT_TIMES 次；點開或滑掉就停）
         ① Email 到老師的學校 Gmail：任何手機的 Gmail App 都會跳通知（不用任何手機設定，最通用）
         ② 手機推播：老師在網站允許通知的裝置，瀏覽器關掉也會跳（要先完成推播金鑰設定）
    設定步驟請看同資料夾的「設定說明.md」。
@@ -11,6 +12,7 @@
 var PROJECT_ID = 'nanzi-sportsday';                         // Firebase 專案 ID（config.js 裡的 projectId）
 var SITE_URL   = 'https://ntpsbing.github.io/sports-day/';  // 點通知要打開的網址
 var LOOKBACK_MIN = 10;                                      // 只推送最近幾分鐘內發出的通知
+var REPEAT_TIMES = 3;                                       // 手機沒點開／沒滑掉通知時，每分鐘再響幾次（0＝不重複）
 var EMAIL_ON   = true;                                      // 是否同時寄 Email 到老師的學校信箱（true 寄／false 不寄）
 var MAIL_NAME  = '楠梓國小運動會';                           // 寄件人顯示名稱
 /* 現場通報：哪些組別要收到（和網站 PERMS 一致） */
@@ -51,29 +53,37 @@ function 停用() {
 /* ---------- 每分鐘自動執行 ---------- */
 function 檢查並推播() {
   var props = PropertiesService.getScriptProperties();
-  var sent = JSON.parse(props.getProperty('SENT') || '{}');      // 已推送過的通知（避免重複）
+  var sent = JSON.parse(props.getProperty('SENT') || '{}');      // 推送紀錄 { 通知id: { t:第一次時間, n:已送次數 } }（舊版是數字＝已完成）
   var cutoff = Date.now() - LOOKBACK_MIN * 60 * 1000;
-  var notices = 讀取新通知_(cutoff).concat(讀取新通報_(cutoff)).filter(function (n) { return !sent[n.id]; });
-  if (!notices.length) return;                                    // 沒有新通知：結束（不讀裝置清單，省額度）
+  var now = Date.now();
+  var notices = 讀取新通知_(cutoff).concat(讀取新通報_(cutoff)).filter(function (n) {
+    var s = sent[n.id];
+    if (!s) return true;                                          // 新通知
+    if (typeof s === 'number') return false;                      // 舊版紀錄
+    return s.n <= REPEAT_TIMES && now - s.last >= 50 * 1000;     // 還要再提醒，且距上次約 1 分鐘
+  });
+  if (!notices.length) return;                                    // 沒有要送的：結束（不讀裝置清單，省額度）
 
   var tokens = 讀取裝置_();
   var people = EMAIL_ON ? 讀取收件人_() : [];
   notices.sort(function (a, b) { return (a.ts || 0) - (b.ts || 0); }).forEach(function (n) {
+    var rec = sent[n.id] || { t: now, n: 0 }, round = rec.n;      // round 0＝第一次；1 以後＝重複提醒
     var targets = tokens.filter(function (t) { return !t.dead && 是對象_(t, n); });
     if (targets.length) {
-      var r = 送出_(targets, { title: n.title || '運動會通知', body: String(n.text || ''), tag: String(n.id) });
-      Logger.log('推播「' + String(n.text).slice(0, 20) + '」→ ' + r.ok + ' 台成功、' + r.fail + ' 台失敗');
+      var r = 送出_(targets, { title: n.title || '運動會通知', body: String(n.text || ''), tag: String(n.id),
+        kind: round ? 'repeat' : 'notice', round: round });
+      Logger.log((round ? '再次提醒(' + round + ')' : '推播') + '「' + String(n.text).slice(0, 20) + '」→ ' + r.ok + ' 台成功、' + r.fail + ' 台失敗');
     }
-    if (EMAIL_ON) {
+    if (EMAIL_ON && !round) {                                     // Email 只寄一次
       var mails = people.filter(function (p) { return 是對象_(p, n); }).map(function (p) { return p.email; });
       if (n.to === 'me' && n.byEmail && mails.indexOf(String(n.byEmail).toLowerCase()) < 0) mails.push(String(n.byEmail).toLowerCase());
       if (mails.length) { 寄信_(mails, { body: String(n.text || ''), by: n.by, at: n.at, title: n.title }); Logger.log('Email「' + String(n.text).slice(0, 20) + '」→ ' + mails.length + ' 位'); }
     }
-    sent[n.id] = Date.now();
+    sent[n.id] = { t: rec.t, n: round + 1, last: now };
   });
   // 只保留一天內的紀錄
   var dayAgo = Date.now() - 86400000;
-  Object.keys(sent).forEach(function (k) { if (sent[k] < dayAgo) delete sent[k]; });
+  Object.keys(sent).forEach(function (k) { var v = sent[k]; if ((typeof v === 'number' ? v : v.t) < dayAgo) delete sent[k]; });
   props.setProperty('SENT', JSON.stringify(sent));
 }
 
@@ -212,8 +222,8 @@ function 送出_(tokens, msg) {
   var reqs = tokens.map(function (t) {
     return { url: url, method: 'post', contentType: 'application/json', headers: auth, muteHttpExceptions: true,
       payload: JSON.stringify({ message: { token: t.token,
-        data: { title: msg.title, body: msg.body, tag: msg.tag, url: SITE_URL + '#start', kind: msg.kind || 'notice' },
-        webpush: { headers: { Urgency: 'high', TTL: '900' } } } }) };
+        data: { title: msg.title, body: msg.body, tag: msg.tag, url: SITE_URL + '#start', kind: msg.kind || 'notice', round: String(msg.round || 0) },
+        webpush: { headers: { Urgency: 'high', TTL: msg.round ? '120' : '900' } } } }) };   // 重複提醒過 2 分鐘沒送到就不送
   });
   var ok = 0, fail = 0, removed = 0;
   for (var i = 0; i < reqs.length; i += 50) {                     // 每次最多同時 50 台
