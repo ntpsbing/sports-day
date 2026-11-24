@@ -980,6 +980,7 @@ html.ov-transparent body::before{ display:none; }
           <label class="flex items-center gap-2"><input type="checkbox" v-model="sheetOpt.pubOnly" style="width:20px;height:20px"> 只印已公布的成績</label>
           <label class="flex items-center gap-2"><input type="checkbox" v-model="sheetOpt.sign" style="width:20px;height:20px"> 加「領獎確認」欄</label>
           <label class="flex items-center gap-2"><input type="checkbox" v-model="sheetOpt.all" style="width:20px;height:20px"> 列出全部參賽者（不只得獎）</label>
+          <label class="flex items-center gap-2" v-if="sheetOpt.group==='batch'"><input type="checkbox" v-model="sheetOpt.presenter" style="width:20px;height:20px"> 標示頒獎人</label>
           <label class="flex items-center gap-2"><input type="checkbox" v-model="sheetOpt.breakEach" style="width:20px;height:20px"> 每個{{ sheetOpt.group==='batch' ? '梯次' : '年級' }}換新的一頁</label>
         </div>
         <div class="flex flex-wrap gap-2 items-center mt-3">
@@ -2235,7 +2236,7 @@ createApp({
       const out=[]; b.eventIds.forEach(id=>{ const e=st.value.events.find(x=>x.id===id); if(e && isPub(e)) ranked(e).forEach(x=>{ if(x.place && x.place<=e.awardTop) out.push({ key:e.id+x.e.id, label:e.name, ev:e.name, place:x.place, cls:x.e.cls, name:x.e.name }); }); }); return out;
     }
     /* ----- 成績單列印 ----- */
-    const sheetOpt = reactive({ kind:'all', group:'batch', grade:0, pubOnly:true, sign:true, all:false, breakEach:true });
+    const sheetOpt = reactive({ kind:'all', group:'batch', grade:0, pubOnly:true, sign:true, all:false, breakEach:true, presenter:false });
     const sheetPrintedAt = ref('');
     const sheetDate = computed(()=>{ const d=String(st.value.settings.date||'').split('-'); return d.length===3 ? (+d[0]-1911)+'年'+(+d[1])+'月'+(+d[2])+'日' : (st.value.settings.date||''); });
     function stampSheet(){ const d=new Date(); sheetPrintedAt.value=(d.getFullYear()-1911)+'/'+(d.getMonth()+1)+'/'+d.getDate()+' '+hhmm(); }
@@ -2245,7 +2246,7 @@ createApp({
         .sort((a,b)=>(a.order||0)-(b.order||0)); });
     const sheetEvents = computed(()=>sheetBase.value.filter(e=>!sheetOpt.pubOnly || isPub(e)));
     function sheetBatchOf(ev){ const i=st.value.batches.findIndex(b=>!b.champ && (b.eventIds||[]).includes(ev.id)); return i<0 ? null : { b:st.value.batches[i], no:i+1 }; }
-    function batchSub(b){ const p=presenterOf(b).p; return [batchTime(b), p ? '頒獎人：'+personText(p) : ''].filter(Boolean).join('・'); }
+    function batchSub(b){ const p=presenterOf(b).p; return [batchTime(b) ? '頒獎時間 '+batchTime(b) : '', sheetOpt.presenter && p ? '頒獎人：'+personText(p) : ''].filter(Boolean).join('・'); }
     const sheetGroups = computed(()=>{
       const evs=sheetEvents.value; if(!evs.length) return [];
       if(sheetOpt.group==='grade'){ const out=[]; [1,2,3,4,5,6].forEach(g=>{ const list=evs.filter(e=>e.grade===g); if(list.length) out.push({ key:'g'+g, title:ZH[g]+'年級', sub:list.length+' 個項目', events:list }); }); return out; }
