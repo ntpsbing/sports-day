@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache">
 </head>
 <body>
 <title>楠小運動會通報系統</title>
@@ -364,6 +365,7 @@ html.ov-transparent body::before{ display:none; }
   </header>
   <div v-if="FORMAL && fb.user && !fb.online" class="netbar no-print" role="status">⚠ 目前離線：你的操作會先存在這台裝置，恢復連線後自動送出（未送出 {{ fb.pending }} 筆）</div>
   <div v-if="FORMAL && fb.err" class="netbar no-print" role="alert">{{ fb.err }}</div>
+  <div v-if="newVersion" class="netbar no-print" role="status" style="background:#0B62A4;color:#fff;display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap">🔄 系統已更新到新版本<button class="btn btn-sm" style="background:#fff;color:#0B62A4;font-weight:800" @click="reloadApp">立即更新</button></div>
 
   <div class="shell">
     <!-- ======== 選單：電腦在左側、手機是抽屜 ======== -->
@@ -1681,6 +1683,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
+const BUILD_ID = '20261124102654'; // 正式版部署時自動換成版本時間，用來偵測「系統有新版」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -2751,10 +2754,16 @@ createApp({
     function removeTl(t){ if(!need('flow')) return; ask('確定刪除流程「'+t.title+'」嗎？', ()=>{ const i=st.value.timeline.indexOf(t); if(i>=0) st.value.timeline.splice(i,1); if(FORMAL) fbDelete('timeline',t.id); log('刪除流程：'+t.title); }); }
     function removeGuest(g){ if(!need('data')) return; ask('確定從名單刪除「'+personText(g)+'」嗎？他負責的頒獎梯次會改由遞補的人。', ()=>{ st.value.batches.forEach(b=>{ ['presenter','backup','override'].forEach(k=>{ if(b[k]===g.id) b[k]=''; }); }); const i=st.value.guests.indexOf(g); if(i>=0) st.value.guests.splice(i,1); if(FORMAL) fbDelete('guests',g.id); log('刪除人員：'+personText(g)); }); }
 
+    /* 新版本偵測：每分鐘、或切回這個分頁時，檢查網站上的版本；有新版就提示一鍵更新 */
+    const newVersion = ref(false);
+    async function checkVersion(){ if(BUILD_ID==='dev' || newVersion.value || document.hidden) return;
+      try{ const t=await fetch(location.pathname+'?ver='+Date.now(), { cache:'no-store' }).then(r=>r.ok?r.text():''); const m=t.match(/const BUILD_ID = '([^']+)'/); if(m && m[1]!==BUILD_ID) newVersion.value=true; }catch(e){} }
+    function reloadApp(){ location.replace(location.pathname+'?v='+Date.now()+location.hash); }
+    setInterval(checkVersion, 60000); document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) checkVersion(); });
     onMounted(()=>{ readHash(); loadDraft(); syncLiveDraft(); renderQR(); if(FORMAL) fbInit(); else initCloud(); });
 
     return { st, role, page, helpOpen, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
-      SHORT, drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
+      SHORT, drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
       roleObj, myPages, navPages, myTasks, dateLabel, go, badge, kpi, ask, modalOk, clsLabel,
       ranked, top, fmtMark, standings, barW, classPts, classRank, preEvents, dayEvents, reviewEvents, publishedEvents, latestPublished, checkinEvents,
