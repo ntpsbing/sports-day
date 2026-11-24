@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta http-equiv="Cache-Control" content="no-cache">
 <link rel="icon" href="logo.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#0E4D8C">
+<meta name="apple-mobile-web-app-capable" content="yes">
 </head>
 <body>
 <title>楠小運動會通報系統</title>
@@ -603,10 +607,23 @@ html.ov-transparent body::before{ display:none; }
         <button class="btn btn-sm" v-if="notifySupported && notifyPerm!=='granted'" @click="askNotify">{{ notifyPerm==='denied' ? '桌面通知已被封鎖（請到瀏覽器設定開啟）' : '開啟桌面／手機通知' }}</button>
         <span v-if="notifyPerm==='granted'" class="chip st-published">✔ 已開啟桌面通知</span>
       </div>
+      <!-- 🧪 測試通知：確認這台裝置收得到 -->
+      <details class="card-flat mb-3" :open="!myNotices.length">
+        <summary class="font-bold cursor-pointer" style="min-height:40px">🧪 測試通知（確認這台收得到）</summary>
+        <div class="small flex flex-col gap-1 my-2">
+          <div>系統通知：<b :style="{ color: notifyPerm==='granted' ? 'var(--ok)' : 'var(--warn)' }">{{ notifyPerm==='granted' ? '✔ 已開啟' : notifyPerm==='denied' ? '✗ 被封鎖' : (isIOS && !isStandalone) ? '✗ iPhone 要先「加入主畫面」' : notifySupported ? '○ 還沒開啟' : '✗ 這個瀏覽器不支援' }}</b></div>
+          <div class="muted" v-if="isIOS && !isStandalone">iPhone：用 Safari 打開 → 下方「分享」→「加入主畫面」→ 從主畫面圖示打開，再按「開啟桌面／手機通知」。</div>
+          <div class="muted">畫面上方通知列與提示音：網頁開著就會有（手機請先點一下畫面）。</div>
+        </div>
+        <div class="flex gap-2 flex-wrap">
+          <button class="btn btn-sm btn-primary" @click="testThisDevice" :disabled="testCountdown>0">{{ testCountdown>0 ? testCountdown+' 秒後跳出…' : '測試這台裝置' }}</button>
+          <button class="btn btn-sm" v-if="can('mc') || can('flow')" @click="testAllMyDevices">傳到我所有裝置（電腦＋手機）</button>
+        </div>
+      </details>
       <div v-if="!myNotices.length" class="muted small">目前沒有通知。司儀或總控發送通知時，會在這裡和畫面上方出現。</div>
       <div v-for="n in myNotices" :key="n.id" class="card-flat mb-2" :style="isUnread(n)?'border-left:4px solid var(--sun)':''">
         <div class="font-bold">{{ n.text }}</div>
-        <div class="small muted">{{ n.at }}・{{ n.by || '大會' }} → {{ NOTICE_TO[n.to] || '全體人員' }}<span v-if="isUnread(n)" style="color:var(--warn);font-weight:700">・未讀</span></div>
+        <div class="small muted">{{ n.at }}・{{ n.by || '大會' }} → {{ n.to==='me' ? '自己（測試）' : NOTICE_TO[n.to] || '全體人員' }}<span v-if="isUnread(n)" style="color:var(--warn);font-weight:700">・未讀</span></div>
         <button v-if="canWithdrawB(n)" class="btn btn-sm btn-bad mt-1" @click="withdrawNotice(n)">撤回這則通知</button>
       </div>
     </div>
@@ -2312,7 +2329,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261124133000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261124150000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -2891,7 +2908,7 @@ createApp({
 
     function toast(text,bad){ const id=uid(); toasts.value.push({id,text,bad}); setTimeout(()=>{ toasts.value=toasts.value.filter(t=>t.id!==id); },2800); }
     function log(text){ st.value.logs.unshift({ id:'l'+Date.now()+uid(), ts:Date.now(), at:hhmm(), role:roleObj.value.name, by:FORMAL?fb.email:'', text }); if(st.value.logs.length>300) st.value.logs.length=300; }
-    function bc(type,text,extra){ st.value.broadcasts.push(Object.assign({ id:'b'+Date.now()+uid(), ts:Date.now(), type, text, at:hhmm(), done:false, by:roleObj.value.name, byEmail:FORMAL?fb.email:'' }, extra||{})); }
+    function bc(type,text,extra){ st.value.broadcasts.push(Object.assign({ id:'b'+Date.now()+uid(), ts:Date.now(), type, text, at:hhmm(), done:false, by:roleObj.value.name, byEmail:FORMAL?fb.email:'', byDev:deviceId }, extra||{})); }
     function ask(text,fn){ modal.value={ text, onOk:fn, okText:'確定' }; }
     function modalOk(){ const m=modal.value; modal.value=null; m.onOk && m.onOk(m.input); }
 
@@ -3122,30 +3139,48 @@ createApp({
     const ntText = ref(''), ntTo = ref('all'), ntAlsoMc = ref(false), noticeOpen = ref(false);
     const canReceive = computed(()=>FORMAL ? !!fb.user : role.value!=='public');
     const isStaffRole = r => r && !['teacher','public'].includes(r);
-    function noticeForMe(n){ if(!canReceive.value) return false; if(n.to==='all' || !n.to) return true;
+    function noticeForMe(n){ if(!canReceive.value) return false; if(n.to==='me') return FORMAL ? n.byEmail===fb.email : true; if(n.to==='all' || !n.to) return true;
       const rs = FORMAL && !previewing.value ? fb.myRoles : [role.value];
       if(n.to==='teachers') return rs.includes('teacher') || FORMAL; // 正式版每個學校帳號都有導師身分
       if(n.to==='staff') return rs.some(isStaffRole); return rs.includes(n.to); }
-    const myNotices = computed(()=>st.value.broadcasts.filter(b=>b.type==='notice' && !b.cancelled && noticeForMe(b)).sort((a,b)=>(b.ts||0)-(a.ts||0)).slice(0,30));
+    const localNotices = ref([]); // 「測試這台裝置」的假通知，只存在這台，不寫資料庫
+    const myNotices = computed(()=>[...localNotices.value, ...st.value.broadcasts.filter(b=>b.type==='notice' && !b.cancelled && noticeForMe(b))].sort((a,b)=>(b.ts||0)-(a.ts||0)).slice(0,30));
     const readIds = ref((()=>{ try{ return JSON.parse(localStorage.getItem(KEY+'-read')||'[]'); }catch(e){ return []; } })());
-    const sentByMe = n => FORMAL ? n.byEmail===fb.email : false;
-    const isUnread = n => !readIds.value.includes(n.id) && !sentByMe(n);
+    // 「自己發的」用裝置判斷：同一個帳號用電腦發、手機一樣收得到
+    const sentByMe = n => n.byDev ? n.byDev===deviceId : (FORMAL ? n.byEmail===fb.email : false);
+    const isUnread = n => !readIds.value.includes(n.id) && (!sentByMe(n) || n.to==='me');
     const unreadNotices = computed(()=>myNotices.value.filter(isUnread));
     function markRead(n){ if(!readIds.value.includes(n.id)) readIds.value=[...readIds.value, n.id].slice(-200); try{ localStorage.setItem(KEY+'-read', JSON.stringify(readIds.value)); }catch(e){} }
-    function sendNotice(text,to){ bc('notice', text.replace(/^大會報告：/,''), { to }); log('發送通知（'+NOTICE_TO[to]+'）：'+text.slice(0,30)); }
+    function sendNotice(text,to){ bc('notice', text.replace(/^大會報告：/,''), { to }); log('發送通知（'+(NOTICE_TO[to]||'自己（測試）')+'）：'+text.slice(0,30)); }
     function sendNoticeForm(){ if(!can('mc') && !can('flow')){ need('mc'); return; } const t=ntText.value.trim(); if(!t) return;
       const go2=()=>{ sendNotice(t, ntTo.value); if(ntAlsoMc.value) bc('insert','大會報告：'+t); toast('已通知'+NOTICE_TO[ntTo.value]+(ntAlsoMc.value?'，並送司儀廣播':'')); ntText.value=''; };
       if(t.includes('○')) ask('內容還有「○」沒有改，確定送出嗎？', go2); else go2(); }
     function withdrawNotice(n){ ask('確定撤回這則通知嗎？老師畫面上的通知會一起消失。', ()=>{ n.cancelled=true; n.cancelBy=roleObj.value.name; log('撤回通知：'+n.text.slice(0,30)); toast('已撤回通知'); }); }
     /* 桌面／手機通知（瀏覽器開著但在別的分頁或螢幕關著時也會跳出） */
     const notifySupported = typeof window!=='undefined' && 'Notification' in window;
+    const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+    const isStandalone = (()=>{ try{ return matchMedia('(display-mode: standalone)').matches || navigator.standalone===true; }catch(e){ return false; } })();
+    let swReg=null; try{ if('serviceWorker' in navigator && location.protocol==='https:') navigator.serviceWorker.register('sw.js').then(r=>{ swReg=r; }).catch(()=>{}); }catch(e){}
+    /* 跳出系統通知：手機（Android、加入主畫面的 iPhone）要透過 Service Worker，電腦直接跳 */
+    async function sysNotify(body, tag){ if(notifyPerm.value!=='granted') return false;
+      const opt={ body, tag, icon:'icon-192.png', badge:'icon-192.png', vibrate:[200,100,200], renotify:true };
+      try{ const r = swReg || (navigator.serviceWorker && await navigator.serviceWorker.getRegistration()); if(r){ await r.showNotification('運動會通知', opt); return true; } }catch(e){}
+      try{ new Notification('運動會通知', opt); return true; }catch(e){ return false; } }
     const notifyPerm = ref(notifySupported ? Notification.permission : 'unsupported');
     async function askNotify(){ try{ notifyPerm.value = await Notification.requestPermission(); if(notifyPerm.value==='granted') toast('已開啟桌面通知'); }catch(e){} }
     let seenNotice = null;
     watch(()=>unreadNotices.value.map(n=>n.id).join(','), ()=>{ const ids=unreadNotices.value.map(n=>n.id);
       if(seenNotice===null){ seenNotice=new Set(ids); return; } // 剛打開頁面：不重複提醒舊通知
       const fresh=unreadNotices.value.filter(n=>!seenNotice.has(n.id)); ids.forEach(id=>seenNotice.add(id)); if(!fresh.length) return;
-      beep(); if(notifyPerm.value==='granted' && document.hidden){ try{ new Notification('運動會通知', { body:fresh[0].text, tag:fresh[0].id, icon:LOGO }); }catch(e){} } });
+      beep(); if(document.hidden || fresh[0].local) sysNotify(fresh[0].text, fresh[0].id); });
+    /* 🧪 測試通知 */
+    const testCountdown = ref(0);
+    function testThisDevice(){ unlockAudio(); testCountdown.value=5; noticeOpen.value=false;
+      const t=setInterval(()=>{ testCountdown.value--; if(testCountdown.value<=0){ clearInterval(t);
+        localNotices.value=[{ id:'local'+Date.now(), local:true, to:'me', ts:Date.now(), at:hhmm(), by:'測試', text:'🧪 測試通知：看到這行、聽到嗶聲，代表這台裝置收得到通知' }, ...localNotices.value]; } },1000);
+      toast('5 秒後跳出測試通知，可以先切到別的分頁或關掉螢幕試試看'); }
+    function testAllMyDevices(){ if(!can('mc') && !can('flow')){ need('mc'); return; } unlockAudio();
+      sendNotice('🧪 測試通知（'+hhmm()+'）：你的電腦和手機都應該同時收到這則', 'me'); toast('已送出。你登入同一個帳號的每台裝置都會收到'); }
     /* 範例套用：填入後自動選取第一個「○」，直接打字就換掉；Tab 跳到下一個○ */
     function selectSlot(el, from){ const v=el.value, re=/○+/g; re.lastIndex=from||0; let m=re.exec(v); if(!m && from){ re.lastIndex=0; m=re.exec(v); }
       el.focus(); if(m){ el.setSelectionRange(m.index, m.index+m[0].length); return true; } el.setSelectionRange(v.length, v.length); return false; }
@@ -3282,7 +3317,10 @@ createApp({
       toast('已推送「頒獎人更正」到司儀台');
     });
     /* 司儀台收到新的緊急更正：嗶兩聲、手機震動 */
-    let audioCtx=null;
+    let audioCtx=null; const soundOk = ref(false);
+    /* 手機瀏覽器要先點一下畫面才能發聲：第一次點畫面時就啟用 */
+    function unlockAudio(){ try{ const C=window.AudioContext||window.webkitAudioContext; if(!C) return; audioCtx=audioCtx||new C(); if(audioCtx.state==='suspended') audioCtx.resume(); soundOk.value=audioCtx.state!=='suspended' || true; }catch(e){} }
+    document.addEventListener('pointerdown', unlockAudio, { once:true }); document.addEventListener('keydown', unlockAudio, { once:true });
     function beep(){ try{ const C=window.AudioContext||window.webkitAudioContext; if(!C) return; audioCtx=audioCtx||new C(); [0,0.3].forEach(t=>{ const o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.frequency.value=988; o.connect(g); g.connect(audioCtx.destination); g.gain.setValueAtTime(0.25,audioCtx.currentTime+t); o.start(audioCtx.currentTime+t); o.stop(audioCtx.currentTime+t+0.18); }); }catch(e){} try{ navigator.vibrate && navigator.vibrate([200,100,200]); }catch(e){} }
     watch(()=>urgentBc.value.length, (n,o)=>{ if(n>o && page.value==='mc') beep(); });
     function undoBatch(b){ if(!need('award')) return; b.status='todo'; }
@@ -3774,7 +3812,7 @@ createApp({
     onMounted(()=>{ readHash(); if(!hashGiven && isPublicView.value) page.value='board'; loadDraft(); syncLiveDraft(); renderQR(); if(FORMAL) fbInit(); else initCloud(); });
 
     return { st, role, page, helpOpen, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
-      SHORT, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
+      SHORT, isIOS, isStandalone, testCountdown, testThisDevice, testAllMyDevices, soundOk, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
       drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
       roleObj, myPages, navPages, myTasks, dateLabel, go, badge, kpi, ask, modalOk, clsLabel,
