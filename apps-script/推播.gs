@@ -34,7 +34,7 @@ function 測試推播() {
   var tokens = 讀取裝置_();
   if (!tokens.length) { Logger.log('還沒有任何裝置登記推播。請老師在網站右上角 🔔 開啟通知。'); return; }
   if (!tokens.length) return;
-  var r = 送出_(tokens, { title: '運動會通知（測試）', body: '看到這則代表推播設定成功！' + 時間_(), tag: 'test-' + Date.now() });
+  var r = 送出_(tokens, { title: '運動會通知（測試）', body: '看到這則代表推播設定成功！' + 時間_(), tag: 'test-' + Date.now(), kind: 'test' });
   Logger.log('✔ 已送出測試推播：成功 ' + r.ok + ' 台、失敗 ' + r.fail + ' 台（失效的裝置已自動清除 ' + r.removed + ' 台）');
 }
 
@@ -173,7 +173,7 @@ function 送出_(tokens, msg) {
   var reqs = tokens.map(function (t) {
     return { url: url, method: 'post', contentType: 'application/json', headers: auth, muteHttpExceptions: true,
       payload: JSON.stringify({ message: { token: t.token,
-        data: { title: msg.title, body: msg.body, tag: msg.tag, url: SITE_URL + '#start' },
+        data: { title: msg.title, body: msg.body, tag: msg.tag, url: SITE_URL + '#start', kind: msg.kind || 'notice' },
         webpush: { headers: { Urgency: 'high', TTL: '900' } } } }) };
   });
   var ok = 0, fail = 0, removed = 0;
