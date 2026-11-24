@@ -2908,7 +2908,11 @@ createApp({
 
     function toast(text,bad){ const id=uid(); toasts.value.push({id,text,bad}); setTimeout(()=>{ toasts.value=toasts.value.filter(t=>t.id!==id); },2800); }
     function log(text){ st.value.logs.unshift({ id:'l'+Date.now()+uid(), ts:Date.now(), at:hhmm(), role:roleObj.value.name, by:FORMAL?fb.email:'', text }); if(st.value.logs.length>300) st.value.logs.length=300; }
+<<<<<<< Updated upstream
     function bc(type,text,extra){ st.value.broadcasts.push(Object.assign({ id:'b'+Date.now()+uid(), ts:Date.now(), type, text, at:hhmm(), done:false, by:roleObj.value.name, byEmail:FORMAL?fb.email:'', byDev:deviceId }, extra||{})); }
+=======
+    function bc(type,text,extra){ st.value.broadcasts.push(Object.assign({ id:'b'+Date.now()+uid(), ts:Date.now(), type, text, at:hhmm(), done:false, by:roleObj.value.name, byEmail:FORMAL?fb.email:'', byDev:tabId }, extra||{})); }
+>>>>>>> Stashed changes
     function ask(text,fn){ modal.value={ text, onOk:fn, okText:'確定' }; }
     function modalOk(){ const m=modal.value; modal.value=null; m.onOk && m.onOk(m.input); }
 
@@ -3146,8 +3150,14 @@ createApp({
     const localNotices = ref([]); // 「測試這台裝置」的假通知，只存在這台，不寫資料庫
     const myNotices = computed(()=>[...localNotices.value, ...st.value.broadcasts.filter(b=>b.type==='notice' && !b.cancelled && noticeForMe(b))].sort((a,b)=>(b.ts||0)-(a.ts||0)).slice(0,30));
     const readIds = ref((()=>{ try{ return JSON.parse(localStorage.getItem(KEY+'-read')||'[]'); }catch(e){ return []; } })());
+<<<<<<< Updated upstream
     // 「自己發的」用裝置判斷：同一個帳號用電腦發、手機一樣收得到
     const sentByMe = n => n.byDev ? n.byDev===deviceId : (FORMAL ? n.byEmail===fb.email : false);
+=======
+    // 「自己發的」用分頁判斷：同一個帳號用電腦發、手機（或同一台電腦的另一個分頁）一樣收得到
+    const tabId = (()=>{ try{ let t=sessionStorage.getItem(KEY+'-tab'); if(!t){ t='t'+Date.now().toString(36)+Math.random().toString(36).slice(2,8); sessionStorage.setItem(KEY+'-tab',t); } return t; }catch(e){ return 't'+Math.random().toString(36).slice(2); } })();
+    const sentByMe = n => n.byDev ? n.byDev===tabId : (FORMAL ? n.byEmail===fb.email : false);
+>>>>>>> Stashed changes
     const isUnread = n => !readIds.value.includes(n.id) && (!sentByMe(n) || n.to==='me');
     const unreadNotices = computed(()=>myNotices.value.filter(isUnread));
     function markRead(n){ if(!readIds.value.includes(n.id)) readIds.value=[...readIds.value, n.id].slice(-200); try{ localStorage.setItem(KEY+'-read', JSON.stringify(readIds.value)); }catch(e){} }
