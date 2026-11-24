@@ -94,18 +94,36 @@ function 讀取新通知_(cutoff) {
     var o = 解析_(r.document.fields || {}); o.id = o.id || r.document.name.split('/').pop(); return o;
   }).filter(function (o) { return o.type === 'notice' && !o.cancelled && o.text; });
 }
+/* 推播裝置：存在 users/{信箱}.pushTokens（網站登記）；舊版存在 pushTokens 集合，兩邊都讀 */
 function 讀取裝置_() {
-  try { return 讀取裝置清單_(); } catch (e) { Logger.log('讀取推播裝置失敗（還沒設定推播可以忽略）：' + e.message); return []; }
-}
-function 讀取裝置清單_() {
-  var out = [], pageToken = '';
-  do {
-    var url = 'https://firestore.googleapis.com/v1/projects/' + PROJECT_ID + '/databases/(default)/documents/pushTokens?pageSize=300' + (pageToken ? '&pageToken=' + encodeURIComponent(pageToken) : '');
-    var res = 呼叫_(url, 'get');
-    (res.documents || []).forEach(function (d) { var o = 解析_(d.fields || {}); o.token = d.name.split('/').pop(); o.docName = d.name; out.push(o); });
-    pageToken = res.nextPageToken || '';
-  } while (pageToken);
+  var out = [], roleMap = {};
+  try { 列出_('roles').forEach(function (d) { roleMap[d.id.toLowerCase()] = Array.isArray(d.roles) && d.roles.length ? d.roles : (d.role ? [d.role] : []); }); } catch (e) {}
+  try {
+    列出_('users').forEach(function (d) {
+      var em = String(d.email || d.id).toLowerCase();
+      (Array.isArray(d.pushTokens) ? d.pushTokens : []).forEach(function (tk) {
+        out.push({ token: tk, email: em, roles: (roleMap[em] || []).concat(['teacher']), userDoc: d._name, all: d.pushTokens });
+      });
+    });
+  } catch (e) { Logger.log('讀取推播裝置失敗：' + e.message); }
+  try {
+    列出_('pushTokens').forEach(function (d) { if (!out.some(function (t) { return t.token === d.id; })) out.push({ token: d.id, email: d.email, roles: d.roles || ['teacher'], docName: d._name }); });
+  } catch (e) {}
   return out;
+}
+/* 清除失效的裝置代碼 */
+function 清除失效_(tokens) {
+  var byDoc = {};
+  tokens.forEach(function (t) {
+    if (!t.dead) return;
+    if (t.docName) { 刪除裝置_(t.docName); return; }
+    if (t.userDoc) { (byDoc[t.userDoc] = byDoc[t.userDoc] || { all: t.all, dead: [] }).dead.push(t.token); }
+  });
+  Object.keys(byDoc).forEach(function (name) {
+    var keep = byDoc[name].all.filter(function (tk) { return byDoc[name].dead.indexOf(tk) < 0; });
+    try { 呼叫_('https://firestore.googleapis.com/v1/' + name + '?updateMask.fieldPaths=pushTokens', 'patch',
+      { fields: { pushTokens: { arrayValue: { values: keep.map(function (tk) { return { stringValue: tk }; }) } } } }); } catch (e) { Logger.log('清除失效裝置失敗：' + e.message); }
+  });
 }
 function 刪除裝置_(docName) {
   try { 呼叫_('https://firestore.googleapis.com/v1/' + docName, 'delete'); } catch (e) {}
@@ -142,7 +160,7 @@ function 列出_(col) {
   do {
     var url = 'https://firestore.googleapis.com/v1/projects/' + PROJECT_ID + '/databases/(default)/documents/' + col + '?pageSize=300' + (pageToken ? '&pageToken=' + encodeURIComponent(pageToken) : '');
     var res = 呼叫_(url, 'get');
-    (res.documents || []).forEach(function (d) { var o = 解析_(d.fields || {}); o.id = decodeURIComponent(d.name.split('/').pop()); out.push(o); });
+    (res.documents || []).forEach(function (d) { var o = 解析_(d.fields || {}); o.id = decodeURIComponent(d.name.split('/').pop()); o._name = d.name; out.push(o); });
     pageToken = res.nextPageToken || '';
   } while (pageToken);
   return out;
@@ -183,10 +201,11 @@ function 送出_(tokens, msg) {
       if (code === 200) { ok++; return; }
       fail++;
       var txt = res.getContentText();
-      if (code === 404 || /UNREGISTERED|registration-token-not-registered|INVALID_ARGUMENT/.test(txt)) { 刪除裝置_(tokens[i + j].docName); tokens[i + j].dead = true; removed++; }
+      if (code === 404 || /UNREGISTERED|registration-token-not-registered|INVALID_ARGUMENT/.test(txt)) { tokens[i + j].dead = true; removed++; }
       else Logger.log('推播失敗（' + code + '）：' + txt.slice(0, 200));
     });
   }
+  if (removed) 清除失效_(tokens);
   return { ok: ok, fail: fail, removed: removed };
 }
 
