@@ -591,6 +591,7 @@ html.ov-transparent body::before{ display:none; }
         </span>
       </button>
       <button v-if="!(FORMAL && !fb.user)" class="topwho lg-hide" @click="drawer=true" :title="'我的身分：'+whoName">{{ whoName }}</button>
+      <button v-if="canBc && page!=='overlay'" class="menubtn" @click="openInsert" title="請司儀廣播（找人、失物、集合…）">🎤<span class="sm-hide"> 請司儀廣播</span></button>
       <button v-if="canReceive" class="menubtn bellbtn" @click="noticeOpen=true" :aria-label="'通知'+(unreadNotices.length?'，'+unreadNotices.length+' 則未讀':'')">🔔<span v-if="unreadNotices.length" class="bell-n">{{ unreadNotices.length }}</span></button>
       <button :class="[st.live.on ? 'livebtn' : 'menubtn','sm-hide']" @click="go('watch')">{{ st.live.on ? '● 看直播' : '🎥 看直播' }}</button>
       <button v-if="FORMAL && !fb.user" class="menubtn" style="background:#fff;color:#0E4D8C" @click="signIn">🔑 學校人員登入</button>
@@ -602,6 +603,25 @@ html.ov-transparent body::before{ display:none; }
     <div class="nb-body"><b>{{ unreadNotices[0].text }}</b><div class="small">{{ unreadNotices[0].at }}・{{ unreadNotices[0].by || '大會' }} → {{ unreadNotices[0].kind==='report' ? '你這組' : unreadNotices[0].to==='me' ? '自己（測試）' : NOTICE_TO[unreadNotices[0].to] || '全體人員' }}<span v-if="unreadNotices.length>1">・還有 {{ unreadNotices.length-1 }} 則</span></div></div>
     <button v-if="unreadNotices[0].kind==='report'" class="btn btn-sm btn-primary" @click="markRead(unreadNotices[0]); rFilter='mine'; go('reports')">去處理</button>
     <button class="btn btn-sm" @click="markRead(unreadNotices[0])">知道了</button>
+  </div>
+  <!-- 📣 請司儀廣播：各組工作人員送稿給司儀念（司儀也可以自己補一則） -->
+  <div class="modal-bg" v-if="insertOpen" @click.self="insertOpen=false">
+    <div class="modal" role="dialog" aria-label="請司儀廣播">
+      <div class="flex justify-between items-center gap-2 mb-1"><h2 class="h-sec">🎤 請司儀廣播</h2><button class="btn btn-sm" @click="insertOpen=false">關閉</button></div>
+      <p class="small muted mb-2">寫好送出，會排在司儀「待播報」<b>最前面</b>，並標示是你送的。找人、失物、集合、秩序提醒都用這裡。</p>
+      <p class="small muted mb-2">點範例 → 自動選取「○」→ 直接打字換掉（Tab 或「下一個空格」跳到下一個○）。</p>
+            <div class="seg mb-2" role="tablist" aria-label="範例分類">
+              <button v-for="(c,i) in QUICK_BC" :key="c.cat" :class="{on:bcCat===i}" @click="bcCat=i">{{ c.cat }}</button>
+            </div>
+            <div class="flex flex-wrap gap-2 mb-2">
+              <button class="btn btn-sm" v-for="q in QUICK_BC[bcCat].items" :key="q.t" @click="useTpl('mcText', q.text)">{{ q.t }}</button>
+            </div>
+            <textarea class="inp" id="mcText" rows="3" v-model="mcText" placeholder="輸入要廣播的內容，或點上面的範例" maxlength="200" @keydown="slotKey"></textarea>
+            <div class="flex gap-2 items-center mt-1 small" v-if="mcText.includes('○')"><span style="color:var(--warn);font-weight:700">還有 {{ (mcText.match(/○+/g)||[]).length }} 個「○」要填</span><button class="btn btn-sm" @click="nextSlot('mcText')">下一個空格 →</button></div>
+            <div class="mt-2"><label class="lbl">同時通知老師（畫面跳出通知）</label>
+              <div class="seg"><button :class="{on:!mcNotify}" @click="mcNotify=''">不通知</button><button v-for="(v,k) in NOTICE_TO" :key="k" :class="{on:mcNotify===k}" @click="mcNotify=k">{{ v }}</button></div></div>
+            <button class="btn btn-primary mt-2" @click="addInsert" :disabled="!mcText.trim()">{{ mcNotify ? '送給司儀＋通知'+NOTICE_TO[mcNotify] : '送給司儀廣播' }}</button>
+          </div>
   </div>
   <div class="modal-bg" v-if="noticeOpen" @click.self="noticeOpen=false">
     <div class="modal" role="dialog" aria-label="通知">
@@ -1374,6 +1394,26 @@ html.ov-transparent body::before{ display:none; }
         <div class="small">進行中：<b>{{ nowTl ? nowTl.title : '—' }}</b>　下一項：<b>{{ nextTl ? nextTl.title : '—' }}</b></div>
         <div class="small mt-1" v-if="readyBatchObj">目前頒獎：<b>{{ shortTitle(readyBatchObj.title) }}</b>　頒獎人：<b style="font-size:20px;color:var(--brand)">{{ personText(presenterOf(readyBatchObj).p) }}</b></div>
       </div>
+      <!-- 📜 講稿提示：現在這段的講稿放最上面，不用往下找 -->
+      <div class="card mb-4" style="border-left:6px solid #6D4BC2" v-if="scriptLib.length">
+        <div class="flex items-center justify-between gap-2 flex-wrap mb-2">
+          <h2 class="h-sec">📜 講稿提示<span v-if="promptGroup" class="small" style="font-weight:700;color:#4527A0">　{{ promptGroup.status==='now' ? '▶ 進行中' : '下一段' }}：{{ promptGroup.label }}</span></h2>
+          <div class="flex gap-2"><button class="btn btn-sm" @click="openInsert">✍️ 自己補一則</button><button class="btn btn-sm" @click="jumpScripts">管理講稿</button></div>
+        </div>
+        <div v-if="!promptGroup" class="small muted">流程裡綁定的講稿都念完了。不綁定流程的講稿在下方「講稿庫」。</div>
+        <div v-else>
+          <details v-for="(x,i) in promptGroup.list" :key="x.id" class="card-flat mb-2" :open="i===0 || promptGroup.list.length<=2">
+            <summary class="flex items-center gap-2 flex-wrap cursor-pointer" style="min-height:40px;list-style:none">
+              <b style="font-size:17px">{{ i+1 }}. {{ x.title }}</b>
+              <span class="chip" v-if="scriptState(x)" :style="scriptState(x).style">{{ scriptState(x).text }}</span>
+              <button class="btn btn-sm btn-primary" style="margin-left:auto" v-if="!scriptState(x) || scriptState(x).k==='done'" @click.prevent="queueScript(x)">加入播報</button>
+            </summary>
+            <div class="mc-card mt-2" style="white-space:pre-line">{{ x.text }}</div>
+          </details>
+          <div class="small muted" v-if="promptNext">接下來：{{ promptNext.label }}（{{ promptNext.list.length }} 篇）</div>
+        </div>
+      </div>
+      <div v-else-if="can('mc')" class="card-flat mb-4 small flex items-center gap-2 flex-wrap">📜 還沒有講稿。司儀自己有一套講稿的話，可以一次貼上，總控按流程「開始」時會自動跳出來。<button class="btn btn-sm btn-primary" @click="jumpScripts">新增／貼上講稿</button></div>
       <div v-for="u in urgentBc" :key="u.id" class="urgent mb-4" role="alert">
         <div class="flex items-center justify-between gap-2 flex-wrap"><span class="chip" style="background:#fff;color:#B42318">⚠ 緊急更正・{{ u.at }}</span><span class="flex gap-2"><button class="btn" style="background:#fff;color:#B42318;border:0" @click="doneBc(u)">已播報</button><button v-if="canWithdrawB(u)" class="btn" style="background:transparent;color:#fff;border:1.5px solid #fff" @click="withdrawBc(u)">取消這則</button></span></div>
         <div class="mt-2" style="font-size:26px;font-weight:900;line-height:1.5">{{ u.text }}</div>
@@ -1397,24 +1437,9 @@ html.ov-transparent body::before{ display:none; }
           </div>
         </div>
         <div style="min-width:0" class="flex flex-col gap-4">
-          <div class="card">
-            <h2 class="h-sec mb-2">臨時插播</h2>
-            <p class="small muted mb-2">點範例 → 自動選取「○」→ 直接打字換掉（Tab 或「下一個空格」跳到下一個○）。</p>
-            <div class="seg mb-2" role="tablist" aria-label="範例分類">
-              <button v-for="(c,i) in QUICK_BC" :key="c.cat" :class="{on:bcCat===i}" @click="bcCat=i">{{ c.cat }}</button>
-            </div>
-            <div class="flex flex-wrap gap-2 mb-2">
-              <button class="btn btn-sm" v-for="q in QUICK_BC[bcCat].items" :key="q.t" @click="useTpl('mcText', q.text)">{{ q.t }}</button>
-            </div>
-            <textarea class="inp" id="mcText" rows="3" v-model="mcText" placeholder="輸入要廣播的內容，或點上面的範例" maxlength="200" @keydown="slotKey"></textarea>
-            <div class="flex gap-2 items-center mt-1 small" v-if="mcText.includes('○')"><span style="color:var(--warn);font-weight:700">還有 {{ (mcText.match(/○+/g)||[]).length }} 個「○」要填</span><button class="btn btn-sm" @click="nextSlot('mcText')">下一個空格 →</button></div>
-            <div class="mt-2"><label class="lbl">同時通知老師（畫面跳出通知）</label>
-              <div class="seg"><button :class="{on:!mcNotify}" @click="mcNotify=''">不通知</button><button v-for="(v,k) in NOTICE_TO" :key="k" :class="{on:mcNotify===k}" @click="mcNotify=k">{{ v }}</button></div></div>
-            <button class="btn btn-primary mt-2" @click="addInsert" :disabled="!mcText.trim()">{{ mcNotify ? '加入播報清單＋通知'+NOTICE_TO[mcNotify] : '加入播報清單' }}</button>
-          </div>
           <!-- 📜 司儀自己的講稿：綁定流程，總控按「開始」時自動加入待播報 -->
           <fold-card k="mc-scripts" :open="false" id="mcScripts">
-            <template #title>📜 我的講稿</template>
+            <template #title>📜 講稿庫（新增・排序・一次貼上）</template>
             <template #sum><span class="sumchip">{{ scriptLib.length }} 篇</span><span class="sumchip info" v-if="nextScriptGroup">下一段：{{ nextScriptGroup.label.slice(0,14) }}</span></template>
             <p class="small muted mb-3">講稿綁定流程後，總控按該流程「開始」時會<b>自動依順序加入待播報</b>；也可以隨時按「加入播報」。</p>
             <div v-for="g in scriptGroups" :key="g.id" class="mb-3">
@@ -2403,7 +2428,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261125050000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261125060000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -3349,8 +3374,10 @@ createApp({
     function slotKey(e){ if(e.key==='Tab' && !e.shiftKey && e.target.value.includes('○')){ e.preventDefault(); selectSlot(e.target, e.target.selectionEnd); } }
     function nextSlot(id){ const el=document.getElementById(id); if(el) selectSlot(el, el.selectionEnd||0); }
     function doneBc(b){ if(!need('mc')) return; b.done=true; b.doneAt=hhmm(); b.doneBy=roleObj.value.name; if(b.guestId){ const g=st.value.guests.find(x=>x.id===b.guestId); if(g) g.introduced=true; } toast('已標記播報'); }
-    function addInsert(){ if(!need('mc')) return; if(mcText.value.includes('○')){ ask('內容還有「○」沒有改，確定加入嗎？', doInsert); return; } doInsert(); }
-    function doInsert(){ if(mcNotify.value){ sendNotice(mcText.value.trim(), mcNotify.value); } bc('insert', mcText.value.trim()); log('新增插播'); mcText.value=''; toast('已加入，排在最前面'); }
+    function addInsert(){ if(!canBc.value){ need('mc'); return; } if(mcText.value.includes('○')){ ask('內容還有「○」沒有改，確定加入嗎？', doInsert); return; } doInsert(); }
+    function doInsert(){ if(mcNotify.value){ sendNotice(mcText.value.trim(), mcNotify.value); } bc('insert', mcText.value.trim()); log('新增插播'); mcText.value=''; insertOpen.value=false; toast(page.value==='mc' ? '已加入，排在最前面' : '已送給司儀，會排在待播報最前面'); }
+    const insertOpen = ref(false);
+    function openInsert(){ insertOpen.value=true; unlockAudio(); nextTick(()=>{ const el=document.getElementById('mcText'); if(el) el.focus(); }); }
     /* ===== 司儀講稿庫：存在廣播資料（type:'scriptlib'，不出現在待播報），不用另外改資料庫規則 ===== */
     const scriptLib = computed(()=>st.value.broadcasts.filter(b=>b.type==='scriptlib' && !b.cancelled));
     const tlOrder = id => { const i=st.value.timeline.findIndex(t=>t.id===id); return i<0 ? 9999 : i; };
@@ -3358,6 +3385,14 @@ createApp({
     const scriptGroups = computed(()=>{ const ids=[...new Set(scriptLib.value.map(x=>x.tl||''))].sort((a,b)=>tlOrder(a)-tlOrder(b));
       return ids.map(id=>{ const t=st.value.timeline.find(x=>x.id===id); return { id, label: t ? tlTime(t)+'　'+t.title : '不綁定流程（隨時手動加入）', status: t ? t.status : '', list:scriptsOf(id) }; }); });
     const nextScriptGroup = computed(()=>scriptGroups.value.find(g=>g.status==='todo' || g.status==='now'));
+    /* 講稿提示：進行中那段；沒有就下一段 */
+    const promptGroup = computed(()=>scriptGroups.value.find(g=>g.status==='now') || scriptGroups.value.find(g=>g.status==='todo') || null);
+    const promptNext = computed(()=>{ const i=scriptGroups.value.indexOf(promptGroup.value); return i<0 ? null : scriptGroups.value.slice(i+1).find(g=>g.status==='todo') || null; });
+    function scriptState(x){
+      const q=pendingBc.value.findIndex(b=>b.libId===x.id); if(q>=0) return { k:'queue', text:'在待播報第 '+(q+1)+' 則', style:'background:var(--brand-soft);color:var(--brand)' };
+      const d=st.value.broadcasts.find(b=>b.libId===x.id && b.done && !b.cancelled); if(d) return { k:'done', text:'✔ '+(d.doneAt||'')+' 已念', style:'background:var(--ok-soft);color:var(--ok)' };
+      return null; }
+    function jumpScripts(){ try{ localStorage.setItem('nanzi-sportsday-fold-mc-scripts','1'); }catch(e){} const el=document.getElementById('mcScripts'); if(!el) return; if(el.tagName==='DETAILS') el.open=true; el.scrollIntoView({ behavior:'smooth', block:'start' }); }
     const sf = reactive({ id:'', title:'', tl:'', text:'' });
     function editScript(x){ if(!need('mc')) return; Object.assign(sf, x ? { id:x.id, title:x.title||'', tl:x.tl||'', text:x.text||'' } : { id:'', title:'', tl:'', text:'' });
       nextTick(()=>{ const el=document.getElementById('sfTitle'); if(el){ el.scrollIntoView({ behavior:'smooth', block:'center' }); el.focus(); } }); }
@@ -4077,7 +4112,7 @@ createApp({
     onMounted(()=>{ readHash(); if(!hashGiven && isPublicView.value) page.value='board'; loadDraft(); syncLiveDraft(); renderQR(); if(FORMAL) fbInit(); else initCloud(); });
 
     return { st, role, page, helpOpen, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
-      SHORT, ringLong, toggleRing, refOk, refChanged, confirmRef, needRef, doneTab, doneShown, restoreBc, scriptLib, scriptsOf, scriptGroups, nextScriptGroup, sf, editScript, saveScript, removeScript, moveScript, queueScript, sPaste, sParsed, importScripts, canBc, pushState, registerPush, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
+      SHORT, insertOpen, openInsert, promptGroup, promptNext, scriptState, jumpScripts, ringLong, toggleRing, refOk, refChanged, confirmRef, needRef, doneTab, doneShown, restoreBc, scriptLib, scriptsOf, scriptGroups, nextScriptGroup, sf, editScript, saveScript, removeScript, moveScript, queueScript, sPaste, sParsed, importScripts, canBc, pushState, registerPush, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
       drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
       roleObj, myPages, navPages, myTasks, dateLabel, go, badge, kpi, ask, modalOk, clsLabel,
