@@ -2339,7 +2339,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261124200000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261124210000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -3205,6 +3205,7 @@ createApp({
     /* ===== 推播（瀏覽器關掉也收得到）=====
        這台裝置允許通知後，向 Google 推播服務（FCM）取得「裝置代碼」，存到資料庫 pushTokens；
        Apps Script 每分鐘檢查新通知，用這些代碼送推播（程式在 apps-script 資料夾）。
+       代碼存在 users/{自己的信箱}.pushTokens，原本的資料庫規則就允許，不需要改規則。
        ▶ 要先在 config.js 填 FCM_VAPID_KEY（Firebase 主控台 → 專案設定 → Cloud Messaging → 網路推播憑證） */
     const pushState = ref(''); // '', 'ok', 'nokey', 'unsupported', 'error'
     async function registerPush(){
@@ -3215,7 +3216,9 @@ createApp({
         const reg = swReg || await navigator.serviceWorker.register('./sw.js'); await navigator.serviceWorker.ready;
         const token = await firebase.messaging().getToken({ vapidKey:window.FCM_VAPID_KEY, serviceWorkerRegistration:reg });
         if(!token){ pushState.value='error'; return; }
-        await fref('pushTokens', token).set({ email:fb.email.toLowerCase(), roles:fb.myRoles.slice(), ts:Date.now(), ua:(isIOS?'iPhone':/Android/.test(navigator.userAgent)?'Android':'電腦')+(isStandalone?'（主畫面）':'') });
+        // 存在自己的 users 文件（原本的資料庫規則就允許本人寫入，不用另外改規則）
+        const em=fb.email.toLowerCase();
+        await fref('users', em).set({ email:em, pushTokens:firebase.firestore.FieldValue.arrayUnion(token), pushAt:Date.now() }, { merge:true });
         try{ localStorage.setItem(KEY+'-push', token); }catch(e){}
         pushState.value='ok';
       }catch(e){ pushState.value='error'; console.warn('推播登記失敗', e); }
@@ -3810,7 +3813,7 @@ createApp({
       if(!fb.admin){ try{ const d=await fref('roles',fb.email.toLowerCase()).get(); if(d.exists){ const x=d.data(); rs=Array.isArray(x.roles)&&x.roles.length ? x.roles.slice() : (x.role?[x.role]:[]); } }catch(e){} }
       if(!rs.includes('teacher')) rs.push('teacher'); // 每位學校帳號都保有導師功能（全員賽跑填報）
       fb.myRoles=rs; fb.role=rs[0]; role.value=rs[0];
-      try{ fref('users',fb.email.toLowerCase()).set({ email:fb.email.toLowerCase(), name:(fb.user&&fb.user.name)||'', at:Date.now() }); }catch(e){}
+      try{ fref('users',fb.email.toLowerCase()).set({ email:fb.email.toLowerCase(), name:(fb.user&&fb.user.name)||'', at:Date.now() }, { merge:true }); }catch(e){} // merge：不要蓋掉推播裝置代碼
     }
     function fbInit(){
       try{
