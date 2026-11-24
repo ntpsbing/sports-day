@@ -1,7 +1,8 @@
 /* =========================================================
    楠梓國小 運動會即時通報系統：手機推播（Google Apps Script）
-   用途：每分鐘檢查資料庫有沒有新的「通知老師」，有就送推播到老師手機，
-        手機瀏覽器關掉、螢幕鎖著也會跳出通知。
+   用途：每分鐘檢查資料庫有沒有新的「通知老師」，有就用兩條路送出：
+        ① Email 到老師的學校 Gmail：任何手機的 Gmail App 都會跳通知（不用任何手機設定，最通用）
+        ② 手機推播：老師在網站允許通知的裝置，瀏覽器關掉也會跳（要先完成推播金鑰設定）
    設定步驟請看同資料夾的「設定說明.md」。
    ▶ 接手的老師：通常不用改程式，只要照說明做一次「設定」。
    ========================================================= */
@@ -10,6 +11,8 @@
 var PROJECT_ID = 'nanzi-sportsday';                         // Firebase 專案 ID（config.js 裡的 projectId）
 var SITE_URL   = 'https://ntpsbing.github.io/sports-day/';  // 點通知要打開的網址
 var LOOKBACK_MIN = 10;                                      // 只推送最近幾分鐘內發出的通知
+var EMAIL_ON   = true;                                      // 是否同時寄 Email 到老師的學校信箱（true 寄／false 不寄）
+var MAIL_NAME  = '楠梓國小運動會';                           // 寄件人顯示名稱
 
 /* ---------- 1. 第一次使用：執行這個函式（會建立「每分鐘自動檢查」） ---------- */
 function 設定() {
@@ -17,14 +20,20 @@ function 設定() {
     if (t.getHandlerFunction() === '檢查並推播') ScriptApp.deleteTrigger(t);
   });
   ScriptApp.newTrigger('檢查並推播').timeBased().everyMinutes(1).create();
-  var n = 讀取裝置_().length;
-  Logger.log('✔ 已設定每分鐘自動檢查。目前登記推播的裝置：' + n + ' 台');
+  var n = 讀取裝置_().length, m = 讀取收件人_().length;
+  Logger.log('✔ 已設定每分鐘自動檢查。Email 收件人：' + m + ' 位；登記手機推播的裝置：' + n + ' 台');
 }
 
 /* ---------- 2. 測試：送一則測試推播到所有登記的裝置 ---------- */
 function 測試推播() {
+  if (EMAIL_ON) {
+    var me = Session.getEffectiveUser().getEmail();
+    寄信_([me], { body: '看到這封代表 Email 通知設定成功！' + 時間_() });
+    Logger.log('✔ 已寄測試信到 ' + me + '（手機 Gmail App 應該會跳通知）');
+  }
   var tokens = 讀取裝置_();
   if (!tokens.length) { Logger.log('還沒有任何裝置登記推播。請老師在網站右上角 🔔 開啟通知。'); return; }
+  if (!tokens.length) return;
   var r = 送出_(tokens, { title: '運動會通知（測試）', body: '看到這則代表推播設定成功！' + 時間_(), tag: 'test-' + Date.now() });
   Logger.log('✔ 已送出測試推播：成功 ' + r.ok + ' 台、失敗 ' + r.fail + ' 台（失效的裝置已自動清除 ' + r.removed + ' 台）');
 }
@@ -44,11 +53,17 @@ function 檢查並推播() {
   if (!notices.length) return;                                    // 沒有新通知：結束（不讀裝置清單，省額度）
 
   var tokens = 讀取裝置_();
+  var people = EMAIL_ON ? 讀取收件人_() : [];
   notices.sort(function (a, b) { return (a.ts || 0) - (b.ts || 0); }).forEach(function (n) {
     var targets = tokens.filter(function (t) { return !t.dead && 是對象_(t, n); });
     if (targets.length) {
       var r = 送出_(targets, { title: '運動會通知', body: String(n.text || ''), tag: String(n.id) });
       Logger.log('推播「' + String(n.text).slice(0, 20) + '」→ ' + r.ok + ' 台成功、' + r.fail + ' 台失敗');
+    }
+    if (EMAIL_ON) {
+      var mails = people.filter(function (p) { return 是對象_(p, n); }).map(function (p) { return p.email; });
+      if (n.to === 'me' && n.byEmail && mails.indexOf(String(n.byEmail).toLowerCase()) < 0) mails.push(String(n.byEmail).toLowerCase());
+      if (mails.length) { 寄信_(mails, { body: String(n.text || ''), by: n.by, at: n.at }); Logger.log('Email「' + String(n.text).slice(0, 20) + '」→ ' + mails.length + ' 位'); }
     }
     sent[n.id] = Date.now();
   });
@@ -80,6 +95,9 @@ function 讀取新通知_(cutoff) {
   }).filter(function (o) { return o.type === 'notice' && !o.cancelled && o.text; });
 }
 function 讀取裝置_() {
+  try { return 讀取裝置清單_(); } catch (e) { Logger.log('讀取推播裝置失敗（還沒設定推播可以忽略）：' + e.message); return []; }
+}
+function 讀取裝置清單_() {
   var out = [], pageToken = '';
   do {
     var url = 'https://firestore.googleapis.com/v1/projects/' + PROJECT_ID + '/databases/(default)/documents/pushTokens?pageSize=300' + (pageToken ? '&pageToken=' + encodeURIComponent(pageToken) : '');
@@ -104,6 +122,49 @@ function 值_(v) {
   if (v.mapValue !== undefined) return 解析_(v.mapValue.fields || {});
   return null;
 }
+
+/* ---------- Email：收件人＝「帳號與權限」設定過的人＋登入過網站的人 ---------- */
+function 讀取收件人_() {
+  var map = {};
+  列出_('roles').forEach(function (d) {
+    var em = d.id.toLowerCase(); if (em.indexOf('@') < 0) return;
+    var rs = Array.isArray(d.roles) && d.roles.length ? d.roles : (d.role ? [d.role] : []);
+    map[em] = { email: em, roles: rs.concat(['teacher']) };
+  });
+  列出_('users').forEach(function (d) {
+    var em = String(d.email || d.id).toLowerCase(); if (em.indexOf('@') < 0) return;
+    if (!map[em]) map[em] = { email: em, roles: ['teacher'] };
+  });
+  return Object.keys(map).map(function (k) { return map[k]; });
+}
+function 列出_(col) {
+  var out = [], pageToken = '';
+  do {
+    var url = 'https://firestore.googleapis.com/v1/projects/' + PROJECT_ID + '/databases/(default)/documents/' + col + '?pageSize=300' + (pageToken ? '&pageToken=' + encodeURIComponent(pageToken) : '');
+    var res = 呼叫_(url, 'get');
+    (res.documents || []).forEach(function (d) { var o = 解析_(d.fields || {}); o.id = decodeURIComponent(d.name.split('/').pop()); out.push(o); });
+    pageToken = res.nextPageToken || '';
+  } while (pageToken);
+  return out;
+}
+/* 一封信最多 50 位收件人（密件副本，彼此看不到信箱）；額度不夠時記錄下來 */
+function 寄信_(mails, n) {
+  var subject = '【運動會通知】' + String(n.body).slice(0, 40);
+  var html = '<div style="font-family:sans-serif;font-size:17px;line-height:1.6">'
+    + '<div style="background:#0E4D8C;color:#fff;padding:12px 16px;border-radius:10px 10px 0 0;font-weight:bold">📢 楠梓國小運動會通知</div>'
+    + '<div style="border:1px solid #DBE1DA;border-top:0;padding:16px;border-radius:0 0 10px 10px">'
+    + '<p style="font-size:20px;font-weight:bold;margin:0 0 8px">' + 轉義_(n.body) + '</p>'
+    + '<p style="color:#4A5B6B;margin:0 0 14px">' + 轉義_((n.at ? n.at + '・' : '') + (n.by || '大會')) + '</p>'
+    + '<a href="' + SITE_URL + '#start" style="display:inline-block;background:#1565B5;color:#fff;padding:10px 18px;border-radius:999px;text-decoration:none;font-weight:bold">打開運動會系統</a>'
+    + '</div><p style="color:#8A9BAC;font-size:13px">這封信由運動會即時通報系統自動寄出，不用回信。</p></div>';
+  var me = Session.getEffectiveUser().getEmail();
+  for (var i = 0; i < mails.length; i += 50) {
+    var chunk = mails.slice(i, i + 50);
+    if (MailApp.getRemainingDailyQuota() < chunk.length) { Logger.log('⚠ 今天的寄信額度不夠，剩下 ' + (mails.length - i) + ' 位沒寄到'); return; }
+    MailApp.sendEmail({ to: me, bcc: chunk.join(','), subject: subject, htmlBody: html, body: n.body + '\n' + SITE_URL, name: MAIL_NAME });
+  }
+}
+function 轉義_(t) { return String(t || '').replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
 
 /* ---------- 推播（FCM HTTP v1） ---------- */
 function 送出_(tokens, msg) {
