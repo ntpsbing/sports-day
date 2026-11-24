@@ -852,7 +852,7 @@ html.ov-transparent body::before{ display:none; }
             <input id="resQ" class="inp" v-model.trim="resQ" placeholder="例如 503、五年三班、壘球" maxlength="20">
           </div>
         </div>
-        <div class="res-legend mt-2">已公布 {{ publishedEvents.length }} 個項目・<b v-if="!fullResults">每項公布前 6 名得獎名單・</b><span v-else>你是工作人員，可以看完整成績（家長只看得到前 6 名）・</span><span v-if="maskOn">學生姓名依個資保護顯示為「王○明」・</span><span v-if="fullResults">NM＝無有效成績　DNS＝未出賽　DNF＝未跑完　DQ＝犯規</span></div>
+        <div class="res-legend mt-2">已公布 {{ publishedEvents.length }} 個項目・<b v-if="!fullResults">每項公布前 6 名得獎名單・</b><span v-else>你是工作人員，可以看完整成績（家長只看得到前 6 名）・</span><span v-if="maskOn">學生姓名依個資保護顯示為「王○明」・</span><span v-else-if="st.settings.maskNames!==false">學生顯示全名（家長看到的是「王○明」）・</span><span v-if="fullResults">NM＝無有效成績　DNS＝未出賽　DNF＝未跑完　DQ＝犯規</span></div>
       </div>
       <div v-if="!resultsShown.length" class="card text-center muted" style="padding:40px 16px">{{ publishedEvents.length ? '找不到符合的項目，換個關鍵字試試。' : '目前還沒有公布的成績，公布後這裡會即時出現。' }}</div>
       <div class="res-grid">
@@ -1535,6 +1535,10 @@ html.ov-transparent body::before{ display:none; }
         <b>頒獎人狀況需要注意：</b>
         <div v-for="x in awardIssues" :key="x">・{{ x }}</div>
       </div>
+      <div class="card mb-4 flex items-center gap-3 flex-wrap" style="border-left:5px solid var(--brand)">
+        <div style="flex:1;min-width:220px"><b>🖨 頒獎核對單（全名）</b><div class="small muted">依頒獎梯次排好，有全名、班級、成績、領獎勾選欄與頒獎人，給司儀唸名單和現場核對。只給工作人員，請勿張貼。</div></div>
+        <button class="btn btn-primary" @click="sheetOpt.kind='all'; sheetOpt.group='batch'; sheetOpt.sign=true; sheetOpt.presenter=true; sheetOpt.pubOnly=true; go('sheets')">打開核對單 →</button>
+      </div>
       <div class="card-flat small mb-4"><b>頒獎人遞補順序：</b>臨時指定 → 主要頒獎人 → 備援頒獎人 → 校長 → 家長會長 → 已到場的主任。有人「無法出席」時，系統自動換人，司儀稿也會改成「代表頒獎」。</div>
       <div class="grid gap-4" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,420px),1fr))">
         <div v-for="(b,bi) in st.batches" :key="b.id" class="card flex flex-col gap-3" :style="b.status==='ready'?'border:2px solid var(--brand)':''">
@@ -1672,7 +1676,7 @@ html.ov-transparent body::before{ display:none; }
           </div></div>
         </div>
 
-        <div class="sh-foot"><span>頒獎組核對：＿＿＿＿＿＿　紀錄組：＿＿＿＿＿＿</span><span>本表由運動會即時通報系統產生</span></div>
+        <div class="sh-foot"><span>⚠ 內含學生全名，僅供工作人員使用　頒獎組核對：＿＿＿＿＿＿　紀錄組：＿＿＿＿＿＿</span><span>本表由運動會即時通報系統產生</span></div>
       </div>
     </section>
 
@@ -2399,7 +2403,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261125030000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261125040000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -2905,7 +2909,8 @@ createApp({
        ・家長觀眾（未登入）看到的每一頁、大會看板（會投影）、看直播、直播疊字、PO 文 → 一律遮罩
        ・工作人員、導師登入後在自己的頁面看到全名
        ・紀錄組可在「積分與設定」關掉 */
-    const maskOn = computed(()=>st.value.settings.maskNames!==false && (isPublicView.value || ['board','watch','results','overlay'].includes(page.value)));
+    /* 遮名：家長、觀眾（沒登入）看到「王○明」；工作人員登入後看全名。大螢幕看板、直播字幕會公開投影，一律遮 */
+    const maskOn = computed(()=>st.value.settings.maskNames!==false && (isPublicView.value || ['board','overlay'].includes(page.value)));
     function maskName(n){ n=String(n||''); if(!n || /[O○〇Ｏ]/.test(n) || n.length<2) return n; return n[0]+'○'+n.slice(2); }
     function pn(n){ return maskOn.value ? maskName(n) : n; }
     /* 成績查詢 */
