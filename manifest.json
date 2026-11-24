@@ -1,0 +1,20 @@
+{
+  "name": "楠梓國小 運動會即時通報系統",
+  "short_name": "運動會通報",
+  "description": "楠梓國小校慶運動會即時通報、檢錄、頒獎與成績查詢系統",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#F5F3EC",
+  "theme_color": "#0E4D8C",
+  "lang": "zh-Hant",
+  "icons": [
+    {
+      "src": "logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

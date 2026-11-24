@@ -5,6 +5,8 @@
 | 檔案 | 用途 | 交接時要不要改 |
 |---|---|---|
 | `index.html` | 系統本體（全部頁面都在這一個檔） | 不用 |
+| `manifest.json` | 手機加入主畫面（PWA）設定 | 不用 |
+| `sw.js` | 手機系統通知列（Service Worker）支援 | 不用 |
 | `config.js` | 學校設定：Firebase 連線、學校網域、系統管理員 | **要** |
 | `firestore.rules` | 雲端資料庫安全規則（誰能改什麼） | **要**（管理員帳號） |
 | `firebase.json` | 規則部署用設定 | 不用 |
