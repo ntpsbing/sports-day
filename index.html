@@ -399,13 +399,13 @@ tr:hover .medal-svg, .pod:hover .medal-svg{ transform:translateY(-2px) rotate(-6
 /* ---------- 港都晴空：大會看板 ---------- */
 .sky{ background:linear-gradient(160deg,var(--sky-a) 0%,var(--sky-b) 70%,#1586C9 100%); color:#fff; border-radius:20px; position:relative; overflow:hidden; }
 .sky::after{ content:""; position:absolute; left:0; right:0; bottom:0; height:22px; background:repeating-linear-gradient(90deg, #B4441A 0 60px, #C65227 60px 120px); box-shadow:inset 0 3px 0 rgba(255,255,255,.9), inset 0 11px 0 -8px rgba(255,255,255,.6); }
-.board{ padding:22px 22px 44px; display:grid; gap:16px; grid-template-columns:1.05fr 1.6fr; grid-template-areas:"head head" "now latest" "award award" "stand stand" "tick tick"; }
+.board{ padding:22px 22px 44px; display:grid; gap:16px; grid-template-columns:1.05fr 1.6fr; grid-template-areas:"tick tick" "head head" "now latest" "award award" "stand stand"; }
 .b-award{ grid-area:award; }
 .b-head{ grid-area:head; }
-.b-now{ grid-area:now; } .b-latest{ grid-area:latest; } .b-stand{ grid-area:stand; } .b-tick{ grid-area:tick; }
-.board.board-cd{ grid-template-areas:"head head" "now now" "latest latest" "award award" "stand stand" "tick tick"; }
-@media (max-width:900px){ .board{ grid-template-columns:1fr; grid-template-areas:"head" "now" "latest" "award" "stand" "tick"; padding:16px 14px 40px; } }
-@media (max-width:900px){ .board.board-cd{ grid-template-areas:"head" "now" "latest" "award" "stand" "tick"; } }
+.b-now{ grid-area:now; } .b-latest{ grid-area:latest; } .b-stand{ grid-area:stand; } .b-tick{ grid-area:tick; position:sticky; top:calc(env(safe-area-inset-top, 0px) + 6px); z-index:5; background:#0B3B6B; box-shadow:0 4px 14px rgba(0,0,0,.18); }
+.board.board-cd{ grid-template-areas:"tick tick" "head head" "now now" "latest latest" "award award" "stand stand"; }
+@media (max-width:900px){ .board{ grid-template-columns:1fr; grid-template-areas:"tick" "head" "now" "latest" "award" "stand"; padding:16px 14px 40px; } }
+@media (max-width:900px){ .board.board-cd{ grid-template-areas:"tick" "head" "now" "latest" "award" "stand"; } }
 .glass{ background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.22); border-radius:16px; padding:16px; min-width:0; }
 .whitecard{ background:#fff; color:#0E2132; border-radius:16px; padding:16px; min-width:0; }
 .b-label{ font-size:15px; letter-spacing:.12em; font-weight:700; opacity:.85; }
@@ -423,7 +423,7 @@ tr:hover .medal-svg, .pod:hover .medal-svg{ transform:translateY(-2px) rotate(-6
 @keyframes rise{ from{ transform:scaleY(.1); opacity:0 } to{ transform:scaleY(1); opacity:1 } }
 .standrow{ display:grid; grid-template-columns:2.2em 6.2em 1fr 3em; align-items:center; gap:8px; font-size:17px; }
 .standrow .sb{ height:16px; border-radius:99px; background:linear-gradient(90deg,var(--sun),#FFD84D); transition:width .5s; }
-.ticker{ overflow:hidden; white-space:nowrap; border-radius:12px; background:rgba(0,0,0,.25); padding:10px 0; font-size:19px; font-weight:700; }
+.ticker{ overflow:hidden; white-space:nowrap; border-radius:12px; background:rgba(0,0,0,.32); padding:10px 0; font-size:clamp(19px,1.9vw,26px); font-weight:800; border:2px solid rgba(255,214,74,.55); }
 .ticker span{ display:inline-block; padding-left:100%; animation:tick 28s linear infinite; }
 @keyframes tick{ to{ transform:translateX(-100%); } }
 .teacher-hero{ padding:20px 20px 40px; }
@@ -1165,6 +1165,7 @@ html.ov-transparent body::before{ display:none; }
       </div>
       <div class="sky">
         <div :class="['board', { 'board-cd': cd }]">
+          <div class="b-tick ticker" aria-live="polite"><span :style="{ animationDuration: Math.max(28, Math.round(tickerText.length*0.32))+'s' }">{{ tickerText }}</span></div>
           <div class="b-head flex items-center justify-between gap-3 flex-wrap">
             <div class="flex items-center gap-3" style="min-width:0">
               <img v-if="logoOk" :src="LOGO" alt="楠梓國小校徽" class="logo-img" style="width:64px;height:64px" @error="logoOk=false">
@@ -1236,14 +1237,14 @@ html.ov-transparent body::before{ display:none; }
 
           <div class="b-stand glass">
             <div class="flex items-center justify-between flex-wrap gap-2 mb-2">
-              <div class="b-label">總錦標積分排行（即時）</div>
+              <div class="b-label">總錦標積分排行（即時・前 {{ st.settings.scoring.champTop||3 }} 名）</div>
               <div class="small" style="opacity:.85">積分規則：第 1～{{ st.settings.scoring.points.length }} 名 {{ st.settings.scoring.points.join('・') }} 分，接力 ×{{ st.settings.scoring.relayMult }}<span v-if="st.events.some(e=>e.scoreMode!=='default')">（部分項目自訂）</span></div>
             </div>
             <div class="grid gap-5" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr))">
               <div v-for="g in st.settings.scoring.grades" :key="g" style="min-width:0">
                 <div style="font-weight:900;font-size:20px" class="mb-1">{{ ZH[g] }}年級</div>
                 <div class="flex flex-col gap-1">
-                  <div class="standrow" v-for="(r,i) in (standings[g]||[]).slice(0,6)" :key="r.cls">
+                  <div class="standrow" v-for="(r,i) in (standings[g]||[]).slice(0, st.settings.scoring.champTop||3)" :key="r.cls">
                     <b class="num" :style="'font-size:22px;color:'+(i===0?'var(--sun)':'#fff')">{{ i+1 }}</b>
                     <span style="font-weight:700">{{ clsLabel(r.cls) }}</span>
                     <div><div class="sb" :style="{width: barW(r.pts, g)+'%'}"></div></div>
@@ -1254,7 +1255,6 @@ html.ov-transparent body::before{ display:none; }
             </div>
           </div>
 
-          <div class="b-tick ticker" aria-live="polite"><span>{{ tickerText }}</span></div>
         </div>
       </div>
     </section>
@@ -2589,7 +2589,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261125133000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261125140000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -2811,6 +2811,7 @@ const HELP = {
 };
 /* 新功能公告：依組別顯示，每台裝置看過按「知道了」就不再出現（之後新增功能時，在最上面加一筆） */
 const WHATS_NEW = [
+  { id:'n20261125f', roles:['control','record','mc'], page:'board', title:'大會看板最上方跑馬燈會預告節目', text:'跑馬燈移到看板最上面，自動顯示現在進行、接下來兩個節目（時間、地點）、頒獎預告、檢錄與放學提醒，家長一眼就看到。總錦標排行只顯示前 3 名。' },
   { id:'n20261125e', roles:['control'], page:'accounts', title:'總控也可以設定帳號與權限', text:'當天有老師臨時換人，總控可以直接在「帳號與權限」改組別，不用等系統管理員。「總控」身分本身只有系統管理員能給。' },
   { id:'n20261125c', roles:['mc'], page:'mc', title:'司儀台最上方多了「節目單提示」', text:'現在要唸的稿子、下一個節目的預告稿都寫好了，照著唸就好。總控忘記按開始時，畫面上方會跳出橘色條，按「通知總控」即可。' },
   { id:'n20261125b', roles:['control','record'], page:'home', title:'總控台可以「＋ 臨時插入流程」', text:'下雨、醫護、場地整理等突發狀況：點範本→按送出，司儀和相關組別手機同時收到。' },
@@ -4082,7 +4083,17 @@ createApp({
     /* ----- 看板輪播與時鐘 ----- */
     const boardIdx = ref(0);
     const boardEvent = computed(()=>latestPublished.value[boardIdx.value % Math.max(1,latestPublished.value.length)] || null);
-    const tickerText = computed(()=>{ const items=[]; st.value.gifts.filter(g=>g.announced).slice(-3).forEach(g=>items.push('【感謝】'+g.donor+' 捐贈 '+g.item)); checkinEvents.value.forEach(e=>items.push('【檢錄】'+e.name+' 請到檢錄處報到')); if(nextTl.value) items.push('【下一項】'+tlTime(nextTl.value)+' '+nextTl.value.title); st.value.broadcasts.filter(b=>b.done && !b.cancelled && (b.type==='flow'||b.type==='insert')).slice(-3).forEach(b=>items.push('【大會報告】'+b.text.replace(/^大會報告：/,''))); items.push('楠梓國小創校127週年　活力躍動　魅力楠梓'); return items.join('　　◆　　'); });
+    /* 看板最上方跑馬燈（給家長看）：現在進行 → 節目預告 → 頒獎預告 → 檢錄 → 放學提醒 → 感謝 → 大會報告 */
+    const tickerText = computed(()=>{ const items=[], tl=st.value.timeline, now=clockMin.value;
+      const where = t => [t.unit, t.place].filter(Boolean).join('・');
+      if(nowTl.value) items.push('【現在進行】'+(nowTl.value.no?'第'+nowTl.value.no+'項 ':'')+nowTl.value.title+(where(nowTl.value)?'（'+where(nowTl.value)+'）':''));
+      tl.filter(t=>t.status==='todo').slice(0,2).forEach(t=>items.push('【節目預告】'+tlTime(t)+' '+(t.no?'第'+t.no+'項 ':'')+t.title+(where(t)?'（'+where(t)+'）':'')+(t.check?'，檢錄 '+t.check:'')));
+      const aw=tl.find(t=>t.status!=='done' && t.award); if(aw) items.push('【頒獎預告】'+tlTime(aw)+' 頒獎：'+aw.award+'，得獎同學請到司令台前頒獎台旁集合');
+      checkinEvents.value.forEach(e=>items.push('【檢錄】'+e.name+' 請到檢錄處報到'));
+      tl.filter(t=>t.note && /放學/.test(t.note)).forEach(t=>{ const m=t.note.match(/(\d{1,2})[:：](\d{2})/); const hm=m ? (+m[1] < 7 ? +m[1]+12 : +m[1])*60 + +m[2] : null; if(hm===null || now<=hm) items.push('【放學提醒】'+t.note+'，請家長準時接送'); });
+      st.value.gifts.filter(g=>g.announced).slice(-3).forEach(g=>items.push('【感謝】'+g.donor+' 捐贈 '+g.item));
+      st.value.broadcasts.filter(b=>b.done && !b.cancelled && b.type==='insert').slice(-2).forEach(b=>items.push('【大會報告】'+b.text.replace(/^大會報告：/,'')));
+      items.push('楠梓國小創校127週年　活力躍動　魅力楠梓'); return items.join('　　◆　　'); });
     setInterval(()=>{ clock.value=hhmm(); },10000);
     setInterval(()=>{ if(page.value==='board' && latestPublished.value.length) boardIdx.value=(boardIdx.value+1)%latestPublished.value.length; },8000);
     function toggleBoardMode(){ boardMode.value=!boardMode.value; }
