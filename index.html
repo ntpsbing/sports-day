@@ -397,12 +397,19 @@ tr:hover .medal-svg, .pod:hover .medal-svg{ transform:translateY(-2px) rotate(-6
 @media (max-width:640px){ .tl-item{ grid-template-columns:62px 1fr; } .tl-act{ grid-column:1 / -1; } }
 
 /* ---------- 港都晴空：大會看板 ---------- */
-.sky{ background:linear-gradient(160deg,var(--sky-a) 0%,var(--sky-b) 70%,#1586C9 100%); color:#fff; border-radius:20px; position:relative; overflow:hidden; }
+.sky{ background:linear-gradient(160deg,var(--sky-a) 0%,var(--sky-b) 70%,#1586C9 100%); color:#fff; border-radius:20px; position:relative; overflow:hidden; overflow:clip; }
 .sky::after{ content:""; position:absolute; left:0; right:0; bottom:0; height:22px; background:repeating-linear-gradient(90deg, #B4441A 0 60px, #C65227 60px 120px); box-shadow:inset 0 3px 0 rgba(255,255,255,.9), inset 0 11px 0 -8px rgba(255,255,255,.6); }
 .board{ padding:22px 22px 44px; display:grid; gap:16px; grid-template-columns:1.05fr 1.6fr; grid-template-areas:"tick tick" "head head" "now latest" "award award" "stand stand"; }
 .b-award{ grid-area:award; }
 .b-head{ grid-area:head; }
-.b-now{ grid-area:now; } .b-latest{ grid-area:latest; } .b-stand{ grid-area:stand; } .b-tick{ grid-area:tick; position:sticky; top:calc(env(safe-area-inset-top, 0px) + 6px); z-index:5; background:#0B3B6B; box-shadow:0 4px 14px rgba(0,0,0,.18); }
+.b-now{ grid-area:now; } .b-latest{ grid-area:latest; } .b-stand{ grid-area:stand; } .b-tick{ grid-area:tick; min-width:0; position:sticky; top:calc(var(--topbar-h, env(safe-area-inset-top, 0px)) + 6px); z-index:5; display:flex; flex-direction:column; gap:6px; }
+.b-tick .ticker{ background:#0B3B6B; box-shadow:0 4px 14px rgba(0,0,0,.18); }
+.b-flash{ min-width:0; overflow-wrap:anywhere; border-radius:12px; padding:10px 16px; font-size:clamp(18px,1.8vw,24px); font-weight:700; line-height:1.5; background:#FFD54A; color:#2A1E00; box-shadow:0 4px 14px rgba(0,0,0,.18); animation:flashin .5s ease-out; }
+.b-flash.urgent{ background:#C8102E; color:#fff; }
+.b-flash.report{ background:#FFF1E0; color:#5A2D00; border:2px solid #E07A00; }
+.b-flash-at{ font-size:.75em; opacity:.75; margin-left:10px; white-space:nowrap; }
+.b-flash-note{ font-size:.7em; opacity:.7; margin-left:6px; }
+@keyframes flashin{ from{ transform:translateY(-6px); opacity:0; } to{ transform:none; opacity:1; } }
 .board.board-cd{ grid-template-areas:"tick tick" "head head" "now now" "latest latest" "award award" "stand stand"; }
 @media (max-width:900px){ .board{ grid-template-columns:1fr; grid-template-areas:"tick" "head" "now" "latest" "award" "stand"; padding:16px 14px 40px; } }
 @media (max-width:900px){ .board.board-cd{ grid-template-areas:"tick" "head" "now" "latest" "award" "stand"; } }
@@ -1184,7 +1191,11 @@ html.ov-transparent body::before{ display:none; }
       </div>
       <div class="sky">
         <div :class="['board', { 'board-cd': cd }]">
-          <div class="b-tick ticker" aria-live="polite"><span :style="{ animationDuration: Math.max(28, Math.round(tickerText.length*0.32))+'s' }">{{ tickerText }}</span></div>
+          <div class="b-tick">
+            <div class="ticker" aria-live="polite"><span :style="{ animationDuration: Math.max(28, Math.round(tickerText.length*0.32))+'s' }">{{ tickerText }}</span></div>
+            <div v-if="flashLine" :class="['b-flash', flashLine.urgent ? 'urgent' : '']" role="status">{{ flashLine.icon }} <b>{{ flashLine.label }}</b>　{{ flashLine.text }}<span class="b-flash-at">{{ flashLine.at }}</span></div>
+            <div v-if="reportLine" class="b-flash report" role="status">🚨 <b>現場通報・{{ reportLine.label }}</b>　{{ reportLine.text }}<span class="b-flash-at">{{ reportLine.at }}・{{ reportLine.state }}</span><span class="b-flash-note">（只有登入的工作人員看得到）</span></div>
+          </div>
           <div class="b-head flex items-center justify-between gap-3 flex-wrap">
             <div class="flex items-center gap-3" style="min-width:0">
               <img v-if="logoOk" :src="LOGO" alt="楠梓國小校徽" class="logo-img" style="width:64px;height:64px" @error="logoOk=false">
@@ -2613,7 +2624,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261125151500'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261125153000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -2835,6 +2846,7 @@ const HELP = {
 };
 /* 新功能公告：依組別顯示，每台裝置看過按「知道了」就不再出現（之後新增功能時，在最上面加一筆） */
 const WHATS_NEW = [
+  { id:'n20261125i', roles:['control','record','mc'], page:'board', title:'臨時插播會在跑馬燈下方「跳一行」', text:'司儀插播或緊急更正，10 分鐘內會在大會看板跑馬燈下方單獨顯示一行（緊急更正是紅色）；未處理的現場通報只有登入的工作人員看得到，投影模式不顯示。' },
   { id:'n20261125h', roles:['control','record'], page:'home', title:'總控可以自己打字上跑馬燈', text:'總控台「當天流程」上方按「📢 跑馬燈公告」，輸入或點範本，選顯示多久，按「上跑馬燈」：大會看板最上方立刻出現，時間到自動下架，也可以同時請司儀廣播。' },
   { id:'n20261125g', roles:['record','sport'], page:'score', title:'學生姓名打錯可以直接改', text:'到「成績登錄」選項目，按姓名旁的「✏️ 改姓名」，輸入正確姓名就好；不用退回重審，看板馬上更新，系統會留紀錄。已公布的項目只有紀錄組能改。' },
   { id:'n20261125f', roles:['control','record','mc'], page:'board', title:'大會看板最上方跑馬燈會預告節目', text:'跑馬燈移到看板最上面，自動顯示現在進行、接下來兩個節目（時間、地點）、頒獎預告、檢錄與放學提醒，家長一眼就看到。總錦標排行只顯示前 3 名。' },
@@ -4126,6 +4138,16 @@ createApp({
     /* ----- 看板輪播與時鐘 ----- */
     const boardIdx = ref(0);
     const boardEvent = computed(()=>latestPublished.value[boardIdx.value % Math.max(1,latestPublished.value.length)] || null);
+    /* 跑馬燈固定在畫面上方：記下頂端選單列的高度，跑馬燈停在它下面 */
+    onMounted(()=>{ const setH=()=>{ let h=0; document.querySelectorAll('.topbar, .noticebar').forEach(t=>{ const cs=getComputedStyle(t); if(t.offsetParent!==null && (cs.position==='sticky' || cs.position==='fixed')){ const r=t.getBoundingClientRect(); if(r.top < 140) h=Math.max(h, r.bottom); } }); document.documentElement.style.setProperty('--topbar-h', Math.max(0,Math.round(h))+'px'); };
+      setH(); window.addEventListener('resize', setH); window.addEventListener('scroll', ()=>requestAnimationFrame(setH), { passive:true }); setInterval(setH, 2000); });
+    /* 看板跑馬燈下方「跳一行」：最近 10 分鐘的臨時插播／緊急更正（大家都看得到）；未處理的現場通報（只有登入的工作人員、非投影模式看得到） */
+    const flashLine = computed(()=>{ const lim=nowTick.value-600000;
+      const b=st.value.broadcasts.filter(x=>!x.cancelled && ['urgent','insert'].includes(x.type) && (x.ts||0)>=lim).sort((a,b)=>(b.ts||0)-(a.ts||0))[0];
+      if(!b) return null; return { urgent:b.type==='urgent', icon:b.type==='urgent'?'⚠️':'📣', label:b.type==='urgent'?'緊急更正':'臨時插播', text:String(b.text||'').replace(/^大會報告：/,''), at:b.at||'' }; });
+    const reportLine = computed(()=>{ if(isPublicView.value || boardMode.value) return null;
+      const r=st.value.reports.filter(x=>isOpenR(x)).sort((a,b)=>(b.urgent?1:0)-(a.urgent?1:0) || (b.ts||0)-(a.ts||0))[0];
+      if(!r) return null; return { label:(RTYPES[r.type]||{}).name||'其他', text:[r.place, r.text].filter(Boolean).join('：'), at:r.at||'', state:r.status==='doing'?'處理中':'待處理' }; });
     /* 看板最上方跑馬燈（給家長看）：標題 → 總控公告 → 現在進行／節目預告 → 頒獎預告、檢錄、感謝、大會報告 → 放學時間（最後） */
     const tickerText = computed(()=>{ const items=[], tl=st.value.timeline;
       const where = t => [t.unit, t.place].filter(Boolean).join('・');
@@ -4473,7 +4495,7 @@ createApp({
 
     return { st, role, page, helpOpen, acctMgr, isCtrlEmail, closeHelp, newsList, dismissNews, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
       SHORT, cd, pad, insertOpen, openInsert, promptGroup, promptNext, scriptState, jumpScripts, ringLong, toggleRing, refOk, refChanged, confirmRef, needRef, doneTab, doneShown, restoreBc, scriptLib, scriptsOf, scriptGroups, nextScriptGroup, sf, editScript, saveScript, removeScript, moveScript, queueScript, sPaste, sParsed, importScripts, canBc, pushState, registerPush, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
-      drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, TICKER_TPL, tkOpen, tk, tickerMsgs, hhmmOf, addTicker, removeTicker, canFixName, fixName, overdueTl, overdueSnoozed, snoozeOverdue, remindControl, setAutoFlow, ADHOC_TPL, adhocOpen, adhoc, useAdhocTpl, addAdhoc, tlRange, tlNo, mcScriptOf, prepScriptOf, nextMinsLeft, scheduledTl, mcProgOpen, applyProgram, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
+      drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, flashLine, reportLine, TICKER_TPL, tkOpen, tk, tickerMsgs, hhmmOf, addTicker, removeTicker, canFixName, fixName, overdueTl, overdueSnoozed, snoozeOverdue, remindControl, setAutoFlow, ADHOC_TPL, adhocOpen, adhoc, useAdhocTpl, addAdhoc, tlRange, tlNo, mcScriptOf, prepScriptOf, nextMinsLeft, scheduledTl, mcProgOpen, applyProgram, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
       roleObj, myPages, navPages, myTasks, dateLabel, go, badge, kpi, ask, modalOk, clsLabel,
       ranked, top, fmtMark, standings, barW, classPts, classRank, preEvents, dayEvents, reviewEvents, publishedEvents, latestPublished, checkinEvents,
