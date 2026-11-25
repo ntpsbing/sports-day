@@ -1031,6 +1031,7 @@ html.ov-transparent body::before{ display:none; }
           <h2 class="h-sec">🏃 全員賽跑・各班前三名</h2>
           <span class="small muted">{{ arPubGradeText }}・導師送出後馬上出現<b v-if="arFull" style="color:var(--ok)">・你是老師，看得到全名（家長看到「王○明」）</b></span>
         </div>
+        <div v-if="FORMAL ? (fb.user && can('config')) : can('config')" class="flex flex-wrap gap-2 items-center mb-3 no-print"><span class="small font-bold">家長看得到的年級（點一下切換）：</span><button v-for="g in AR_PUB_OPTS" :key="g.id" type="button" class="btn btn-sm" :class="arPubGrades.includes(g.id)?'btn-primary':''" :aria-pressed="arPubGrades.includes(g.id)" @click="toggleArPub(g.id)">{{ arPubGrades.includes(g.id) ? '✔ ' : '' }}{{ g.name }}</button></div>
         <div v-if="!arPubShown.length" class="muted" style="padding:10px 0">還沒有班級送出成績，全員賽跑結束後導師填報就會出現在這裡。</div>
         <div class="ar-grid">
           <details v-for="x in arPubShown" :key="x.cls" class="ar-cls" :open="arPubShown.length<=4">
@@ -2265,14 +2266,15 @@ html.ov-transparent body::before{ display:none; }
         </fold-card>
 
         <div class="flex flex-col gap-3" style="min-width:0">
+          <fold-card k="cfg-arpub" :open="true">
+  <template #title>🏃 全員賽跑・家長看得到的年級</template>
+  <template #sum><span class="sumchip">{{ arPubGradeText }}</span></template>
+            <p class="small muted mb-2">點年級切換。亮起來的年級，導師送出全員賽跑前三名後，會出現在「成績查詢」頁最下方；家長看到遮名（王○明），登入的老師看全名。</p>
+            <div class="flex flex-wrap gap-2"><button v-for="g in AR_PUB_OPTS" :key="g.id" type="button" class="btn btn-sm" :class="arPubGrades.includes(g.id)?'btn-primary':''" :aria-pressed="arPubGrades.includes(g.id)" @click="toggleArPub(g.id)" :disabled="!can('config')">{{ arPubGrades.includes(g.id) ? '✔ ' : '' }}{{ g.name }}</button></div>
+          </fold-card>
           <fold-card k="cfg-basic" :open="false">
   <template #title>🏫 基本資料</template>
   <template #sum><span class="sumchip">{{ dateLabel }}</span><span class="sumchip">一～六年級 {{ totalClasses }} 班</span></template>
-            <div class="card-flat mb-3">
-              <div class="font-bold mb-1">🏃 全員賽跑成績給家長看的年級</div>
-              <div class="small muted mb-2">勾選的年級，導師送出全員賽跑前三名後，會出現在「成績查詢」頁（家長看到「王○明」遮名）。</div>
-              <div class="flex flex-wrap gap-2"><label v-for="g in AR_PUB_OPTS" :key="g.id" class="btn btn-sm" :class="arPubGrades.includes(g.id)?'btn-primary':''"><input type="checkbox" class="sr-only" :checked="arPubGrades.includes(g.id)" @change="toggleArPub(g.id)" :disabled="!can('config')">{{ arPubGrades.includes(g.id) ? '✔ ' : '' }}{{ g.name }}</label></div>
-            </div>
             <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
               <div style="grid-column:1/-1"><label class="lbl" for="stTitle">活動名稱</label><input id="stTitle" class="inp" v-model="st.settings.title" maxlength="40"></div>
               <div><label class="lbl" for="stDate">運動會日期</label><input id="stDate" class="inp" type="date" v-model="st.settings.date"></div>
@@ -2795,7 +2797,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261125210500'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261125211000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -3019,7 +3021,7 @@ const HELP = {
 };
 /* 新功能公告：依組別顯示，每台裝置看過按「知道了」就不再出現（之後新增功能時，在最上面加一筆） */
 const WHATS_NEW = [
-  { id:'n20261125l', roles:['teacher','public','control','record'], page:'results', title:'家長看得到低年級全員賽跑成績', text:'導師在「導師查詢」送出全員賽跑每組前三名後，會馬上出現在「成績查詢」頁最下方（家長看到遮名，例如王○明）。公開哪些年級可在「積分與設定 → 基本資料」勾選。' },
+  { id:'n20261125l', roles:['teacher','public','control','record'], page:'results', title:'家長看得到低年級全員賽跑成績', text:'導師在「導師查詢」送出全員賽跑每組前三名後，會馬上出現在「成績查詢」頁最下方（家長看到遮名，例如王○明）。要公開哪些年級，在成績查詢頁的全員賽跑區或「積分與設定」最上方點年級切換。' },
   { id:'n20261125k', roles:['teacher','public','control','record','mc'], page:'program', title:'選單多了「🗓️ 節目單」', text:'運動會當天每個節目的時間、地點、參加班級，手機電腦都清楚；點年級就只亮自己班的節目，現在進行、下一個會自動標出來。家長不用登入也能看。' },
   { id:'n20261125j', roles:['live','control'], page:'live', title:'直播畫面也有跑馬燈與臨時插播', text:'直播疊字畫面最下方會跑跑馬燈（可在「直播」頁關閉）；臨時插播、緊急更正會優先跳出在字卡上。家長的「看直播」頁上方也有跑馬燈。' },
   { id:'n20261125i', roles:['control','record','mc'], page:'board', title:'臨時插播會在跑馬燈下方「跳一行」', text:'司儀插播或緊急更正，10 分鐘內會在大會看板跑馬燈下方單獨顯示一行（緊急更正是紅色）；未處理的現場通報只有登入的工作人員看得到，投影模式不顯示。' },
