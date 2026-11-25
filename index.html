@@ -968,9 +968,30 @@ html.ov-transparent body::before{ display:none; }
           <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
             <div class="small muted">{{ dateLabel }}・現在 <b class="num" style="font-size:20px">{{ clock }}</b></div>
             <div class="flex gap-2 flex-wrap">
+              <button class="btn btn-sm btn-primary" v-if="can('flow')" @click="adhocOpen=!adhocOpen" :aria-expanded="adhocOpen">＋ 臨時插入流程</button>
               <button class="btn btn-sm" @click="delay(5)">流程延誤 +5 分</button>
               <button class="btn btn-sm" v-if="st.delayMin" @click="delay(-st.delayMin)">恢復準點</button>
             </div>
+          </div>
+          <div v-if="adhocOpen && can('flow')" class="card-flat mb-3 fade-up" style="border:2px solid var(--brand)">
+            <div class="font-bold mb-1" style="font-size:18px">⚡ 臨時插入流程（突發狀況）</div>
+            <div class="small muted mb-2">先點一個範本或自己填。送出後會排進流程、司儀台收到播報稿，勾選的組別手機會收到「現場通報」提醒。</div>
+            <div class="flex flex-wrap gap-2 mb-2">
+              <button v-for="q in ADHOC_TPL" :key="q.k" class="btn btn-sm" :class="adhoc.tpl===q.k?'btn-primary':''" @click="useAdhocTpl(q)">{{ q.k }}</button>
+            </div>
+            <div class="grid gap-2" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr))">
+              <label class="small">時間<input class="inp num" type="time" v-model="adhoc.time" id="ahTime"></label>
+              <label class="small" style="grid-column:span 2">流程名稱<input class="inp" v-model="adhoc.title" id="ahTitle" maxlength="40" placeholder="例如：雨天暫停，移至風雨操場"></label>
+              <label class="small">參加單位／對象<input class="inp" v-model="adhoc.unit" maxlength="60" placeholder="例如：全校師生"></label>
+              <label class="small">場地<input class="inp" v-model="adhoc.place" maxlength="30" placeholder="例如：風雨操場"></label>
+              <label class="small">後面流程順延<select class="inp" v-model.number="adhoc.delay"><option :value="0">不順延</option><option v-for="n in [5,10,15,20,30]" :key="n" :value="n">{{ n }} 分鐘</option></select></label>
+            </div>
+            <label class="small block mt-2">司儀要唸的話（空白會自動產生）<textarea class="inp" rows="2" v-model="adhoc.mc" maxlength="300"></textarea></label>
+            <div class="small mt-2"><b>同時通知這些組別：</b>
+              <label v-for="(r,k) in RTYPES" :key="k" class="inline-flex items-center gap-1 mr-3" style="min-height:36px"><input type="checkbox" :value="k" v-model="adhoc.notify" style="width:20px;height:20px"> {{ r.name }}</label>
+            </div>
+            <label class="small inline-flex items-center gap-2 mt-1"><input type="checkbox" v-model="adhoc.startNow" style="width:20px;height:20px"> 送出後立刻「開始」這一項</label>
+            <div class="flex gap-2 mt-2"><button class="btn btn-primary" @click="addAdhoc" :disabled="!adhoc.title.trim() || !adhoc.time">送出</button><button class="btn" @click="adhocOpen=false">取消</button></div>
           </div>
           <div class="note mb-3" v-if="st.delayMin">目前流程順延 <b>{{ st.delayMin }}</b> 分鐘，未開始項目的時間已自動調整。</div>
           <div class="tl">
@@ -978,7 +999,7 @@ html.ov-transparent body::before{ display:none; }
             <div v-for="t in st.timeline.filter(t=>showDoneTl || t.status!=='done')" :key="t.id" :class="['tl-item',{now:t.status==='now',done:t.status==='done'}]">
               <div class="tl-time">{{ tlTime(t) }}</div>
               <div style="min-width:0">
-                <div class="font-bold"><span v-if="t.no" class="muted num" style="font-weight:700">{{ t.no }}.</span> {{ t.title }}</div>
+                <div class="font-bold"><span v-if="t.no" class="muted num" style="font-weight:700">{{ t.no }}.</span><span v-if="t.adhoc" class="chip" style="background:#FFE7C2;color:#8A4B00;font-size:13px;margin-right:4px">⚡ 臨時</span> {{ t.title }}</div>
                 <div class="small muted" v-if="t.unit || t.place">{{ [t.unit, t.place].filter(Boolean).join('・') }}<span v-if="t.end">・到 {{ t.end }}</span></div>
                 <div class="small" v-if="t.award" style="color:#B4500A;font-weight:700">🏅 同時頒獎：{{ t.award }}</div>
                 <div class="small muted">{{ t.status==='done'?'✔ 已完成':t.status==='now'?'▶ 進行中':'○ 未開始' }}<span v-if="t.eventIds && t.eventIds.length">・{{ t.eventIds.length }} 個比賽項目</span><span v-if="scriptsOf(t.id).length">・📜 {{ scriptsOf(t.id).length }} 篇講稿</span></div>
@@ -2544,7 +2565,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261125121500'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261125123000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -3341,7 +3362,7 @@ createApp({
     /* ----- 節目單：司儀稿與時間提醒 ----- */
     function shiftHM(hm,t){ if(!hm || !t || t.status==='done' || !st.value.delayMin) return hm||''; const [h,m]=hm.split(':').map(Number); return hhmm(new Date(2000,0,1,h,m+st.value.delayMin)); }
     function tlRange(t){ return tlTime(t)+(t.end ? '–'+shiftHM(t.end,t) : ''); }
-    function tlNo(t){ return t.no ? '第 '+t.no+' 項' : ''; }
+    function tlNo(t){ return t.no ? '第 '+t.no+' 項' : (t.adhoc ? '⚡ 臨時' : ''); }
     function mcScriptOf(t){ if(!t) return ''; if(t.mc && t.mc.trim()) return t.mc.trim();
       const items=(t.items||[]).length>1 ? t.items : (t.items||[]).filter(x=>!t.title.includes(x.replace(/（.*$/,'')) && !x.includes(t.title));
       if(t.check) return '大會報告：'+(t.no?'第 '+t.no+' 項節目，':'')+t.title+'。請'+t.unit+'全學年同學到檢錄處檢錄，檢錄時間 '+t.check+'，比賽時間 '+t.race+'，請'+t.teacher+'協助帶隊。';
@@ -3374,6 +3395,27 @@ createApp({
         const ord=PROGRAM_BATCHES.map(b=>b.id); st.value.batches.sort((a,b)=>(ord.indexOf(a.id)+1||99)-(ord.indexOf(b.id)+1||99));
         st.value.delayMin=0; log('流程表套用 115 學年度節目單'); toast('已套用節目單：'+nt.length+' 項流程、'+PROGRAM_BATCHES.length+' 個頒獎梯次');
       }); }
+    /* ----- 臨時插入流程（突發狀況） ----- */
+    const ADHOC_TPL = [
+      { k:'雨天備案', title:'雨天暫停，移至室內', unit:'全校師生', place:'風雨操場、各班教室', notify:['site','equip'], mc:'大會報告：因為下雨，比賽暫停，請各班依照導師指示移到風雨操場或回教室休息，器材組、場地組請協助收器材，恢復時間請聽廣播。' },
+      { k:'場地整理', title:'場地整理', unit:'事務・場地組、器材組', place:'操場', notify:['site','equip'], mc:'大會報告：現在進行場地整理，請各位同學在原位稍候，下一個節目馬上開始。' },
+      { k:'醫護緊急', title:'醫護緊急處理，暫停比賽', unit:'醫護組', place:'操場', notify:['medic'], mc:'大會報告：場上有同學需要協助，比賽暫停，請醫護組到場，請大家留在原位，保持通道暢通。' },
+      { k:'補頒獎', title:'補頒獎', unit:'頒獎組', place:'司令台前頒獎台', notify:[], mc:'大會報告：現在進行補頒獎，請唱名到的同學到司令台前頒獎台領獎。' },
+      { k:'來賓致詞', title:'來賓致詞', unit:'來賓', place:'司令台', notify:[], mc:'大會報告：現在恭請來賓上台致詞，請大家掌聲歡迎！' },
+      { k:'自己填', title:'', unit:'', place:'', notify:[], mc:'' },
+    ];
+    const adhocOpen = ref(false);
+    const adhoc = reactive({ tpl:'', time:'', title:'', unit:'', place:'', mc:'', notify:[], delay:0, startNow:true });
+    watch(adhocOpen, v=>{ if(v){ Object.assign(adhoc, { tpl:'', time:clock.value, title:'', unit:'', place:'', mc:'', notify:[], delay:0, startNow:true }); } });
+    function useAdhocTpl(q){ Object.assign(adhoc, { tpl:q.k, title:q.title, unit:q.unit, place:q.place, mc:q.mc, notify:[...q.notify] }); }
+    function addAdhoc(){ if(!need('flow')) return; const title=adhoc.title.trim(); if(!title || !adhoc.time) return;
+      const t={ id:'x'+Date.now(), time:adhoc.time, title, kind:'adhoc', adhoc:true, unit:adhoc.unit.trim(), place:adhoc.place.trim(), mc:adhoc.mc.trim(), eventIds:[], status:'todo' };
+      const arr=st.value.timeline; let i=arr.findIndex(x=>x.status!=='done' && (x.time||'')>t.time); if(i<0) i=arr.length; arr.splice(i,0,t);
+      adhoc.notify.forEach(k=>newReport({ type:k, urgent:true, place:t.place, text:'臨時流程 '+t.time+'：'+title+(t.mc?'（'+t.mc.slice(0,60)+'）':''), by:'總控（臨時流程）' }));
+      if(adhoc.delay) delay(adhoc.delay);
+      log('臨時插入流程：'+t.time+' '+title);
+      if(adhoc.startNow) startTl(t); else { bc('insert', '預告臨時流程：'+t.time+' '+title+'。'+(t.mc||'')); toast('已插入「'+title+'」，司儀台已收到預告'); }
+      adhocOpen.value=false; }
     /* ----- 流程 ----- */
     function tlTime(t){ if(t.status==='done' || !st.value.delayMin) return t.time; const [h,m]=t.time.split(':').map(Number); const d=new Date(2000,0,1,h,m+st.value.delayMin); return hhmm(d); }
     function startTl(t){ if(!need('flow')) return; equipAlert(t.id);
@@ -4307,7 +4349,7 @@ createApp({
 
     return { st, role, page, helpOpen, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
       SHORT, cd, pad, insertOpen, openInsert, promptGroup, promptNext, scriptState, jumpScripts, ringLong, toggleRing, refOk, refChanged, confirmRef, needRef, doneTab, doneShown, restoreBc, scriptLib, scriptsOf, scriptGroups, nextScriptGroup, sf, editScript, saveScript, removeScript, moveScript, queueScript, sPaste, sParsed, importScripts, canBc, pushState, registerPush, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
-      drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, tlRange, tlNo, mcScriptOf, prepScriptOf, nextMinsLeft, scheduledTl, mcProgOpen, applyProgram, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
+      drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, ADHOC_TPL, adhocOpen, adhoc, useAdhocTpl, addAdhoc, tlRange, tlNo, mcScriptOf, prepScriptOf, nextMinsLeft, scheduledTl, mcProgOpen, applyProgram, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
       roleObj, myPages, navPages, myTasks, dateLabel, go, badge, kpi, ask, modalOk, clsLabel,
       ranked, top, fmtMark, standings, barW, classPts, classRank, preEvents, dayEvents, reviewEvents, publishedEvents, latestPublished, checkinEvents,
