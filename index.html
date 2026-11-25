@@ -2544,7 +2544,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261125120000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261125121500'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -3346,6 +3346,7 @@ createApp({
       const items=(t.items||[]).length>1 ? t.items : (t.items||[]).filter(x=>!t.title.includes(x.replace(/（.*$/,'')) && !x.includes(t.title));
       if(t.check) return '大會報告：'+(t.no?'第 '+t.no+' 項節目，':'')+t.title+'。請'+t.unit+'全學年同學到檢錄處檢錄，檢錄時間 '+t.check+'，比賽時間 '+t.race+'，請'+t.teacher+'協助帶隊。';
       if(t.kind==='prep' && /午餐/.test(t.title)) return '大會報告：上午的節目到此告一段落，現在是午餐、午休時間，請各班回教室用餐。'+(t.note?t.note+'，請家長準時接送。':'')+'下午大隊接力的班級請準時到檢錄處檢錄。';
+      if(!t.no) return '大會報告：現在進行「'+t.title+'」。'+(t.unit?'參加單位：'+t.unit+'。':'')+(t.place?'地點在'+t.place+'。':'');
       if(t.kind==='prep') return '大會報告：現在進行'+t.title+'，請全校師生一起整理校園。'+(t.note?t.note+'。':'')+'謝謝大家，我們明年見！';
       let txt='各位來賓、各位師生：接下來進行'+(t.no?'第 '+t.no+' 項節目，':'')+'「'+t.title+'」';
       if(items.length) txt+='，內容有'+items.join('、');
@@ -3353,7 +3354,7 @@ createApp({
       if(t.award) txt+='同時在司令台前進行頒獎：'+t.award+'，請得獎同學到頒獎台旁集合。';
       return txt; }
     function prepScriptOf(t){ if(!t) return ''; if(t.check) return '預告：請'+t.unit+'同學準備，'+t.check.split('–')[0]+' 開始到檢錄處檢錄（全學年同時檢錄），請'+t.teacher+'協助帶隊。';
-      if(t.kind==='prep') return '預告：'+tlTime(t)+' 進行「'+t.title+'」。'+(t.note||'');
+      if(t.kind==='prep' || !t.unit) return '預告：'+tlTime(t)+' 進行「'+t.title+'」。'+(t.note||'')+(t.unit?'請'+t.unit+'準備。':'');
       return '預告：下一個節目是'+(t.no?'第 '+t.no+' 項':'')+'「'+t.title+'」，'+tlTime(t)+' 開始，請'+t.unit+'到'+t.place+'準備。'+(t.award?'得獎同學（'+t.award+'）請先到頒獎台旁集合。':''); }
     const toMin = hm => { if(!hm) return null; const [h,m]=hm.split(':').map(Number); return h*60+m; };
     const clockMin = computed(()=>toMin(clock.value));
