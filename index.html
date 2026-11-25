@@ -1302,10 +1302,12 @@ html.ov-transparent body::before{ display:none; }
           <div style="flex:1 1 220px;min-width:0">
             <label class="lbl" for="tcls" style="color:#fff">我的班級</label>
             <select id="tcls" class="inp" v-model="tCls" style="color:#0E2132;background:#fff">
+              <option value="" disabled>👉 請選擇你的班級</option>
               <option v-for="c in allrunClasses" :key="c" :value="c">{{ clsLabel(c) }}</option>
             </select>
+            <div v-if="!tCls" class="mt-2" style="background:#FFD54A;color:#2A1E00;border-radius:10px;padding:8px 12px;font-weight:800">請先在上面選「你帶的班級」，選一次就會記住（登入後換手機也記得）。</div>
           </div>
-          <div class="glass" style="flex:1 1 220px">
+          <div class="glass" style="flex:1 1 220px" v-if="tCls">
             <div class="b-label">本班積分</div>
             <div class="num" style="font-size:40px;font-weight:800;line-height:1">{{ classPts(tCls) }} <span style="font-size:18px">分</span><span v-if="classRank(tCls)" style="font-size:18px">・學年第 {{ classRank(tCls) }} 名</span></div>
           </div>
@@ -2638,7 +2640,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261125154500'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261125160000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -3975,8 +3977,11 @@ createApp({
     function doneBatch(b){ if(!need('award')) return; b.status='done'; b.eventIds.forEach(id=>{ const e=st.value.events.find(x=>x.id===id); if(e && e.status==='published') e.status='awarded'; }); log('完成頒獎：'+b.title); toast('頒獎完成！'); }
 
     /* ----- 導師 ----- */
-    const tCls = ref((()=>{ try{ return localStorage.getItem(KEY+'-tcls')||'5-03'; }catch(e){ return '5-03'; } })());
-    watch(tCls, v=>{ try{ localStorage.setItem(KEY+'-tcls',v); }catch(e){} loadDraft(); });
+    /* 我的班級：不預設班級（避免老師以為自己是五年三班）；選過會記在這台裝置，登入的老師也記在帳號上，換手機一樣記得 */
+    const tCls = ref((()=>{ try{ return localStorage.getItem(KEY+'-tcls')||(FORMAL?'':'5-03'); }catch(e){ return FORMAL?'':'5-03'; } })());
+    watch(tCls, v=>{ try{ localStorage.setItem(KEY+'-tcls',v); }catch(e){} loadDraft();
+      if(FORMAL && fb.user && v){ try{ fref('users',fb.email.toLowerCase()).set({ cls:v }, { merge:true }); }catch(e){} } });
+    async function loadMyCls(){ if(!FORMAL || !fb.user) return; try{ const d=await fref('users',fb.email.toLowerCase()).get(); const c=d.exists && d.data().cls; if(c && c!==tCls.value){ tCls.value=c; } }catch(e){} }
     const teacherEvents = computed(()=>dayEvents.value.filter(e=>e.entries.some(x=>x.cls===tCls.value)).map(ev=>{ const t=st.value.timeline.find(t=>t.eventIds.includes(ev.id)); return { ev, time:t?tlTime(t):'' }; }));
     const teacherCalls = computed(()=>st.value.batches.filter(b=>b.status!=='done').map(b=>({ b, list:winnersOf(b).filter(w=>w.cls===tCls.value) })).filter(x=>x.list.length).sort((a,c)=>(a.b.status==='ready'?0:1)-(c.b.status==='ready'?0:1)));
     const teacherAwards = computed(()=>{ const out=[]; st.value.events.filter(isPub).forEach(ev=>ranked(ev).forEach(x=>{ if(x.e.cls===tCls.value && x.place && x.place<=ev.awardTop) out.push({ key:ev.id+x.e.id, ev:ev.name, place:x.place, name:x.e.name, mark:fmtMark(ev,x.e) }); })); return out.sort((a,b)=>a.place-b.place); });
@@ -4397,6 +4402,7 @@ createApp({
       if(!rs.includes('teacher')) rs.push('teacher'); // 每位學校帳號都保有導師功能（全員賽跑填報）
       fb.myRoles=rs; fb.role=rs[0]; role.value=rs[0];
       try{ fref('users',fb.email.toLowerCase()).set({ email:fb.email.toLowerCase(), name:(fb.user&&fb.user.name)||'', at:Date.now() }, { merge:true }); }catch(e){} // merge：不要蓋掉推播裝置代碼
+      loadMyCls();
     }
     function fbInit(){
       try{
