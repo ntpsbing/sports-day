@@ -990,7 +990,7 @@ html.ov-transparent body::before{ display:none; }
         <button class="card kpi text-left" @click="go('board')"><div class="v num">{{ st.timeline.filter(t=>t.status==='done').length }}<span class="muted" style="font-size:24px">/{{ st.timeline.length }}</span></div><div class="l">🏁 流程已完成</div></button>
         <button class="card kpi text-left" @click="go('score')"><div class="v num">{{ kpi.pub }}<span class="muted" style="font-size:24px">/{{ kpi.preTotal }}</span></div><div class="l">🏆 會前賽已公布</div></button>
         <button class="card kpi text-left" @click="go('guests')"><div class="v num">{{ kpi.guestIn }}<span class="muted" style="font-size:24px">/{{ st.guests.length }}</span></div><div class="l">🤝 來賓已報到</div></button>
-        <button class="card kpi text-left" @click="go('export')"><div class="v num">{{ allrunDone }}<span class="muted" style="font-size:24px">/{{ allrunClasses.length }}</span></div><div class="l">🏃 全員賽跑已填報</div></button>
+        <button class="card kpi text-left" @click="exTab='allrun'; go('export')"><div class="v num">{{ allrunDone }}<span class="muted" style="font-size:24px">/{{ allrunClasses.length }}</span></div><div class="l">🏃 全員賽跑已填報</div></button>
         <button class="card kpi text-left" @click="go('live')"><div class="v" style="font-size:28px;font-weight:900;line-height:1.3" :style="st.live.on?'color:#C8102E':''">{{ st.live.on ? '● 直播中' : '○ 未開播' }}</div><div class="l">📡 網路直播</div></button>
       </div>
 
@@ -1174,6 +1174,14 @@ html.ov-transparent body::before{ display:none; }
                 <button class="btn btn-sm btn-primary mt-1" @click="saveRoster">儲存名單</button>
               </details>
             </div>
+            <details class="card-flat mb-3">
+              <summary class="font-bold cursor-pointer" style="min-height:40px">🏫 導師帶班名單（老師登入直接跳到自己的班）<span class="sumchip ml-2">{{ homeroomRows.filter(r=>r.ok).length }} 班</span></summary>
+              <p class="small muted my-2">一行一班：<b>班級＋導師姓名</b>，也可以寫帳號。例：<span class="num">五年三班 王小明</span>、<span class="num">503 王小明</span>、<span class="num">5-03 tc123@e1.ntps.kh.edu.tw</span>。從學校的導師名單 Excel 直接複製貼上即可；系統用老師 Google 帳號上的姓名比對。</p>
+              <textarea class="inp" id="hrText" rows="8" v-model="homeroomDraft" @input="onHrInput" placeholder="一年一班 王小明&#10;一年二班 李大華"></textarea>
+              <div class="small mt-1" v-if="homeroomRows.length"><b style="color:var(--ok)">✔ 看得懂 {{ homeroomRows.filter(r=>r.ok).length }} 行</b>　<b v-if="homeroomRows.some(r=>!r.ok)" style="color:var(--bad)">✗ 看不懂 {{ homeroomRows.filter(r=>!r.ok).length }} 行：{{ homeroomRows.filter(r=>!r.ok).slice(0,3).map(r=>r.line).join('／') }}</b></div>
+              <button class="btn btn-sm btn-primary mt-2" @click="saveHomeroom" :disabled="!homeroomRows.some(r=>r.ok)">儲存帶班名單</button>
+              <div v-if="fb.admin && homeroomLogins.length" class="small mt-2">已登入的老師：<b style="color:var(--ok)">對到班級 {{ homeroomLogins.filter(x=>x.cls).length }} 位</b>・對不到 {{ homeroomLogins.filter(x=>!x.cls).length }} 位<span v-if="homeroomLogins.some(x=>!x.cls)">（{{ homeroomLogins.filter(x=>!x.cls).slice(0,6).map(x=>x.name||x.email).join('、') }}…對不到的請在名單改成和 Google 帳號一樣的姓名，或直接寫帳號）</span></div>
+            </details>
             <div class="flex gap-2 items-center flex-wrap mb-2"><b>已設定 {{ fb.roles.length }} 位</b>
               <input class="inp" id="rfQ" v-model="roleQ" placeholder="搜尋姓名或帳號" style="max-width:260px"></div>
             <!-- 上面一排組別：點了只看那一組的成員；「全部」看所有人 -->
@@ -1306,6 +1314,7 @@ html.ov-transparent body::before{ display:none; }
               <option v-for="c in allrunClasses" :key="c" :value="c">{{ clsLabel(c) }}</option>
             </select>
             <div v-if="!tCls" class="mt-2" style="background:#FFD54A;color:#2A1E00;border-radius:10px;padding:8px 12px;font-weight:800">請先在上面選「你帶的班級」，選一次就會記住（登入後換手機也記得）。</div>
+            <div v-else-if="myHomeroom && myHomeroom===tCls" class="small mt-1" style="opacity:.9">✔ 已依你的帳號自動帶入（帶班名單：{{ clsLabel(myHomeroom) }}）</div>
           </div>
           <div class="glass" style="flex:1 1 220px" v-if="tCls">
             <div class="b-label">本班積分</div>
@@ -1972,8 +1981,26 @@ html.ov-transparent body::before{ display:none; }
         <div class="bar mb-2"><i :style="{width:(allrunDone/allrunClasses.length*100)+'%'}"></i></div>
         <div class="small muted mb-3">已交 {{ allrunDone }} 班／共 {{ allrunClasses.length }} 班</div>
         <div class="flex flex-wrap gap-2">
-          <span v-for="c in allrunClasses" :key="c" :class="['chip', st.allrun[c]?'st-published':'tag-todo']">{{ st.allrun[c] ? '✔' : '○' }} {{ clsLabel(c) }}</span>
+          <button v-for="c in allrunClasses" :key="c" :class="['chip', st.allrun[c]?'st-published':'tag-todo']" :style="st.allrun[c]?'cursor:pointer':'cursor:default'" @click="st.allrun[c] && (arOpen = arOpen===c ? '' : c)" :title="st.allrun[c] ? '點一下看名單' : '還沒送出'">{{ st.allrun[c] ? '✔' : '○' }} {{ clsLabel(c) }}</button>
         </div>
+        <p class="small muted mt-2" v-if="allrunDone">點綠色班級可看該班名單；下面是所有已送出的名單。</p>
+      </div>
+      <!-- 🏃 各班送出的全員賽跑名單（導師在「導師查詢」填報後即時出現在這裡） -->
+      <div v-if="exTab==='allrun' && allrunDone" class="card mt-4">
+        <div class="flex justify-between flex-wrap gap-2 items-center mb-3">
+          <h2 class="h-sec">各班送出的名單（{{ allrunDone }} 班）</h2>
+          <button class="btn btn-sm btn-primary" @click="exTab='cert'; certFilter='allrun'">🖨 轉成獎狀名單（可下載 Excel）</button>
+        </div>
+        <details v-for="c in allrunClasses.filter(x=>st.allrun[x])" :key="c" :id="'ar_'+c" class="card-flat mb-2" :open="arOpen===c || allrunDone<=6" @toggle="e=>{ if(e.target.open) arOpen=c; }">
+          <summary class="flex items-center gap-2 flex-wrap cursor-pointer" style="min-height:40px">
+            <b style="font-size:17px">{{ clsLabel(c) }}</b>
+            <span class="small muted">{{ st.allrun[c].at }} 送出・{{ st.allrun[c].groups.length }} 組</span>
+          </summary>
+          <table class="rtbl mt-2" style="width:100%">
+            <thead><tr><th style="width:4.5em">組別</th><th>第一名</th><th>第二名</th><th>第三名</th></tr></thead>
+            <tbody><tr v-for="(g,gi) in st.allrun[c].groups" :key="gi"><td style="white-space:nowrap">第 {{ gi+1 }} 組</td><td v-for="(n,ni) in g" :key="ni">{{ n }}</td></tr></tbody>
+          </table>
+        </details>
       </div>
     </section>
 
@@ -2640,7 +2667,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261125163000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261125120000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -3981,7 +4008,25 @@ createApp({
     const tCls = ref((()=>{ try{ return localStorage.getItem(KEY+'-tcls')||(FORMAL?'':'5-03'); }catch(e){ return FORMAL?'':'5-03'; } })());
     watch(tCls, v=>{ try{ localStorage.setItem(KEY+'-tcls',v); }catch(e){} loadDraft();
       if(FORMAL && fb.user && v){ try{ fref('users',fb.email.toLowerCase()).set({ cls:v }, { merge:true }); }catch(e){} } });
-    async function loadMyCls(){ if(!FORMAL || !fb.user) return; try{ const d=await fref('users',fb.email.toLowerCase()).get(); const c=d.exists && d.data().cls; if(c && c!==tCls.value){ tCls.value=c; } }catch(e){} }
+    /* 🏫 導師帶班名單：管理員貼「班級＋姓名（或帳號）」，老師登入後用 Google 帳號姓名自動帶入自己的班級，不用再選
+       存在 meta/homeroom（學校網站本來就公告各班導師，不含學生個資） */
+    const homeroomText = ref(''), homeroomDraft = ref(''); let homeroomTouched=false;
+    watch(homeroomText, v=>{ if(!homeroomTouched) homeroomDraft.value=v; }, { immediate:true });
+    function hrKeys(n){ const s=String(n||'').replace(/teacher|老師|教師|導師/gi,'').replace(/[^一-鿿]/g,''); if(!s) return []; const k=[s]; if(s.length>=3){ k.push(s.slice(-1)+s.slice(0,-1)); k.push(s.slice(-2)+s.slice(0,-2)); } return k; }
+    function parseHomeroom(text){ return String(text||'').split(/\r?\n/).map(l=>l.trim()).filter(Boolean).map(line=>{
+      const toks=line.split(/[\s,，、;；\t\/／]+/).filter(Boolean); let cls=null; const names=[], emails=[];
+      toks.forEach(t=>{ if(t.includes('@')) emails.push(t.toLowerCase()); else if(!cls && parseCls(t)) cls=parseCls(t); else if(/[一-鿿]{2,}/.test(t) && !/年|班/.test(t)) { const k=hrKeys(t)[0]; if(k) names.push(k); } });
+      return { line, cls, names, emails, ok:!!cls && (names.length+emails.length)>0 }; }); }
+    const homeroomRows = computed(()=>parseHomeroom(homeroomDraft.value));
+    const homeroomMap = computed(()=>{ const byName={}, byEmail={}; parseHomeroom(homeroomText.value).filter(r=>r.ok).forEach(r=>{ r.names.forEach(n=>{ byName[n]=r.cls; }); r.emails.forEach(e=>{ byEmail[e]=r.cls; }); }); return { byName, byEmail }; });
+    function homeroomOf(email, name){ const m=homeroomMap.value; if(email && m.byEmail[String(email).toLowerCase()]) return m.byEmail[String(email).toLowerCase()]; const k=hrKeys(name).find(k=>m.byName[k]); return k ? m.byName[k] : ''; }
+    const myHomeroom = computed(()=>FORMAL && fb.user ? homeroomOf(fb.email, fb.user.name) : '');
+    // 登入時：名單對得到就直接跳到自己的班（以名單為準）；對不到才用上次選的班級
+    let hrApplied=false;
+    function onHrInput(){ homeroomTouched=true; }
+    const homeroomLogins = computed(()=>(fb.users||[]).filter(u=>u.email && u.at).map(u=>({ email:u.email, name:u.name, cls:homeroomOf(u.email,u.name) })));
+    async function saveHomeroom(){ const t=homeroomDraft.value.trim(); try{ await fref('meta','homeroom').set({ text:t, by:fb.email, ts:Date.now() }); homeroomTouched=false; homeroomText.value=t; toast('已儲存導師帶班名單（'+parseHomeroom(t).filter(r=>r.ok).length+' 班）'); }catch(e){ toast('儲存失敗：'+((e&&e.code)||''),true); } }
+    async function loadMyCls(){ if(!FORMAL || !fb.user) return; try{ const d=await fref('users',fb.email.toLowerCase()).get(); const c=d.exists && d.data().cls; if(c && c!==tCls.value && !hrApplied){ tCls.value=c; } }catch(e){} }
     const teacherEvents = computed(()=>dayEvents.value.filter(e=>e.entries.some(x=>x.cls===tCls.value)).map(ev=>{ const t=st.value.timeline.find(t=>t.eventIds.includes(ev.id)); return { ev, time:t?tlTime(t):'' }; }));
     const teacherCalls = computed(()=>st.value.batches.filter(b=>b.status!=='done').map(b=>({ b, list:winnersOf(b).filter(w=>w.cls===tCls.value) })).filter(x=>x.list.length).sort((a,c)=>(a.b.status==='ready'?0:1)-(c.b.status==='ready'?0:1)));
     const teacherAwards = computed(()=>{ const out=[]; st.value.events.filter(isPub).forEach(ev=>ranked(ev).forEach(x=>{ if(x.e.cls===tCls.value && x.place && x.place<=ev.awardTop) out.push({ key:ev.id+x.e.id, ev:ev.name, place:x.place, name:x.e.name, mark:fmtMark(ev,x.e) }); })); return out.sort((a,b)=>a.place-b.place); });
@@ -3994,6 +4039,8 @@ createApp({
 
     /* ----- 匯出 ----- */
     const exTab = ref('cert');
+    const arOpen = ref('');
+    watch(arOpen, c=>{ if(c) nextTick(()=>{ const el=document.getElementById('ar_'+c); if(el){ el.open=true; el.scrollIntoView({ behavior:'smooth', block:'center' }); } }); });
     const certFilter = ref('all');
     const certRows = computed(()=>{
       const rows=[['獎項','組別','名次','班級','姓名','成績']];
@@ -4374,7 +4421,7 @@ createApp({
       // 司儀稿與通知：最近 200 則（看紀錄用，舊的離開範圍時保留）＋所有「還沒唸」的稿子（不限數量，避免被新紀錄擠掉）
       fUnsubs.push(listenArr('broadcasts', fdb.collection('broadcasts').orderBy('ts','desc').limit(200), { keep:true }));
       fUnsubs.push(listenArr('broadcasts', fdb.collection('broadcasts').where('done','==',false), { onLeave:b=>{ if(!b.done){ b.done=true; } } }));
-      fUnsubs.push(listenMap('meta', fdb.collection('meta'), (id,d)=>{ if(!d) return; if(id==='settings') st.value.settings=d; else if(id==='live') st.value.live=Object.assign(liveDefault(), d); else if(id==='flow') st.value.delayMin=d.delayMin||0; }));
+      fUnsubs.push(listenMap('meta', fdb.collection('meta'), (id,d)=>{ if(!d) return; if(id==='settings') st.value.settings=d; else if(id==='live') st.value.live=Object.assign(liveDefault(), d); else if(id==='flow') st.value.delayMin=d.delayMin||0; else if(id==='homeroom') homeroomText.value=d.text||''; }));
       if(fb.user) fUnsubs.push(listenMap('allrun', fdb.collection('allrun'), (id,d)=>{ if(d) st.value.allrun[id]=d; else delete st.value.allrun[id]; }));
       if(fb.user && (fb.admin || fb.myRoles.some(r=>['record','control'].includes(r)))){
         fUnsubs.push(listenArr('logs', fdb.collection('logs').orderBy('ts','desc').limit(300)));
@@ -4517,10 +4564,11 @@ createApp({
     watch(()=>openReports.value.filter(r=>canHandle(r) && !sentByMe(r)).map(r=>r.id+r.status).join(','), ()=>{
       reportNotices.value = openReports.value.filter(r=>canHandle(r) && !sentByMe(r)).map(r=>({ id:'rp_'+r.id, kind:'report', urgent:!!r.urgent, ts:r.ts||0, at:r.at, by:r.by,
         text:(r.urgent?'🚨 緊急通報':'🚨 現場通報')+'【'+(RTYPES[r.type]?RTYPES[r.type].name:'其他')+'】'+(r.place?r.place+'：':'')+r.text })); }, { immediate:true });
+    watch(myHomeroom, c=>{ if(c && !hrApplied){ hrApplied=true; if(c!==tCls.value){ tCls.value=c; toast('已依你的帳號切換到 '+clsLabel(c)); } } }); // 放在 fb 建立之後（避免初始化順序錯誤）
     onMounted(()=>{ readHash(); if(!hashGiven && isPublicView.value) page.value='board'; loadDraft(); syncLiveDraft(); renderQR(); if(FORMAL) fbInit(); else initCloud(); });
 
     return { st, role, page, helpOpen, acctMgr, isCtrlEmail, closeHelp, newsList, dismissNews, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
-      SHORT, cd, pad, insertOpen, openInsert, promptGroup, promptNext, scriptState, jumpScripts, ringLong, toggleRing, refOk, refChanged, confirmRef, needRef, doneTab, doneShown, restoreBc, scriptLib, scriptsOf, scriptGroups, nextScriptGroup, sf, editScript, saveScript, removeScript, moveScript, queueScript, sPaste, sParsed, importScripts, canBc, pushState, registerPush, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
+      SHORT, arOpen, homeroomDraft, homeroomRows, homeroomLogins, saveHomeroom, myHomeroom, onHrInput, cd, pad, insertOpen, openInsert, promptGroup, promptNext, scriptState, jumpScripts, ringLong, toggleRing, refOk, refChanged, confirmRef, needRef, doneTab, doneShown, restoreBc, scriptLib, scriptsOf, scriptGroups, nextScriptGroup, sf, editScript, saveScript, removeScript, moveScript, queueScript, sPaste, sParsed, importScripts, canBc, pushState, registerPush, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
       drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, flashLine, reportLine, TICKER_TPL, tkOpen, tk, tickerMsgs, hhmmOf, addTicker, removeTicker, canFixName, fixName, overdueTl, overdueSnoozed, snoozeOverdue, remindControl, setAutoFlow, ADHOC_TPL, adhocOpen, adhoc, useAdhocTpl, addAdhoc, tlRange, tlNo, mcScriptOf, prepScriptOf, nextMinsLeft, scheduledTl, mcProgOpen, applyProgram, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
       roleObj, myPages, navPages, myTasks, dateLabel, go, badge, kpi, ask, modalOk, clsLabel,
