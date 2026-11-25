@@ -2768,7 +2768,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261125204500'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261125205000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -2861,7 +2861,7 @@ const ROLES = [
   { id:'award',   name:'頒獎組・獎品組',  pages:['awards','sheets','export','board'], duty:'安排各梯次主要與備援頒獎人、公布頒獎集合、準備獎品' },
   { id:'live',    name:'攝影組（直播）',  pages:['live','board'], duty:'直播網址與 QR Code、直播疊字畫面、標記精彩時刻' },
   { id:'doc',     name:'文書組',          pages:['export','guests','board'], duty:'下載獎狀名單套印、來賓名單' },
-  { id:'teacher', name:'班級導師',        pages:['teacher','program','watch','board'], duty:'查本班出賽與得獎、填報全員賽跑名單' },
+  { id:'teacher', name:'班級導師',        pages:['teacher','watch','program','board'], duty:'查本班出賽與得獎、填報全員賽跑名單' },
   { id:'ceremony',name:'典禮組',          pages:['awards','mc','board'], duty:'開幕、運動員進退場、協助頒獎與典禮 PO 文' },
   { id:'equip',   name:'器材組',          pages:['equip','reports','board'], duty:'依流程配送器材（接力棒、頭巾…）；開始檢錄時系統自動提醒' },
   { id:'medic',   name:'醫護組',          pages:['medical','reports','board'], duty:'醫藥準備、傷病處理與紀錄（資料只有醫護組、總控、紀錄組看得到）' },
@@ -2871,7 +2871,7 @@ const ROLES = [
   { id:'gift',    name:'收禮組',          pages:['gifts','board'], duty:'登記捐贈芳名錄、公布感謝（看板跑馬燈＋司儀稿）' },
   { id:'promo',   name:'文宣組',          pages:['export','watch','board'], duty:'取用成績公告與 PO 文' },
   { id:'affairs', name:'事務・場地組',    pages:['reports','board'], duty:'處理場地、事務類通報' },
-  { id:'public',  name:'家長・觀眾',      pages:['program','watch','board'], duty:'觀看直播與大會看板' },
+  { id:'public',  name:'家長・觀眾',      pages:['watch','board'], duty:'觀看直播與大會看板' },
 ];
 /* 權限：每個動作由哪些組別操作（正式版改由學校 Google 帳號判斷） */
 const PERMS = {
@@ -2898,7 +2898,7 @@ const PAGE_GROUPS = [
   { name:'主控', pages:['home'] },
   { name:'比賽進行', pages:['checkin','score','review'] },
   { name:'典禮與廣播', pages:['mc','guests','awards','sheets','live'] },
-  { name:'公開查詢', pages:['program','board','results','watch','teacher'] },
+  { name:'公開查詢', pages:['board','results','watch','program','teacher'] },
   { name:'後勤支援', pages:['reports','medical','equip','lunch','gifts','stations'] },
   { name:'資料管理', pages:['import','export','config','accounts','feedback'] },
 ];
@@ -2917,7 +2917,7 @@ const VERB = { program:'看節目單', sheets:'印成績單', results:'查成績
 /* 首頁「現場有狀況？」按鈕圖示 */
 const RICON = { equip:'📦', env:'🧹', lunch:'🍱', medic:'🩹', site:'🏫', other:'❓' };
 /* 首頁「分享給家長、同事」可選的頁面 */
-const SHARE_OPTS = [ { id:'program', name:'節目單' }, { id:'results', name:'成績查詢' }, { id:'board', name:'大會看板' }, { id:'watch', name:'看直播' }, { id:'start', name:'首頁' } ];
+const SHARE_OPTS = [ { id:'results', name:'成績查詢' }, { id:'board', name:'大會看板' }, { id:'watch', name:'看直播' }, { id:'program', name:'節目單' }, { id:'start', name:'首頁' } ];
 /* 身分選單分類 */
 const ROLE_CATS = [
   { name:'主控', ids:['control','record'] },
@@ -2927,7 +2927,7 @@ const ROLE_CATS = [
   { name:'其他', ids:['teacher','public'] },
 ];
 /* 「大家都會用」的頁面（不在自己工作裡時才出現） */
-const COMMON = ['program','board','results','watch','reports'];
+const COMMON = ['board','results','watch','program','reports'];
 /* 不用登入就能看的頁面（家長、觀眾） */
 const PUBLIC_PAGES = ['program','board','results','watch'];
 /* 校徽圖檔：在 config.js 設定 SCHOOL_LOGO；找不到圖檔時自動顯示「楠」字圓章 */
