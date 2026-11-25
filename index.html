@@ -990,8 +990,27 @@ html.ov-transparent body::before{ display:none; }
             <div class="small muted">{{ dateLabel }}・現在 <b class="num" style="font-size:20px">{{ clock }}</b></div>
             <div class="flex gap-2 flex-wrap">
               <button class="btn btn-sm btn-primary" v-if="can('flow')" @click="adhocOpen=!adhocOpen" :aria-expanded="adhocOpen">＋ 臨時插入流程</button>
+              <button class="btn btn-sm" v-if="can('flow')" @click="tkOpen=!tkOpen" :aria-expanded="tkOpen">📢 跑馬燈公告<span v-if="tickerMsgs.length">（{{ tickerMsgs.length }}）</span></button>
               <button class="btn btn-sm" @click="delay(5)">流程延誤 +5 分</button>
               <button class="btn btn-sm" v-if="st.delayMin" @click="delay(-st.delayMin)">恢復準點</button>
+            </div>
+          </div>
+          <div v-if="tkOpen && can('flow')" class="card-flat mb-3 fade-up" style="border:2px solid #C99A00">
+            <div class="font-bold mb-1" style="font-size:18px">📢 跑馬燈公告（大會看板最上方）</div>
+            <div class="small muted mb-2">輸入要讓家長看到的話，按「上跑馬燈」就會排在跑馬燈最前面，時間到自動下架。</div>
+            <div class="flex flex-wrap gap-2 mb-2"><button v-for="q in TICKER_TPL" :key="q" class="btn btn-sm" @click="tk.text=q">{{ q.length>14 ? q.slice(0,14)+'…' : q }}</button></div>
+            <textarea class="inp" id="tkText" rows="2" v-model="tk.text" maxlength="80" placeholder="例如：下雨了，比賽暫停，請家長到風雨操場等候"></textarea>
+            <div class="flex flex-wrap gap-3 items-center mt-2 small">
+              <label class="flex items-center gap-2">顯示多久<select class="inp" v-model.number="tk.mins" style="width:auto"><option :value="15">15 分鐘</option><option :value="30">30 分鐘</option><option :value="60">1 小時</option><option :value="0">直到我移除</option></select></label>
+              <label class="flex items-center gap-2"><input type="checkbox" v-model="tk.mc" style="width:20px;height:20px"> 同時請司儀廣播</label>
+            </div>
+            <div class="flex gap-2 mt-2"><button class="btn btn-primary" @click="addTicker" :disabled="!tk.text.trim()">上跑馬燈</button><button class="btn" @click="tkOpen=false">關閉</button></div>
+            <div v-if="tickerMsgs.length" class="mt-3 flex flex-col gap-1">
+              <div class="small font-bold">目前在跑馬燈上：</div>
+              <div v-for="m in tickerMsgs" :key="m.id" class="flex items-center gap-2 flex-wrap small" style="border-top:1px solid var(--line);padding-top:6px">
+                <span style="flex:1;min-width:0"><b>{{ m.text }}</b><span class="muted">　{{ m.at }} 上架・{{ m.until ? '到 '+hhmmOf(m.until)+' 自動下架' : '直到移除' }}</span></span>
+                <button class="btn btn-sm" @click="removeTicker(m)">移除</button>
+              </div>
             </div>
           </div>
           <div v-if="adhocOpen && can('flow')" class="card-flat mb-3 fade-up" style="border:2px solid var(--brand)">
@@ -2589,7 +2608,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261125141500'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261125143000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -2794,7 +2813,7 @@ const HELP = {
   lunch:['先設定領餐時間與地點。','各班領走後點一下班級變成 ✔。','還沒領的班級可以一鍵請司儀廣播。'],
   gifts:['收到捐贈時登記單位、禮品（金額可不填）。','按「公布感謝」：大會看板跑馬燈出現感謝，司儀台收到感謝稿。','可下載芳名錄 Excel，賽後公布在校網。'],
   stations:['每一站可改名稱與地點。','按「開放」「人多」「暫停」「結束」，導師頁與看板馬上看到。','建議每站關主用手機開這頁更新。'],
-  home:['突發狀況（下雨、醫護、場地整理）按「＋ 臨時插入流程」，點範本再按送出，司儀和相關組別同時收到。','忘記按「開始」時，畫面上方會跳出橘色提醒，可以一鍵開始或順延。','整場由「總控」在這頁按流程的「開始」「完成」，看板、司儀台、直播字卡都會同步，並自動產生大會報告稿。','上方數字卡片點一下就能前往對應的頁面。','流程延誤時按「流程延誤 +5 分」，未開始項目的時間會自動往後調。','右邊「各組分工」說明每一組負責什麼，藍底是你目前的身分。'],
+  home:['要讓家長馬上看到的話（下雨、停車、失物招領），按「📢 跑馬燈公告」輸入後送出，大會看板最上方立刻出現。','突發狀況（下雨、醫護、場地整理）按「＋ 臨時插入流程」，點範本再按送出，司儀和相關組別同時收到。','忘記按「開始」時，畫面上方會跳出橘色提醒，可以一鍵開始或順延。','整場由「總控」在這頁按流程的「開始」「完成」，看板、司儀台、直播字卡都會同步，並自動產生大會報告稿。','上方數字卡片點一下就能前往對應的頁面。','流程延誤時按「流程延誤 +5 分」，未開始項目的時間會自動往後調。','右邊「各組分工」說明每一組負責什麼，藍底是你目前的身分。'],
   board:['每一組都能從左側選單（手機在底部列）點「大會看板」看到即時畫面；在自己的工作頁也可以按右下角「即時動態」看重點。','這頁是投影到司令台大螢幕或電視用的，按「投影模式」可隱藏選單。','成績一公布就會出現在「最新成績公布」，每 8 秒輪播。','積分排行依「積分與設定」的規則即時計算。'],
   teacher:['先選「我的班級」，系統會記住。','可以查看本班當天出賽與檢錄狀態、本班得獎名單。','全員賽跑結束後，填每組前三名並送出，就不用再交紙本。'],
   checkin:['選擇比賽項目，按「開始檢錄」，司儀台會自動出現檢錄廣播稿。','每班（每位選手）按「到」或「缺」。','有人沒到就按「呼叫第二次檢錄」；人齊了按「檢錄完成」。'],
@@ -2811,6 +2830,7 @@ const HELP = {
 };
 /* 新功能公告：依組別顯示，每台裝置看過按「知道了」就不再出現（之後新增功能時，在最上面加一筆） */
 const WHATS_NEW = [
+  { id:'n20261125h', roles:['control','record'], page:'home', title:'總控可以自己打字上跑馬燈', text:'總控台「當天流程」上方按「📢 跑馬燈公告」，輸入或點範本，選顯示多久，按「上跑馬燈」：大會看板最上方立刻出現，時間到自動下架，也可以同時請司儀廣播。' },
   { id:'n20261125g', roles:['record','sport'], page:'score', title:'學生姓名打錯可以直接改', text:'到「成績登錄」選項目，按姓名旁的「✏️ 改姓名」，輸入正確姓名就好；不用退回重審，看板馬上更新，系統會留紀錄。已公布的項目只有紀錄組能改。' },
   { id:'n20261125f', roles:['control','record','mc'], page:'board', title:'大會看板最上方跑馬燈會預告節目', text:'跑馬燈移到看板最上面，自動顯示現在進行、接下來兩個節目（時間、地點）、頒獎預告、檢錄與放學提醒，家長一眼就看到。總錦標排行只顯示前 3 名。' },
   { id:'n20261125e', roles:['control'], page:'accounts', title:'總控也可以設定帳號與權限', text:'當天有老師臨時換人，總控可以直接在「帳號與權限」改組別，不用等系統管理員。「總控」身分本身只有系統管理員能給。' },
@@ -3457,6 +3477,18 @@ createApp({
       if(autoBusy || !st.value.settings.autoFlow || !can('flow') || !o || o.mins<3 || o.mins>30) return;
       autoBusy=true; const id=o.t.id;
       setTimeout(()=>{ autoBusy=false; const t=st.value.timeline.find(x=>x.id===id); if(t && t.status==='todo' && nextTl.value===t){ startTl(t); log('系統自動開始：'+t.title+'（總控未按）'); } }, 1000+Math.floor(Math.random()*6000)); });
+    /* ----- 跑馬燈公告：總控臨時輸入，排在跑馬燈最前面，時間到自動下架（存在 settings.ticker，所有裝置同步） ----- */
+    const TICKER_TPL = ['下雨了，比賽暫停，請家長到風雨操場或走廊等候','請家長在觀眾區觀賽，不要進入比賽場地，謝謝合作','請車輛勿停放校門口，以免影響交通','失物招領請到司令台旁服務台','流程順延，請留意司儀廣播'];
+    const tkOpen = ref(false); const tk = reactive({ text:'', mins:30, mc:false });
+    const tickerMsgs = computed(()=>(st.value.settings.ticker||[]).filter(m=>!m.until || m.until>nowTick.value));
+    const hhmmOf = ts => hhmm(new Date(ts));
+    function addTicker(){ if(!need('flow')) return; const text=tk.text.trim(); if(!text) return;
+      const list=(st.value.settings.ticker||[]).filter(m=>!m.until || m.until>Date.now());
+      list.unshift({ id:'tk'+Date.now(), text, at:hhmm(), ts:Date.now(), until: tk.mins ? Date.now()+tk.mins*60000 : 0 });
+      st.value.settings.ticker=list.slice(0,5);
+      if(tk.mc) bc('insert', '大會報告：'+text);
+      log('跑馬燈公告：'+text); toast('已上跑馬燈'+(tk.mc?'，司儀台也收到了':'')); tk.text=''; tk.mc=false; }
+    function removeTicker(m){ if(!need('flow')) return; st.value.settings.ticker=(st.value.settings.ticker||[]).filter(x=>x.id!==m.id); log('跑馬燈公告下架：'+m.text); toast('已從跑馬燈移除'); }
     /* ----- 臨時插入流程（突發狀況） ----- */
     const ADHOC_TPL = [
       { k:'雨天備案', title:'雨天暫停，移至室內', unit:'全校師生', place:'風雨操場、各班教室', notify:['site','equip'], mc:'大會報告：因為下雨，比賽暫停，請各班依照導師指示移到風雨操場或回教室休息，器材組、場地組請協助收器材，恢復時間請聽廣播。' },
@@ -4091,6 +4123,7 @@ createApp({
     const boardEvent = computed(()=>latestPublished.value[boardIdx.value % Math.max(1,latestPublished.value.length)] || null);
     /* 看板最上方跑馬燈（給家長看）：現在進行 → 節目預告 → 頒獎預告 → 檢錄 → 放學提醒 → 感謝 → 大會報告 */
     const tickerText = computed(()=>{ const items=[], tl=st.value.timeline, now=clockMin.value;
+      tickerMsgs.value.forEach(m=>items.push('【公告】'+m.text));
       const where = t => [t.unit, t.place].filter(Boolean).join('・');
       if(nowTl.value) items.push('【現在進行】'+(nowTl.value.no?'第'+nowTl.value.no+'項 ':'')+nowTl.value.title+(where(nowTl.value)?'（'+where(nowTl.value)+'）':''));
       tl.filter(t=>t.status==='todo').slice(0,2).forEach(t=>items.push('【節目預告】'+tlTime(t)+' '+(t.no?'第'+t.no+'項 ':'')+t.title+(where(t)?'（'+where(t)+'）':'')+(t.check?'，檢錄 '+t.check:'')));
@@ -4432,7 +4465,7 @@ createApp({
 
     return { st, role, page, helpOpen, acctMgr, isCtrlEmail, closeHelp, newsList, dismissNews, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
       SHORT, cd, pad, insertOpen, openInsert, promptGroup, promptNext, scriptState, jumpScripts, ringLong, toggleRing, refOk, refChanged, confirmRef, needRef, doneTab, doneShown, restoreBc, scriptLib, scriptsOf, scriptGroups, nextScriptGroup, sf, editScript, saveScript, removeScript, moveScript, queueScript, sPaste, sParsed, importScripts, canBc, pushState, registerPush, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
-      drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, canFixName, fixName, overdueTl, overdueSnoozed, snoozeOverdue, remindControl, setAutoFlow, ADHOC_TPL, adhocOpen, adhoc, useAdhocTpl, addAdhoc, tlRange, tlNo, mcScriptOf, prepScriptOf, nextMinsLeft, scheduledTl, mcProgOpen, applyProgram, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
+      drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, TICKER_TPL, tkOpen, tk, tickerMsgs, hhmmOf, addTicker, removeTicker, canFixName, fixName, overdueTl, overdueSnoozed, snoozeOverdue, remindControl, setAutoFlow, ADHOC_TPL, adhocOpen, adhoc, useAdhocTpl, addAdhoc, tlRange, tlNo, mcScriptOf, prepScriptOf, nextMinsLeft, scheduledTl, mcProgOpen, applyProgram, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
       roleObj, myPages, navPages, myTasks, dateLabel, go, badge, kpi, ask, modalOk, clsLabel,
       ranked, top, fmtMark, standings, barW, classPts, classRank, preEvents, dayEvents, reviewEvents, publishedEvents, latestPublished, checkinEvents,
