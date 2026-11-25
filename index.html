@@ -688,6 +688,10 @@ html.ov-transparent body::before{ display:none; }
   <div v-if="FORMAL && fb.user && !fb.online" class="netbar no-print" role="status">⚠ 目前離線：你的操作會先存在這台裝置，恢復連線後自動送出（未送出 {{ fb.pending }} 筆）</div>
   <div v-if="FORMAL && fb.err" class="netbar no-print" role="alert">{{ fb.err }}</div>
   <div v-if="newVersion" class="netbar no-print" role="status" style="background:#0B62A4;color:#fff;display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap">🔄 系統已更新到新版本<button class="btn btn-sm" style="background:#fff;color:#0B62A4;font-weight:800" @click="reloadApp">立即更新</button></div>
+  <div v-if="overdueTl && can('mc') && !can('flow')" class="netbar no-print" role="alert" style="background:#E07A00;color:#fff;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;font-size:17px">
+    ⏰ 總控還沒按開始：{{ tlNo(overdueTl.t) }}「{{ overdueTl.t.title }}」（表定 {{ tlTime(overdueTl.t) }}，已過 {{ overdueTl.mins }} 分）
+    <button class="btn btn-sm" style="background:#fff;color:#B45A00;font-weight:800" @click="remindControl">📣 按這裡通知總控</button>
+  </div>
   <!-- 總控忘記按「開始」：超過表定時間 2 分鐘就提醒（總控、紀錄組看得到） -->
   <div v-if="overdueTl && can('flow') && !overdueSnoozed" class="netbar no-print" role="alert" style="background:#E07A00;color:#fff;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;font-size:17px">
     ⏰ {{ tlNo(overdueTl.t) }}「{{ overdueTl.t.title }}」表定 {{ tlTime(overdueTl.t) }}，已過 {{ overdueTl.mins }} 分鐘還沒按開始
@@ -782,9 +786,19 @@ html.ov-transparent body::before{ display:none; }
       </div>
     </div>
     <div class="note note-info mb-4 no-print" v-if="!gate && PAGE_PERM[page] && !can(PAGE_PERM[page]) && page!=='overlay' && page!=='start'">👀 這頁你可以看，操作由 <b>{{ whoCan(PAGE_PERM[page]) }}</b> 負責。<span v-if="!FORMAL">想體驗操作，請在選單最上面切換身分。</span></div>
-    <ol class="card-flat helpbox mb-4 list-decimal pl-10 small no-print" v-if="helpOpen && HELP[page] && !gate">
-      <li v-for="h in HELP[page]" class="py-1">{{ h }}</li>
-    </ol>
+    <div class="card-flat helpbox mb-4 no-print" v-if="helpOpen && HELP[page] && !gate && !isPublicView" style="border:2px solid var(--brand)">
+      <div class="font-bold mb-1" style="font-size:17px">💡 這頁怎麼用（30 秒看完）</div>
+      <ol class="list-decimal" style="font-size:16px;line-height:1.7;padding-left:2em"><li v-for="h in HELP[page]" class="py-0.5">{{ h }}</li></ol>
+      <button class="btn btn-sm btn-primary mt-2" @click="closeHelp">知道了</button><span class="small muted ml-2">之後要看，按右上角「？這頁怎麼用」</span>
+    </div>
+    <div class="card-flat mb-4 no-print" v-if="newsList.length && !gate && !isPublicView && !['board','overlay','watch'].includes(page)" style="border:2px solid #1E9E5A;background:color-mix(in srgb,#1E9E5A 8%,var(--card))">
+      <div class="flex items-center justify-between gap-2 flex-wrap mb-1"><b style="font-size:17px;color:#14774A">🆕 新功能（{{ newsList.length }}）</b><button class="btn btn-sm" @click="dismissNews">全部知道了</button></div>
+      <div v-for="n in newsList" :key="n.id" class="py-2" style="border-top:1px solid var(--line)">
+        <div class="font-bold" style="font-size:16px">{{ n.title }}</div>
+        <div class="small" style="line-height:1.6">{{ n.text }}</div>
+        <button v-if="n.page && n.page!==page" class="btn btn-sm mt-1" @click="go(n.page)">帶我去看 →</button>
+      </div>
+    </div>
     <div v-if="gate" class="card text-center" style="padding:36px 18px">
       <div style="font-size:44px">🔒</div>
       <h2 class="h-sec mt-2">{{ fb.user ? '這一頁不是你負責的工作' : '這一頁是學校人員專用' }}</h2>
@@ -2574,7 +2588,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261125124500'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261125130000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -2771,20 +2785,20 @@ const TASK_DESC = {
   stations:'各闖關站即時狀態，導師與看板同步看得到哪一站人少。',
 };
 const HELP = {
-  sheets:['上方選「個人賽／團體賽／總錦標／全部」，再選依頒獎梯次或依年級排列。','預設只印已公布的成績；成績更新後重新整理這頁再印，就是最新版本。','按「列印黑白」或「列印彩色」，A4 直式，每個梯次可自動換頁；「領獎確認」欄給頒獎組現場打勾。'],
+  sheets:['上方選「個人賽／團體賽／總錦標／全部／節目單」，再選依頒獎梯次或依年級排列。','預設只印已公布的成績；成績更新後重新整理這頁再印，就是最新版本。','按「列印黑白」或「列印彩色」，A4 直式，每個梯次可自動換頁；「領獎確認」欄給頒獎組現場打勾。'],
   reports:['選類別、填地點和狀況，按「送出通報」。','負責的組別會在這頁和右下角「即時動態」看到，按「處理中」「已完成」回報。','很急的狀況勾「緊急」，可同時請司儀廣播。'],
   medical:['學生受傷或不舒服時登記：班級、姓名、狀況、處理方式。','需要通知家長的請勾選，處理完按「結案」。','為保護學生隱私，這頁資料只有醫護組、總控、紀錄組看得到。'],
   equip:['清單依當天流程排列，最上面是「接下來要送的器材」。','送到後按「已送達」，比賽完收回按「已收回」。','總控按流程「開始」或檢錄組按「開始檢錄」時，還沒送達的器材會自動變成緊急通報。'],
   lunch:['先設定領餐時間與地點。','各班領走後點一下班級變成 ✔。','還沒領的班級可以一鍵請司儀廣播。'],
   gifts:['收到捐贈時登記單位、禮品（金額可不填）。','按「公布感謝」：大會看板跑馬燈出現感謝，司儀台收到感謝稿。','可下載芳名錄 Excel，賽後公布在校網。'],
   stations:['每一站可改名稱與地點。','按「開放」「人多」「暫停」「結束」，導師頁與看板馬上看到。','建議每站關主用手機開這頁更新。'],
-  home:['整場由「總控」在這頁按流程的「開始」「完成」，看板、司儀台、直播字卡都會同步，並自動產生大會報告稿。','上方數字卡片點一下就能前往對應的頁面。','流程延誤時按「流程延誤 +5 分」，未開始項目的時間會自動往後調。','右邊「各組分工」說明每一組負責什麼，藍底是你目前的身分。'],
+  home:['突發狀況（下雨、醫護、場地整理）按「＋ 臨時插入流程」，點範本再按送出，司儀和相關組別同時收到。','忘記按「開始」時，畫面上方會跳出橘色提醒，可以一鍵開始或順延。','整場由「總控」在這頁按流程的「開始」「完成」，看板、司儀台、直播字卡都會同步，並自動產生大會報告稿。','上方數字卡片點一下就能前往對應的頁面。','流程延誤時按「流程延誤 +5 分」，未開始項目的時間會自動往後調。','右邊「各組分工」說明每一組負責什麼，藍底是你目前的身分。'],
   board:['每一組都能從左側選單（手機在底部列）點「大會看板」看到即時畫面；在自己的工作頁也可以按右下角「即時動態」看重點。','這頁是投影到司令台大螢幕或電視用的，按「投影模式」可隱藏選單。','成績一公布就會出現在「最新成績公布」，每 8 秒輪播。','積分排行依「積分與設定」的規則即時計算。'],
   teacher:['先選「我的班級」，系統會記住。','可以查看本班當天出賽與檢錄狀態、本班得獎名單。','全員賽跑結束後，填每組前三名並送出，就不用再交紙本。'],
   checkin:['選擇比賽項目，按「開始檢錄」，司儀台會自動出現檢錄廣播稿。','每班（每位選手）按「到」或「缺」。','有人沒到就按「呼叫第二次檢錄」；人齊了按「檢錄完成」。'],
   score:['選擇項目，在成績欄輸入秒數或公尺，右邊「即時名次」會自動排好。','沒跑完或犯規的勾「棄權/犯規」。','輸入完按「送出審核」，紀錄組確認後才會公布。'],
   review:['檢查前幾名是否正確，沒問題按「公布成績」。','有疑問就寫原因按「退回修改」，裁判會看到原因。','已公布的成績會鎖定，要改必須按「申請修改」並寫原因，系統會留下紀錄。'],
-  mc:['各組的消息會自動變成播報稿，最上面藍框是下一則。','唸完按「已播報」，就不會重唸或漏唸。','臨時有事可用「臨時插播」，常用句子按一下就帶入。'],
+  mc:['最上面「節目單提示」：左邊是現在要唸的稿子，右邊是下一個節目的預告；變成橘色代表快到了。','總控忘記按開始時，畫面上方會跳出橘色條，按「通知總控」就好。','各組的消息會自動變成播報稿，最上面藍框是下一則。','唸完按「已播報」，就不會重唸或漏唸。','臨時有事可用「臨時插播」，常用句子按一下就帶入。'],
   guests:['來賓、家長會、校內頒獎人都在這裡報到；來賓報到後司儀台會自動出現介紹稿。','有人臨時不能來就按「無法出席」，他負責的頒獎梯次會自動改由備援頒獎人。','臨時來的來賓或代表頒獎的老師，可在下方新增。'],
   watch:['開播後所有人都能從右上角紅色「看直播」進來。','手機掃 QR Code 或按「開始觀看」。','旁邊會同步顯示進行中項目、頒獎與最新成績。'],
   awards:['每梯次設定「主要」與「備援」頒獎人，以及集合地點。','有人無法出席時系統自動遞補；現場臨時變動可用「臨時換人」。','按「公布頒獎並通知集合」：看板、導師頁、直播字卡會公布得獎名單與地點，司儀台出現頒獎稿。','頒完按「完成頒獎」。'],
@@ -2793,6 +2807,14 @@ const HELP = {
   live:['開播前把 YouTube 或 Facebook 的直播網址貼上，按「開始直播」。','系統自動產生 QR Code，大會看板與導師頁會顯示「看直播」，司儀也會收到播報稿。','「直播疊字畫面」可以把成績即時疊在直播畫面下方。','比賽精彩時按「標記精彩時刻」，賽後剪精華就知道去哪裡找。'],
   config:['積分辦法改了立刻生效。','班級數、每項取前幾名也可以在這裡改。','試用完可以按「還原範例資料」。'],
 };
+/* 新功能公告：依組別顯示，每台裝置看過按「知道了」就不再出現（之後新增功能時，在最上面加一筆） */
+const WHATS_NEW = [
+  { id:'n20261125c', roles:['mc'], page:'mc', title:'司儀台最上方多了「節目單提示」', text:'現在要唸的稿子、下一個節目的預告稿都寫好了，照著唸就好。總控忘記按開始時，畫面上方會跳出橘色條，按「通知總控」即可。' },
+  { id:'n20261125b', roles:['control','record'], page:'home', title:'總控台可以「＋ 臨時插入流程」', text:'下雨、醫護、場地整理等突發狀況：點範本→按送出，司儀和相關組別手機同時收到。' },
+  { id:'n20261125a', roles:['control','record'], page:'home', title:'忘記按「開始」會提醒你', text:'超過表定時間 2 分鐘，畫面上方跳出橘色提醒，可一鍵開始或順延；也可以勾選讓系統自動開始。' },
+  { id:'n20261125d', roles:['mc','control','record'], page:'sheets', title:'節目單（司儀版）可以列印', text:'在「成績單列印」選「節目單」，每一項都附司儀稿，A4 黑白或彩色。' },
+  { id:'n20261124a', roles:['award','ceremony','record'], page:'sheets', title:'成績單可以直接列印', text:'「成績單列印」依頒獎梯次排好得獎名單，有「領獎」打勾欄，A4 黑白或彩色。' },
+];
 const EX_TABS = [ {id:'cert',name:'獎狀名單'}, {id:'prize',name:'獎品統計'}, {id:'total',name:'成績總表'}, {id:'post',name:'公告與 PO 文'}, {id:'allrun',name:'全員賽跑進度'} ];
 
 /* ---------- 工具函式 ---------- */
@@ -3006,6 +3028,12 @@ createApp({
     const logoOk = ref(true);
     const otherOpen = ref(['control','record'].includes(role.value));
     const helpOpen = ref(false);
+    const lsGet = (k,d)=>{ try{ return JSON.parse(localStorage.getItem(k)||'null') ?? d; }catch(e){ return d; } };
+    const lsSet = (k,v)=>{ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} };
+    const helpSeen = ref(lsGet('sd-help-seen', {}));
+    function closeHelp(){ helpOpen.value=false; helpSeen.value={ ...helpSeen.value, [page.value]:1 }; lsSet('sd-help-seen', helpSeen.value); }
+    const newsSeen = ref(lsGet('sd-news-seen', []));
+    function dismissNews(){ newsSeen.value=[...new Set([...newsSeen.value, ...WHATS_NEW.map(n=>n.id)])]; lsSet('sd-news-seen', newsSeen.value); }
     const boardMode = ref(false);
     const clock = ref(hhmm());
     const toasts = ref([]);
@@ -3164,6 +3192,9 @@ createApp({
     /* 權限：can＝這個身分能不能做；need＝不能做時跳出說明 */
     /* 預覽模式：系統管理員在身分選單切成別的組（例：班級導師），畫面與權限都照那個組，方便確認老師看到什麼 */
     const previewing = computed(()=>FORMAL && fb.admin && role.value!=='record');
+    const myRoleIds = computed(()=> previewing.value ? [role.value] : (FORMAL && fb.myRoles.length ? fb.myRoles : [role.value]));
+    const newsList = computed(()=>{ const all = FORMAL && fb.admin && !previewing.value; return WHATS_NEW.filter(n=>!newsSeen.value.includes(n.id) && (all || !n.roles || n.roles.some(r=>myRoleIds.value.includes(r)))); });
+    watch(()=>page.value, p=>{ helpOpen.value = !!(HELP[p] && !helpSeen.value[p] && !['board','overlay','watch','start'].includes(p)); });
     function can(a){ const list=PERMS[a]||[];
       if(FORMAL && fb.admin && !previewing.value) return true; /* 系統管理員全部可操作 */
       if(previewing.value) return list.includes(role.value);
@@ -4373,7 +4404,7 @@ createApp({
         text:(r.urgent?'🚨 緊急通報':'🚨 現場通報')+'【'+(RTYPES[r.type]?RTYPES[r.type].name:'其他')+'】'+(r.place?r.place+'：':'')+r.text })); }, { immediate:true });
     onMounted(()=>{ readHash(); if(!hashGiven && isPublicView.value) page.value='board'; loadDraft(); syncLiveDraft(); renderQR(); if(FORMAL) fbInit(); else initCloud(); });
 
-    return { st, role, page, helpOpen, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
+    return { st, role, page, helpOpen, closeHelp, newsList, dismissNews, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
       SHORT, cd, pad, insertOpen, openInsert, promptGroup, promptNext, scriptState, jumpScripts, ringLong, toggleRing, refOk, refChanged, confirmRef, needRef, doneTab, doneShown, restoreBc, scriptLib, scriptsOf, scriptGroups, nextScriptGroup, sf, editScript, saveScript, removeScript, moveScript, queueScript, sPaste, sParsed, importScripts, canBc, pushState, registerPush, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
       drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, overdueTl, overdueSnoozed, snoozeOverdue, remindControl, setAutoFlow, ADHOC_TPL, adhocOpen, adhoc, useAdhocTpl, addAdhoc, tlRange, tlNo, mcScriptOf, prepScriptOf, nextMinsLeft, scheduledTl, mcProgOpen, applyProgram, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
