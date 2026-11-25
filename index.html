@@ -1166,7 +1166,7 @@ html.ov-transparent body::before{ display:none; }
               <button class="btn btn-primary btn-sm" v-if="pendingMatches.length" @click="applyMatches()">全部套用 {{ pendingMatches.length }} 位</button>
               <div class="tblwrap mt-2" style="max-height:220px;overflow:auto" v-if="loginMatches.length"><table class="tbl small"><tbody>
                 <tr v-for="x in loginMatches" :key="x.email"><td style="word-break:break-all">{{ x.email }}</td><td>{{ x.gname || '—' }}</td>
-                  <td>{{ x.role ? (x.role.name ? x.role.name+'：' : '')+x.role.roles.map(id=>(ROLES.find(r=>r.id===id)||{}).name||id).join('、') : x.hit ? x.hit.name+'：'+x.hit.roles.map(id=>(ROLES.find(r=>r.id===id)||{}).name||id).join('、') : '沒有組別（班級導師）' }}</td>
+                  <td>{{ x.role ? (x.role.name ? x.role.name+'：' : '')+x.role.roles.map(id=>(id==='blocked'?'⛔ 已停用（只能當家長）':((ROLES.find(r=>r.id===id)||{}).name||id))).join('、') : x.hit ? x.hit.name+'：'+x.hit.roles.map(id=>(id==='blocked'?'⛔ 已停用（只能當家長）':((ROLES.find(r=>r.id===id)||{}).name||id))).join('、') : '沒有組別（班級導師）' }}</td>
                   <td style="white-space:nowrap">{{ x.has ? '✔ 已設定' : x.hit ? '⧗ 待套用' : '' }}</td></tr>
               </tbody></table></div>
               <details class="mt-2"><summary class="font-bold cursor-pointer small" style="min-height:36px">工作分配名單（姓名＋組別，一行一人）</summary>
@@ -1183,7 +1183,7 @@ html.ov-transparent body::before{ display:none; }
             </div>
             <div v-if="roleTab!=='all' && !roleRowsTab.length" class="card-flat small muted text-center" style="padding:24px">「{{ roleName(roleTab) }}」還沒有設定成員。在上方輸入帳號、勾選這一組，按「設定權限」。</div>
             <div v-else class="tblwrap" style="max-height:480px;overflow:auto"><table class="tbl small"><thead><tr><th>姓名</th><th>組別</th><th></th></tr></thead><tbody>
-              <tr v-for="r in roleRowsTab" :key="r.email"><td><b style="font-size:1.05em">{{ r.name || '（未填姓名）' }}</b><div class="muted" style="word-break:break-all;font-size:.8em">{{ r.email }}</div></td><td>{{ r.roles.map(id=>(ROLES.find(x=>x.id===id)||{}).name||id).join('、') }}</td><td class="flex gap-1" v-if="!fb.admin && r.roles.includes('control')"><span class="small muted">僅管理員可改</span></td><td class="flex gap-1" v-else><button class="btn btn-sm" @click="editRole(r)">修改</button><button class="btn btn-sm" @click="removeRole(r.email)">移除</button></td></tr>
+              <tr v-for="r in roleRowsTab" :key="r.email"><td><b style="font-size:1.05em">{{ r.name || '（未填姓名）' }}</b><div class="muted" style="word-break:break-all;font-size:.8em">{{ r.email }}</div></td><td>{{ r.roles.map(id=>(id==='blocked'?'⛔ 已停用（只能當家長）':((ROLES.find(x=>x.id===id)||{}).name||id))).join('、') }}</td><td class="flex gap-1" v-if="!fb.admin && r.roles.includes('control')"><span class="small muted">僅管理員可改</span></td><td class="flex gap-1" v-else><button class="btn btn-sm" @click="editRole(r)">修改</button><button class="btn btn-sm" @click="removeRole(r.email)">移除</button><button v-if="!r.roles.includes('blocked')" class="btn btn-sm" style="color:#B42318" @click="blockAccount(r)" title="不是本校教職員：停用工作人員功能，只能看家長畫面">停用</button></td></tr>
             </tbody></table></div>
           </div>
     </section>
@@ -2640,7 +2640,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261125161500'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261125163000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -4399,6 +4399,7 @@ createApp({
       fb.admin=admins.includes(fb.email.toLowerCase());
       let rs=fb.admin?['record']:[];
       if(!fb.admin){ try{ const d=await fref('roles',fb.email.toLowerCase()).get(); if(d.exists){ const x=d.data(); rs=Array.isArray(x.roles)&&x.roles.length ? x.roles.slice() : (x.role?[x.role]:[]); } }catch(e){} }
+      if(rs.includes('blocked')){ toast('這個帳號已停用工作人員功能，畫面會切換成家長・觀眾。如有疑問請洽紀錄組',true); await fauth.signOut(); return; }
       if(!rs.includes('teacher')) rs.push('teacher'); // 每位學校帳號都保有導師功能（全員賽跑填報）
       fb.myRoles=rs; fb.role=rs[0]; role.value=rs[0];
       try{ fref('users',fb.email.toLowerCase()).set({ email:fb.email.toLowerCase(), name:(fb.user&&fb.user.name)||'', at:Date.now() }, { merge:true }); }catch(e){} // merge：不要蓋掉推播裝置代碼
@@ -4436,14 +4437,14 @@ createApp({
       try{ await batch.commit(); toast('已建立器材清單、闖關站點與午餐設定'); log('建立後勤支援資料'); }catch(e){ toast('建立失敗：'+((e&&e.code)||''),true); } }
     const roleForm = reactive({ email:'', roles:[] });
     /* 批次設定權限：組別名稱用關鍵字對應（例：「器材」→器材組、「司儀」→廣播組） */
-    const ROLE_KEYS=[['control',['總控','司令台','總幹事']],['record',['紀錄']],['sport',['體育組','裁判','競賽']],['checkin',['檢錄']],['mc',['廣播','司儀']],['guest',['招待','交安']],['award',['頒獎','獎品']],['live',['攝影','直播']],['doc',['文書']],['ceremony',['典禮']],['equip',['器材']],['medic',['醫護']],['lunch',['午餐']],['env',['環保']],['quest',['闖關','體闖']],['gift',['收禮']],['promo',['文宣']],['affairs',['事務','場地']],['teacher',['導師']]];
+    const ROLE_KEYS=[['blocked',['停用','踢出','封鎖']], ['control',['總控','司令台','總幹事']],['record',['紀錄']],['sport',['體育組','裁判','競賽']],['checkin',['檢錄']],['mc',['廣播','司儀']],['guest',['招待','交安']],['award',['頒獎','獎品']],['live',['攝影','直播']],['doc',['文書']],['ceremony',['典禮']],['equip',['器材']],['medic',['醫護']],['lunch',['午餐']],['env',['環保']],['quest',['闖關','體闖']],['gift',['收禮']],['promo',['文宣']],['affairs',['事務','場地']],['teacher',['導師']]];
     function roleIdOf(name){ const n=String(name).trim(); if(!n) return null; const hit=ROLE_KEYS.find(([id,keys])=>keys.some(k=>n.includes(k))); return hit?hit[0]:null; }
     const roleBulk = ref(''); const roleQ = ref(''); const roleTab = ref('all');
     /* 依組別顯示：照身分選單的分類順序，每組列出成員（兼任的人會出現在每一組） */
     const roleGroups = computed(()=>ROLE_CATS.flatMap(c=>c.ids).filter(id=>!['teacher','public'].includes(id)).map(id=>({ id, name:roleName(id), n:fb.roles.filter(r=>r.roles.includes(id)).length })));
     const roleRowsTab = computed(()=>roleTab.value==='all' ? roleRowsShown.value : roleRowsShown.value.filter(r=>r.roles.includes(roleTab.value)));
     const roleRowsShown = computed(()=>{ const q=roleQ.value.trim().toLowerCase();
-      return fb.roles.map(r=>({ ...r, gtxt:r.roles.map(id=>(ROLES.find(x=>x.id===id)||{}).name||id).join('、') }))
+      return fb.roles.map(r=>({ ...r, gtxt:r.roles.map(id=>(id==='blocked'?'⛔ 已停用（只能當家長）':((ROLES.find(x=>x.id===id)||{}).name||id))).join('、') }))
         .filter(r=>!q || (r.name+' '+r.email+' '+r.gtxt).toLowerCase().includes(q))
         .sort((a,b)=>(a.name||'~').localeCompare(b.name||'~','zh-Hant')); });
     const roleBulkRows = computed(()=>roleBulk.value.split(/\r?\n/).map(l=>l.trim()).filter(Boolean).map((l,i)=>{
@@ -4491,6 +4492,9 @@ createApp({
     watch(()=>pendingMatches.value.map(x=>x.email).join(','), v=>{ if(v && FORMAL && fb.admin && fb.rosterAuto) setTimeout(()=>applyMatches(null,true),800); });
     function editRole(r){ roleForm.email=r.email; roleForm.roles=r.roles.slice(); window.scrollTo({ top:0, behavior:'smooth' }); }
     function setRole(){ const em=roleForm.email.toLowerCase().trim(); if(window.SCHOOL_DOMAIN && !em.endsWith('@'+window.SCHOOL_DOMAIN)){ toast('請輸入學校帳號（@'+window.SCHOOL_DOMAIN+'）',true); return; } const rs=roleForm.roles.slice(); if(!acctGuard(em, rs)) return; fref('roles',em).set({ role:rs[0], roles:rs, name:((fb.roles.find(x=>x.email===em)||{}).name||''), by:fb.email, ts:Date.now() }).then(()=>{ toast('已設定 '+em+'：'+rs.length+' 個組別'); roleForm.email=''; roleForm.roles=[]; log('設定權限：'+em+' → '+rs.join('、')); }).catch(e=>toast('設定失敗：'+((e&&e.code)||''),true)); }
+    function blockAccount(r){ const em=r.email; if(!acctGuard(em, ['blocked'])) return;
+      ask('確定停用「'+(r.name||em)+'」？停用後這個帳號登入會被登出，只能看家長・觀眾畫面（大會看板、成績、直播）。之後可以按「修改」恢復。', ()=>{
+        fref('roles',em).set({ role:'blocked', roles:['blocked'], name:r.name||'', by:fb.email, ts:Date.now() }).then(()=>{ toast('已停用 '+(r.name||em)); log('停用帳號：'+(r.name||'')+' '+em); }).catch(e=>toast('停用失敗：'+((e&&e.code)||''),true)); }); }
     function removeRole(em){ if(!acctGuard(em, [])) return; fref('roles',em).delete().then(()=>toast('已移除 '+em)).catch(e=>toast('移除失敗：'+((e&&e.code)||''),true)); }
     /* 流程表編輯、刪除人員（兩種版本都可用） */
     function addTl(){ if(!need('flow')) return; const last=st.value.timeline[st.value.timeline.length-1]; st.value.timeline.push({ id:'t'+Date.now(), time:last?last.time:'08:00', title:'新的流程項目', kind:'other', eventIds:[], status:'todo' }); }
@@ -4528,7 +4532,7 @@ createApp({
       rvTab, rvNote, publish, sendBack, askReopen,
       mcText, doneBc, addInsert, bcStyle,
       FORMAL, fb, roleTab, roleGroups, roleRowsTab, signIn, signOut, initFormal, roleForm, setRole, editRole, removeRole, roleBulk, roleBulkRows, applyRoleBulk, roleQ, roleRowsShown, rosterDraft, onRosterInput, rosterMap, loginMatches, pendingMatches, saveRoster, setRosterAuto, applyMatches, isOnline, devicesSorted, devicesOnline, devicesRecent, addTl, removeTl, removeGuest,
-      RTYPES, STA, rf, rFilter, canHandle, openReports, myOpenReports, reportList, openMedicReports, submitReport, setReport, md, addMedical, medicalRows, eqFilter, ne, tlLabel, equipGroups, nextEquip, setEquip, addEquip, removeEquip, lunchInfo, lunchMissing, setLunchInfo, toggleLunch, callLunch, gf, addGift, announceGift, giftRows, giftText, setStation, supportMissing, initSupport,
+      RTYPES, STA, rf, rFilter, canHandle, openReports, myOpenReports, reportList, openMedicReports, submitReport, setReport, md, addMedical, medicalRows, eqFilter, ne, tlLabel, equipGroups, nextEquip, setEquip, addEquip, removeEquip, blockAccount, lunchInfo, lunchMissing, setLunchInfo, toggleLunch, callLunch, gf, addGift, announceGift, giftRows, giftText, setStation, supportMissing, initSupport,
       dockOpen, setDock, qa, quickAssign, person, useBackup, restorePrimary, eventPoints, setCustomPts, baseNames, bulk, applyBulk,
       gFilter, gKind, guestList, ng, arrive, addGuest, personText, personMark, shortTitle, batchesOf, presenterOf, toggleAbsent, readyBatchObj, batchTime, winnersOf, winnerGroups, awardIssues, teacherCalls, sync, toggleCloud, canEmbed, embedUrl,
       batchInfo, readyBatch, doneBatch,
