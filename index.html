@@ -688,6 +688,13 @@ html.ov-transparent body::before{ display:none; }
   <div v-if="FORMAL && fb.user && !fb.online" class="netbar no-print" role="status">⚠ 目前離線：你的操作會先存在這台裝置，恢復連線後自動送出（未送出 {{ fb.pending }} 筆）</div>
   <div v-if="FORMAL && fb.err" class="netbar no-print" role="alert">{{ fb.err }}</div>
   <div v-if="newVersion" class="netbar no-print" role="status" style="background:#0B62A4;color:#fff;display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap">🔄 系統已更新到新版本<button class="btn btn-sm" style="background:#fff;color:#0B62A4;font-weight:800" @click="reloadApp">立即更新</button></div>
+  <!-- 總控忘記按「開始」：超過表定時間 2 分鐘就提醒（總控、紀錄組看得到） -->
+  <div v-if="overdueTl && can('flow') && !overdueSnoozed" class="netbar no-print" role="alert" style="background:#E07A00;color:#fff;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;font-size:17px">
+    ⏰ {{ tlNo(overdueTl.t) }}「{{ overdueTl.t.title }}」表定 {{ tlTime(overdueTl.t) }}，已過 {{ overdueTl.mins }} 分鐘還沒按開始
+    <button class="btn btn-sm" style="background:#fff;color:#B45A00;font-weight:800" @click="startTl(overdueTl.t)">現在開始</button>
+    <button class="btn btn-sm" style="background:rgba(255,255,255,.2);color:#fff;border-color:#fff" @click="delay(5)">流程順延 5 分</button>
+    <button class="btn btn-sm" style="background:transparent;color:#fff;border-color:#fff" @click="snoozeOverdue">3 分鐘後再提醒</button>
+  </div>
 
   <div class="shell">
     <!-- ======== 選單：電腦在左側、手機是抽屜 ========
@@ -993,6 +1000,7 @@ html.ov-transparent body::before{ display:none; }
             <label class="small inline-flex items-center gap-2 mt-1"><input type="checkbox" v-model="adhoc.startNow" style="width:20px;height:20px"> 送出後立刻「開始」這一項</label>
             <div class="flex gap-2 mt-2"><button class="btn btn-primary" @click="addAdhoc" :disabled="!adhoc.title.trim() || !adhoc.time">送出</button><button class="btn" @click="adhocOpen=false">取消</button></div>
           </div>
+          <label v-if="can('flow')" class="small flex items-center gap-2 mb-2" style="min-height:36px"><input type="checkbox" :checked="!!st.settings.autoFlow" @change="setAutoFlow($event.target.checked)" style="width:20px;height:20px"> 忘記按也沒關係：超過表定時間 3 分鐘還沒開始，系統自動幫你按「開始」</label>
           <div class="note mb-3" v-if="st.delayMin">目前流程順延 <b>{{ st.delayMin }}</b> 分鐘，未開始項目的時間已自動調整。</div>
           <div class="tl">
             <button v-if="tlDoneN" class="tl-donebar" @click="showDoneTl=!showDoneTl">{{ showDoneTl ? '▲ 收起已完成的項目' : '✔ 已完成 '+tlDoneN+' 項（點一下展開）' }}</button>
@@ -1485,6 +1493,7 @@ html.ov-transparent body::before{ display:none; }
               <div v-if="nextTl.check" class="prog-award">📣 檢錄 {{ nextTl.check }}・比賽 {{ nextTl.race }}（全學年同時檢錄）</div>
               <div class="mc-card mt-2" style="font-size:18px">{{ prepScriptOf(nextTl) }}</div>
               <button class="btn btn-sm mt-2" @click="copy(prepScriptOf(nextTl))">複製預告稿</button>
+              <button class="btn btn-sm mt-2" v-if="overdueTl && overdueTl.t.id===nextTl.id" style="background:#E07A00;color:#fff;border-color:#E07A00" @click="remindControl">📣 提醒總控按開始</button>
             </template>
             <div v-else class="muted">後面沒有節目了。</div>
           </div>
@@ -2565,7 +2574,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261125123000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261125124500'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -3395,6 +3404,23 @@ createApp({
         const ord=PROGRAM_BATCHES.map(b=>b.id); st.value.batches.sort((a,b)=>(ord.indexOf(a.id)+1||99)-(ord.indexOf(b.id)+1||99));
         st.value.delayMin=0; log('流程表套用 115 學年度節目單'); toast('已套用節目單：'+nt.length+' 項流程、'+PROGRAM_BATCHES.length+' 個頒獎梯次');
       }); }
+    /* ----- 總控忘記按開始：提醒、司儀提醒總控、自動開始 ----- */
+    /* 只在運動會當天與前 5 天（預演 12/2、12/4）提醒，平常不會一直跳 */
+    const flowDayActive = computed(()=>{ const d=String(st.value.settings.date||''); if(!/^\d{4}-\d{2}-\d{2}$/.test(d)) return true; const ev=new Date(d+'T00:00:00'), now=new Date(nowTick.value); now.setHours(0,0,0,0); const diff=(ev-now)/86400000; return diff>=0 && diff<=5; });
+    const overdueTl = computed(()=>{ const t=nextTl.value; if(!t || !t.time || !flowDayActive.value) return null; const mins=clockMin.value - toMin(tlTime(t)); return mins>=2 && mins<=240 ? { t, mins } : null; });
+    const snoozeUntil = ref(0); const snoozeId = ref('');
+    const overdueSnoozed = computed(()=>overdueTl.value && snoozeId.value===overdueTl.value.t.id && nowTick.value<snoozeUntil.value);
+    function snoozeOverdue(){ if(!overdueTl.value) return; snoozeId.value=overdueTl.value.t.id; snoozeUntil.value=Date.now()+180000; }
+    function remindControl(){ const o=overdueTl.value; if(!o) return;
+      if(st.value.reports.some(r=>r.remindTl===o.t.id && r.status!=='done')){ toast('已經提醒過總控了'); return; }
+      newReport({ type:'other', urgent:true, remindTl:o.t.id, place:'司令台', text:'司儀提醒：'+tlNo(o.t)+'「'+o.t.title+'」表定 '+tlTime(o.t)+'，已過 '+o.mins+' 分鐘，請總控按「開始」或宣布順延' });
+      toast('已通知總控與紀錄組'); }
+    function setAutoFlow(v){ if(!need('flow')) return; st.value.settings.autoFlow=!!v; log(v?'開啟流程自動開始':'關閉流程自動開始'); }
+    let autoBusy=false;
+    watch(()=>[clock.value, nextTl.value && nextTl.value.id, st.value.settings.autoFlow], ()=>{ const o=overdueTl.value;
+      if(autoBusy || !st.value.settings.autoFlow || !can('flow') || !o || o.mins<3 || o.mins>30) return;
+      autoBusy=true; const id=o.t.id;
+      setTimeout(()=>{ autoBusy=false; const t=st.value.timeline.find(x=>x.id===id); if(t && t.status==='todo' && nextTl.value===t){ startTl(t); log('系統自動開始：'+t.title+'（總控未按）'); } }, 1000+Math.floor(Math.random()*6000)); });
     /* ----- 臨時插入流程（突發狀況） ----- */
     const ADHOC_TPL = [
       { k:'雨天備案', title:'雨天暫停，移至室內', unit:'全校師生', place:'風雨操場、各班教室', notify:['site','equip'], mc:'大會報告：因為下雨，比賽暫停，請各班依照導師指示移到風雨操場或回教室休息，器材組、場地組請協助收器材，恢復時間請聽廣播。' },
@@ -3419,7 +3445,7 @@ createApp({
     /* ----- 流程 ----- */
     function tlTime(t){ if(t.status==='done' || !st.value.delayMin) return t.time; const [h,m]=t.time.split(':').map(Number); const d=new Date(2000,0,1,h,m+st.value.delayMin); return hhmm(d); }
     function startTl(t){ if(!need('flow')) return; equipAlert(t.id);
-      st.value.timeline.forEach(x=>{ if(x.status==='now') x.status='done'; }); t.status='now';
+      { const arr=st.value.timeline, k=arr.indexOf(t); arr.forEach((x,i)=>{ if(x.status==='now' || (i<k && x.status==='todo')) x.status='done'; }); } t.status='now';
       const nx=st.value.timeline.find(x=>x.status==='todo');
       bc('flow', mcScriptOf(t)+(nx?'\n'+prepScriptOf(nx):''));
       // 司儀自己的講稿：綁定這個流程的，依順序加入待播報
@@ -4349,7 +4375,7 @@ createApp({
 
     return { st, role, page, helpOpen, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
       SHORT, cd, pad, insertOpen, openInsert, promptGroup, promptNext, scriptState, jumpScripts, ringLong, toggleRing, refOk, refChanged, confirmRef, needRef, doneTab, doneShown, restoreBc, scriptLib, scriptsOf, scriptGroups, nextScriptGroup, sf, editScript, saveScript, removeScript, moveScript, queueScript, sPaste, sParsed, importScripts, canBc, pushState, registerPush, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
-      drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, ADHOC_TPL, adhocOpen, adhoc, useAdhocTpl, addAdhoc, tlRange, tlNo, mcScriptOf, prepScriptOf, nextMinsLeft, scheduledTl, mcProgOpen, applyProgram, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
+      drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, overdueTl, overdueSnoozed, snoozeOverdue, remindControl, setAutoFlow, ADHOC_TPL, adhocOpen, adhoc, useAdhocTpl, addAdhoc, tlRange, tlNo, mcScriptOf, prepScriptOf, nextMinsLeft, scheduledTl, mcProgOpen, applyProgram, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
       roleObj, myPages, navPages, myTasks, dateLabel, go, badge, kpi, ask, modalOk, clsLabel,
       ranked, top, fmtMark, standings, barW, classPts, classRank, preEvents, dayEvents, reviewEvents, publishedEvents, latestPublished, checkinEvents,
