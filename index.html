@@ -2613,7 +2613,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261125144500'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261125150000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -4126,18 +4126,20 @@ createApp({
     /* ----- 看板輪播與時鐘 ----- */
     const boardIdx = ref(0);
     const boardEvent = computed(()=>latestPublished.value[boardIdx.value % Math.max(1,latestPublished.value.length)] || null);
-    /* 看板最上方跑馬燈（給家長看）：現在進行 → 節目預告 → 頒獎預告 → 檢錄 → 放學提醒 → 感謝 → 大會報告 */
-    const tickerText = computed(()=>{ const items=[], tl=st.value.timeline, now=clockMin.value;
-      tickerMsgs.value.forEach(m=>items.push('【公告】'+m.text));
+    /* 看板最上方跑馬燈（給家長看）：標題 → 總控公告 → 現在進行／節目預告 → 頒獎預告、檢錄、感謝、大會報告 → 放學時間（最後） */
+    const tickerText = computed(()=>{ const items=[], tl=st.value.timeline;
       const where = t => [t.unit, t.place].filter(Boolean).join('・');
+      items.push('楠梓國小'+st.value.settings.title+'　活力躍動　魅力楠梓');
+      tickerMsgs.value.forEach(m=>items.push('【公告】'+m.text));
       if(nowTl.value) items.push('【現在進行】'+(nowTl.value.no?'第'+nowTl.value.no+'項 ':'')+nowTl.value.title+(where(nowTl.value)?'（'+where(nowTl.value)+'）':''));
       tl.filter(t=>t.status==='todo').slice(0,2).forEach(t=>items.push('【節目預告】'+tlTime(t)+' '+(t.no?'第'+t.no+'項 ':'')+t.title+(where(t)?'（'+where(t)+'）':'')+(t.check?'，檢錄 '+t.check:'')));
       const aw=tl.find(t=>t.status!=='done' && t.award); if(aw) items.push('【頒獎預告】'+tlTime(aw)+' 頒獎：'+aw.award+'，得獎同學請到司令台前頒獎台旁集合');
       checkinEvents.value.forEach(e=>items.push('【檢錄】'+e.name+' 請到檢錄處報到'));
-      tl.filter(t=>t.note && /放學/.test(t.note)).forEach(t=>{ const m=t.note.match(/(\d{1,2})[:：](\d{2})/); const hm=m ? (+m[1] < 7 ? +m[1]+12 : +m[1])*60 + +m[2] : null; if(hm===null || now<=hm) items.push('【放學提醒】'+t.note+'，請家長準時接送'); });
       st.value.gifts.filter(g=>g.announced).slice(-3).forEach(g=>items.push('【感謝】'+g.donor+' 捐贈 '+g.item));
       st.value.broadcasts.filter(b=>b.done && !b.cancelled && b.type==='insert').slice(-2).forEach(b=>items.push('【大會報告】'+b.text.replace(/^大會報告：/,'')));
-      items.push('楠梓國小創校127週年　活力躍動　魅力楠梓'); return items.join('　　◆　　'); });
+      const leave=tl.filter(t=>t.note && /放學/.test(t.note)).map(t=>t.note);
+      if(leave.length) items.push('【放學時間】'+leave.join('；')+'，請家長準時接送');
+      return items.join('　　◆　　'); });
     setInterval(()=>{ clock.value=hhmm(); },10000);
     setInterval(()=>{ if(page.value==='board' && latestPublished.value.length) boardIdx.value=(boardIdx.value+1)%latestPublished.value.length; },8000);
     function toggleBoardMode(){ boardMode.value=!boardMode.value; }
