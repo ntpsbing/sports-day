@@ -28,6 +28,7 @@ service cloud.firestore {
     match /broadcasts/{id} { allow read: if true; allow write: if staff(); }
     // 學校帳號才能看／填
     match /allrun/{cls}    { allow read, write: if isSchool(); }
+    match /allrunPub/{cls} { allow read: if true; allow write: if isSchool(); }   // 全員賽跑遮名版（家長看）
     match /logs/{id}       { allow read: if hasRole(['record','control']); allow create: if isSchool(); allow delete: if isAdmin(); }   // 只有系統管理員能清除（例如預演後清測試資料）
     match /devices/{id}    { allow read: if hasRole(['record','control']); allow write: if isSchool(); }
     match /roles/{e}       { allow read: if isSchool() || (signedIn() && e == email());

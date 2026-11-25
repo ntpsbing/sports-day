@@ -528,6 +528,13 @@ html.ov-transparent body::before{ display:none; }
 
 @media (prefers-reduced-motion: reduce){ *{ animation:none !important; transition:none !important; } .medal-svg .shine{ display:none; } .ticker span{ padding-left:0; white-space:normal; } }
 
+/* ===== 全員賽跑公開（成績查詢頁） ===== */
+.ar-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr)); gap:10px; align-items:start; }
+.ar-cls{ border:1.5px solid var(--line); border-radius:12px; padding:8px 12px; background:var(--card); min-width:0; }
+.ar-cls summary{ display:flex; justify-content:space-between; align-items:center; gap:8px; cursor:pointer; min-height:40px; font-size:17px; }
+.ar-tbl{ width:100%; border-collapse:collapse; margin-top:6px; font-size:16px; }
+.ar-tbl th{ text-align:left; font-size:13px; color:var(--muted); font-weight:800; padding:4px 6px; border-bottom:1.5px solid var(--line); }
+.ar-tbl td{ padding:6px; border-bottom:1px solid var(--line); overflow-wrap:anywhere; } .ar-tbl tr:last-child td{ border-bottom:0; }
 /* ===== 節目單頁（家長、導師） ===== */
 .prog-page{ max-width:900px; margin:0 auto; }
 .pg-hero{ border-radius:20px; background:linear-gradient(150deg,#0B3B6B 0%,#0E5FA8 60%,#1586C9 100%); color:#fff; padding:22px 22px 20px; position:relative; overflow:hidden; margin-bottom:14px; }
@@ -1017,6 +1024,21 @@ html.ov-transparent body::before{ display:none; }
           </table>
           <button v-if="fullResults && ranked(ev).length>ev.awardTop" class="res-more" @click="resOpen[ev.id]=!resOpen[ev.id]">{{ resOpen[ev.id] ? '只看得獎名次 ▲' : '看完整成績（'+ranked(ev).length+' 人）▼' }}</button>
         </article>
+      </div>
+      <!-- 🏃 全員賽跑（家長也看得到；公開哪些年級在「積分與設定 → 基本資料」） -->
+      <div class="card mt-4 ar-pub" v-if="arPubShown.length || arPubGrades.length">
+        <div class="flex items-center justify-between gap-2 flex-wrap mb-2">
+          <h2 class="h-sec">🏃 全員賽跑・各班前三名</h2>
+          <span class="small muted">{{ arPubGradeText }}・導師送出後馬上出現</span>
+        </div>
+        <div v-if="!arPubShown.length" class="muted" style="padding:10px 0">還沒有班級送出成績，全員賽跑結束後導師填報就會出現在這裡。</div>
+        <div class="ar-grid">
+          <details v-for="x in arPubShown" :key="x.cls" class="ar-cls" :open="arPubShown.length<=4">
+            <summary><b>{{ clsLabel(x.cls) }}</b><span class="small muted">{{ x.d.groups.length }} 組・{{ x.d.at }}</span></summary>
+            <table class="ar-tbl"><thead><tr><th>組別</th><th>🥇 第一名</th><th>🥈 第二名</th><th>🥉 第三名</th></tr></thead>
+              <tbody><tr v-for="(g,gi) in x.d.groups" :key="gi"><td class="num">第 {{ gi+1 }} 組</td><td v-for="(n,ni) in g" :key="ni">{{ n }}</td></tr></tbody></table>
+          </details>
+        </div>
       </div>
     </section>
 
@@ -2246,6 +2268,11 @@ html.ov-transparent body::before{ display:none; }
           <fold-card k="cfg-basic" :open="false">
   <template #title>🏫 基本資料</template>
   <template #sum><span class="sumchip">{{ dateLabel }}</span><span class="sumchip">一～六年級 {{ totalClasses }} 班</span></template>
+            <div class="card-flat mb-3">
+              <div class="font-bold mb-1">🏃 全員賽跑成績給家長看的年級</div>
+              <div class="small muted mb-2">勾選的年級，導師送出全員賽跑前三名後，會出現在「成績查詢」頁（家長看到「王○明」遮名）。</div>
+              <div class="flex flex-wrap gap-2"><label v-for="g in AR_PUB_OPTS" :key="g.id" class="btn btn-sm" :class="arPubGrades.includes(g.id)?'btn-primary':''"><input type="checkbox" class="sr-only" :checked="arPubGrades.includes(g.id)" @change="toggleArPub(g.id)" :disabled="!can('config')">{{ arPubGrades.includes(g.id) ? '✔ ' : '' }}{{ g.name }}</label></div>
+            </div>
             <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
               <div style="grid-column:1/-1"><label class="lbl" for="stTitle">活動名稱</label><input id="stTitle" class="inp" v-model="st.settings.title" maxlength="40"></div>
               <div><label class="lbl" for="stDate">運動會日期</label><input id="stDate" class="inp" type="date" v-model="st.settings.date"></div>
@@ -2768,7 +2795,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261125205000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261125210000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -2992,6 +3019,7 @@ const HELP = {
 };
 /* 新功能公告：依組別顯示，每台裝置看過按「知道了」就不再出現（之後新增功能時，在最上面加一筆） */
 const WHATS_NEW = [
+  { id:'n20261125l', roles:['teacher','public','control','record'], page:'results', title:'家長看得到低年級全員賽跑成績', text:'導師在「導師查詢」送出全員賽跑每組前三名後，會馬上出現在「成績查詢」頁最下方（家長看到遮名，例如王○明）。公開哪些年級可在「積分與設定 → 基本資料」勾選。' },
   { id:'n20261125k', roles:['teacher','public','control','record','mc'], page:'program', title:'選單多了「🗓️ 節目單」', text:'運動會當天每個節目的時間、地點、參加班級，手機電腦都清楚；點年級就只亮自己班的節目，現在進行、下一個會自動標出來。家長不用登入也能看。' },
   { id:'n20261125j', roles:['live','control'], page:'live', title:'直播畫面也有跑馬燈與臨時插播', text:'直播疊字畫面最下方會跑跑馬燈（可在「直播」頁關閉）；臨時插播、緊急更正會優先跳出在字卡上。家長的「看直播」頁上方也有跑馬燈。' },
   { id:'n20261125i', roles:['control','record','mc'], page:'board', title:'臨時插播會在跑馬燈下方「跳一行」', text:'司儀插播或緊急更正，10 分鐘內會在大會看板跑馬燈下方單獨顯示一行（緊急更正是紅色）；未處理的現場通報只有登入的工作人員看得到，投影模式不顯示。' },
@@ -3672,6 +3700,21 @@ createApp({
         return { t, items, hit, state: t.status==='done' ? 'done' : t.status==='now' ? 'now' : (nx && nx.id===t.id ? 'next' : 'todo') }; }); });
     const progLeave = computed(()=>st.value.timeline.filter(t=>t.note && /放學/.test(t.note)).map(t=>t.note));
     watch(()=>page.value, v=>{ if(v==='program' && !pgGrade.value){ pgGrade.value = tCls.value && /^\d-/.test(tCls.value) ? tCls.value[0] : (tCls.value && /^[KA]/.test(tCls.value) ? 'kg' : 'all'); } });
+    /* ----- 全員賽跑公開：導師送出的名單另存一份「遮名」到 allrunPub（家長可讀），成績查詢頁顯示勾選的年級 ----- */
+    const AR_PUB_OPTS = [{id:'kg',name:'幼兒園・天使班'},{id:'1',name:'一年級'},{id:'2',name:'二年級'},{id:'3',name:'三年級'},{id:'4',name:'四年級'},{id:'5',name:'五年級'},{id:'6',name:'六年級'}];
+    const arPubGrades = computed(()=>Array.isArray(st.value.settings.allrunPub) ? st.value.settings.allrunPub : ['1','2']);
+    function toggleArPub(id){ if(!need('config')) return; const a=[...arPubGrades.value]; const i=a.indexOf(id); if(i>=0) a.splice(i,1); else a.push(id); st.value.settings.allrunPub=a; log('全員賽跑公開年級：'+(a.map(x=>(AR_PUB_OPTS.find(o=>o.id===x)||{}).name).join('、')||'不公開')); }
+    const arPubGradeText = computed(()=>{ const n=arPubGrades.value.map(x=>(AR_PUB_OPTS.find(o=>o.id===x)||{}).name).filter(Boolean); return n.length ? n.join('、') : '目前不公開'; });
+    const pubAllrun = reactive({});
+    const maskGroups = d => ({ at:d.at||'', groups:(d.groups||[]).map(g=>g.map(n=>maskName(n))) });
+    const arPubData = computed(()=> FORMAL ? pubAllrun : Object.fromEntries(Object.entries(st.value.allrun||{}).map(([k,v])=>[k, maskGroups(v)])));
+    const arGradeOf = c => /^[KA]/.test(c) ? 'kg' : String(c)[0];
+    const arPubShown = computed(()=>{ const q=String(resQ.value||'').trim();
+      return allrunClasses.value.filter(c=>arPubData.value[c] && arPubGrades.value.includes(arGradeOf(c)) && (resGrade.value==='all' || String(resGrade.value)===arGradeOf(c)) && (!q || clsLabel(c).includes(q) || c.replace('-','').includes(q.replace(/^0/,''))))
+        .map(c=>({ cls:c, d:arPubData.value[c] })); });
+    /* 有填報權限的人登入時，把完整名單同步一份遮名版（補上以前送出的班級） */
+    watch(()=>[JSON.stringify(st.value.allrun||{}), fb.user && fb.user.email, Object.keys(pubAllrun).length], ()=>{ if(!FORMAL || !fb.user || !(fb.admin || can('allrun'))) return;
+      Object.entries(st.value.allrun||{}).forEach(([c,d])=>{ const m=maskGroups(d); if(JSON.stringify(m)!==JSON.stringify(pubAllrun[c]||null)){ try{ fref('allrunPub',c).set(m); }catch(e){} } }); });
     /* ----- 臨時插入流程（突發狀況） ----- */
     const ADHOC_TPL = [
       { k:'雨天備案', title:'雨天暫停，移至室內', unit:'全校師生', place:'風雨操場、各班教室', notify:['site','equip'], mc:'大會報告：因為下雨，比賽暫停，請各班依照導師指示移到風雨操場或回教室休息，器材組、場地組請協助收器材，恢復時間請聽廣播。' },
@@ -4545,6 +4588,7 @@ createApp({
       fUnsubs.push(listenArr('broadcasts', fdb.collection('broadcasts').where('done','==',false), { onLeave:b=>{ if(!b.done){ b.done=true; } } }));
       fUnsubs.push(listenMap('meta', fdb.collection('meta'), (id,d)=>{ if(!d) return; if(id==='settings') st.value.settings=d; else if(id==='live') st.value.live=Object.assign(liveDefault(), d); else if(id==='flow') st.value.delayMin=d.delayMin||0; else if(id==='homeroom') homeroomText.value=d.text||''; }));
       if(fb.user) fUnsubs.push(listenMap('allrun', fdb.collection('allrun'), (id,d)=>{ if(d) st.value.allrun[id]=d; else delete st.value.allrun[id]; }));
+      fUnsubs.push(fdb.collection('allrunPub').onSnapshot(snap=>{ snap.docChanges().forEach(ch=>{ if(ch.type==='removed') delete pubAllrun[ch.doc.id]; else pubAllrun[ch.doc.id]=ch.doc.data(); }); }, ()=>{}));
       if(fb.user && (fb.admin || fb.myRoles.some(r=>['record','control'].includes(r)))){
         fUnsubs.push(listenArr('logs', fdb.collection('logs').orderBy('ts','desc').limit(300)));
         fUnsubs.push(fdb.collection('devices').onSnapshot(s=>{ fb.devices=s.docs.map(d=>{ const x=d.data(); return Object.assign({ id:d.id }, x, { tsMs: x.ts && x.ts.toMillis ? x.ts.toMillis() : 0 }); }); }, ()=>{}));
@@ -4692,7 +4736,7 @@ createApp({
 
     return { st, role, page, helpOpen, acctMgr, isCtrlEmail, closeHelp, newsList, dismissNews, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
       SHORT, arOpen, homeroomDraft, homeroomRows, homeroomLogins, saveHomeroom, myHomeroom, onHrInput, cd, pad, insertOpen, openInsert, promptGroup, promptNext, scriptState, jumpScripts, ringLong, toggleRing, refOk, refChanged, confirmRef, needRef, doneTab, doneShown, restoreBc, scriptLib, scriptsOf, scriptGroups, nextScriptGroup, sf, editScript, saveScript, removeScript, moveScript, queueScript, sPaste, sParsed, importScripts, canBc, pushState, registerPush, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
-      drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, PG_GRADES, pgGrade, progList, progLeave, shiftHM, flashLine, reportLine, TICKER_TPL, tkOpen, tk, tickerMsgs, hhmmOf, addTicker, removeTicker, canFixName, fixName, overdueTl, overdueSnoozed, snoozeOverdue, remindControl, setAutoFlow, ADHOC_TPL, adhocOpen, adhoc, useAdhocTpl, addAdhoc, tlRange, tlNo, mcScriptOf, prepScriptOf, nextMinsLeft, scheduledTl, mcProgOpen, applyProgram, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
+      drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, AR_PUB_OPTS, arPubGrades, toggleArPub, arPubGradeText, arPubShown, PG_GRADES, pgGrade, progList, progLeave, shiftHM, flashLine, reportLine, TICKER_TPL, tkOpen, tk, tickerMsgs, hhmmOf, addTicker, removeTicker, canFixName, fixName, overdueTl, overdueSnoozed, snoozeOverdue, remindControl, setAutoFlow, ADHOC_TPL, adhocOpen, adhoc, useAdhocTpl, addAdhoc, tlRange, tlNo, mcScriptOf, prepScriptOf, nextMinsLeft, scheduledTl, mcProgOpen, applyProgram, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
       roleObj, myPages, navPages, myTasks, dateLabel, go, badge, kpi, ask, modalOk, clsLabel,
       ranked, top, fmtMark, standings, barW, classPts, classRank, preEvents, dayEvents, reviewEvents, publishedEvents, latestPublished, checkinEvents,
