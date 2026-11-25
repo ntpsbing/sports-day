@@ -2330,6 +2330,10 @@ html.ov-transparent body::before{ display:none; }
           <button class="btn btn-sm btn-ok" @click="setEquip(x,'sent')">已送達</button>
         </div>
       </div>
+      <div v-if="!st.equip.length" class="card mb-4" style="border:2px dashed var(--brand)">
+        <h2 class="h-sec mb-1">還沒有器材清單</h2>
+        <p class="small mb-0">請器材組在下方「➕ 新增器材」一項一項加：選是哪個節目要用、填器材名稱、數量、送到哪裡。加好後，總控按該節目「開始」時，還沒送到的器材會自動提醒器材組。</p>
+      </div>
       <div class="flex gap-2 flex-wrap mb-3"><div class="seg"><button :class="{on:eqFilter==='todo'}" @click="eqFilter='todo'">未完成</button><button :class="{on:eqFilter==='all'}" @click="eqFilter='all'">全部</button></div></div>
       <div class="grid gap-3" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,380px),1fr))">
         <div v-for="g in equipGroups" :key="g.tl" class="card">
@@ -2340,11 +2344,12 @@ html.ov-transparent body::before{ display:none; }
               <span :class="['chip', x.status==='back'?'st-published':x.status==='sent'?'st-running':'tag-todo']">{{ x.status==='back' ? '✔ 已收回' : x.status==='sent' ? '▶ 已送達 '+x.at : '○ 待送' }}</span>
               <button class="btn btn-sm" v-if="x.status==='todo'" @click="setEquip(x,'sent')">送達</button>
               <button class="btn btn-sm" v-else-if="x.status==='sent'" @click="setEquip(x,'back')">收回</button>
+              <button class="btn btn-sm" v-if="can('equipH')" @click="removeEquip(x)" :aria-label="'刪除 '+x.item" title="刪除這一項">✕</button>
             </div>
           </div>
         </div>
       </div>
-      <fold-card k="equip-add" :open="false" class="mt-4">
+      <fold-card k="equip-add" :open="!st.equip.length" class="mt-4">
   <template #title>➕ 新增器材</template>
         <div class="grid gap-2" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
           <select class="inp" id="neTl" v-model="ne.tl"><option v-for="t in st.timeline" :key="t.id" :value="t.id">{{ t.time }} {{ t.title }}</option></select>
@@ -2608,7 +2613,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261125143000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261125144500'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -4201,6 +4206,7 @@ createApp({
     const equipGroups = computed(()=>{ const out=[]; st.value.timeline.forEach(t=>{ const items=st.value.equip.filter(x=>x.tl===t.id && (eqFilter.value==='all' || x.status!=='back')); if(items.length) out.push({ tl:t.id, time:tlTime(t), title:t.title, items }); }); const orphan=st.value.equip.filter(x=>!st.value.timeline.some(t=>t.id===x.tl)); if(orphan.length) out.push({ tl:'_', time:'', title:'其他', items:orphan }); return out; });
     const nextEquip = computed(()=>{ const ids=st.value.timeline.filter(t=>t.status!=='done').slice(0,3).map(t=>t.id); return st.value.equip.filter(x=>ids.includes(x.tl) && x.status==='todo'); });
     function setEquip(x,stt){ if(!need('equipH')) return; x.status=stt; x.at=hhmm(); st.value.reports.forEach(r=>{ if(r.type==='equip' && r.equipTl===x.tl && isOpenR(r) && !st.value.equip.some(e=>e.tl===x.tl && e.status==='todo')){ r.status='done'; r.doneAt=hhmm(); r.handledBy='器材組'; } }); }
+    function removeEquip(x){ if(!need('equipH')) return; ask('確定從器材清單刪除「'+x.item+' ×'+x.qty+'」嗎？', ()=>{ const i=st.value.equip.indexOf(x); if(i>=0) st.value.equip.splice(i,1); if(FORMAL) fbDelete('equip', x.id); log('刪除器材：'+x.item); toast('已刪除「'+x.item+'」'); }); }
     function addEquip(){ if(!need('equipH')) return; st.value.equip.push({ id:'q'+Date.now()+uid(), tl:ne.tl, item:ne.item, qty:ne.qty||1, place:ne.place, status:'todo', at:'' }); ne.item=''; ne.place=''; toast('已新增器材'); }
     /* 器材自動提醒：流程開始或開始檢錄時，該項目還沒送達的器材變成緊急通報 */
     function equipAlert(tlId){ if(!tlId) return; const miss=st.value.equip.filter(x=>x.tl===tlId && x.status==='todo'); if(!miss.length) return; if(st.value.reports.some(r=>r.type==='equip' && r.equipTl===tlId && r.status!=='done')) return;
@@ -4476,7 +4482,7 @@ createApp({
       rvTab, rvNote, publish, sendBack, askReopen,
       mcText, doneBc, addInsert, bcStyle,
       FORMAL, fb, roleTab, roleGroups, roleRowsTab, signIn, signOut, initFormal, roleForm, setRole, editRole, removeRole, roleBulk, roleBulkRows, applyRoleBulk, roleQ, roleRowsShown, rosterDraft, onRosterInput, rosterMap, loginMatches, pendingMatches, saveRoster, setRosterAuto, applyMatches, isOnline, devicesSorted, devicesOnline, devicesRecent, addTl, removeTl, removeGuest,
-      RTYPES, STA, rf, rFilter, canHandle, openReports, myOpenReports, reportList, openMedicReports, submitReport, setReport, md, addMedical, medicalRows, eqFilter, ne, tlLabel, equipGroups, nextEquip, setEquip, addEquip, lunchInfo, lunchMissing, setLunchInfo, toggleLunch, callLunch, gf, addGift, announceGift, giftRows, giftText, setStation, supportMissing, initSupport,
+      RTYPES, STA, rf, rFilter, canHandle, openReports, myOpenReports, reportList, openMedicReports, submitReport, setReport, md, addMedical, medicalRows, eqFilter, ne, tlLabel, equipGroups, nextEquip, setEquip, addEquip, removeEquip, lunchInfo, lunchMissing, setLunchInfo, toggleLunch, callLunch, gf, addGift, announceGift, giftRows, giftText, setStation, supportMissing, initSupport,
       dockOpen, setDock, qa, quickAssign, person, useBackup, restorePrimary, eventPoints, setCustomPts, baseNames, bulk, applyBulk,
       gFilter, gKind, guestList, ng, arrive, addGuest, personText, personMark, shortTitle, batchesOf, presenterOf, toggleAbsent, readyBatchObj, batchTime, winnersOf, winnerGroups, awardIssues, teacherCalls, sync, toggleCloud, canEmbed, embedUrl,
       batchInfo, readyBatch, doneBatch,
