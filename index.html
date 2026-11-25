@@ -516,6 +516,15 @@ html.ov-transparent body::before{ display:none; }
 
 @media (prefers-reduced-motion: reduce){ *{ animation:none !important; transition:none !important; } .medal-svg .shine{ display:none; } .ticker span{ padding-left:0; white-space:normal; } }
 
+/* ===== 司儀台節目單提示 ===== */
+.prog-box{ border:2px solid var(--line); border-radius:14px; padding:14px 16px; background:var(--card); min-width:0; }
+.prog-box.now{ border-color:var(--brand); }
+.prog-box.soon{ border-color:#E07A00; background:color-mix(in srgb, #FFB020 12%, var(--card)); }
+.prog-lbl{ font-size:15px; font-weight:800; color:var(--muted); margin-bottom:4px; }
+.prog-box.soon .prog-lbl{ color:#B45A00; }
+.prog-title{ font-size:23px; font-weight:900; line-height:1.35; }
+.prog-meta{ font-size:16px; color:var(--muted); margin-top:2px; }
+.prog-award{ margin-top:6px; font-weight:800; color:#B4500A; font-size:16px; }
 /* ===== 成績單列印（紙張樣式，螢幕上也是白紙預覽） ===== */
 .paper{ background:#fff; color:#14212E; border-radius:14px; box-shadow:0 2px 14px rgba(8,40,70,.12); padding:28px 30px; }
 .paper .sh-head{ display:flex; justify-content:space-between; align-items:flex-end; gap:12px; border-bottom:4px solid #0B3B6B; padding-bottom:10px; margin-bottom:14px; flex-wrap:wrap; }
@@ -544,6 +553,7 @@ html.ov-transparent body::before{ display:none; }
 .sh-sign{ width:22%; } .sh-sign .box{ display:block; height:28px; border-bottom:1.5px dashed #9AAABB; }
 .sh-chk{ display:inline-block; width:20px; height:20px; border:2px solid #46596B; border-radius:4px; vertical-align:middle; }
 .sh-empty{ color:#8A9BAC; font-style:italic; }
+.prog-tbl td{ vertical-align:top; font-size:15px; } .prog-script{ margin-top:6px; background:#F4F7FA; border-left:4px solid #0B62A4; padding:6px 10px; border-radius:6px; font-size:15px; line-height:1.6; }
 .sh-foot{ margin-top:16px; font-size:13px; color:#6A7B8C; display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; border-top:1px solid #D2DCE6; padding-top:8px; }
 @media (max-width:640px){ .paper{ padding:16px 12px; } .paper .sh-title{ font-size:22px; } .sh-tbl{ font-size:15px; } .sh-place{ min-width:58px; font-size:15px; } .sh-sign{ display:none; } .sh-cls,.sh-name{ font-size:16px; } }
 
@@ -968,7 +978,9 @@ html.ov-transparent body::before{ display:none; }
             <div v-for="t in st.timeline.filter(t=>showDoneTl || t.status!=='done')" :key="t.id" :class="['tl-item',{now:t.status==='now',done:t.status==='done'}]">
               <div class="tl-time">{{ tlTime(t) }}</div>
               <div style="min-width:0">
-                <div class="font-bold">{{ t.title }}</div>
+                <div class="font-bold"><span v-if="t.no" class="muted num" style="font-weight:700">{{ t.no }}.</span> {{ t.title }}</div>
+                <div class="small muted" v-if="t.unit || t.place">{{ [t.unit, t.place].filter(Boolean).join('・') }}<span v-if="t.end">・到 {{ t.end }}</span></div>
+                <div class="small" v-if="t.award" style="color:#B4500A;font-weight:700">🏅 同時頒獎：{{ t.award }}</div>
                 <div class="small muted">{{ t.status==='done'?'✔ 已完成':t.status==='now'?'▶ 進行中':'○ 未開始' }}<span v-if="t.eventIds && t.eventIds.length">・{{ t.eventIds.length }} 個比賽項目</span><span v-if="scriptsOf(t.id).length">・📜 {{ scriptsOf(t.id).length }} 篇講稿</span></div>
               </div>
               <div class="tl-act flex gap-2 justify-end">
@@ -1075,12 +1087,12 @@ html.ov-transparent body::before{ display:none; }
               <div class="flex justify-between items-center gap-2 flex-wrap"><b>登入自動對照（不用輸入帳號）</b>
                 <label class="flex items-center gap-2 small"><input type="checkbox" id="rfAuto" :checked="fb.rosterAuto" @change="setRosterAuto($event.target.checked)" style="width:20px;height:20px"> 對得到名單就自動套用</label></div>
               <p class="small muted my-1">老師用學校帳號登入一次，系統用帳號上的姓名對照「工作分配名單」，自動設定組別。名單共 {{ Object.keys(rosterMap).length }} 人。</p>
-              <div class="small mb-2"><b>已登入 {{ loginMatches.length }} 位</b>：對到名單 {{ loginMatches.filter(x=>x.hit).length }} 位、待套用 <b style="color:var(--warn)">{{ pendingMatches.length }}</b> 位、名單沒有 {{ loginMatches.filter(x=>!x.hit && !x.has).length }} 位（自動當導師）</div>
+              <div class="small mb-2"><b>已登入 {{ loginMatches.length }} 位</b>：已設定組別 {{ loginMatches.filter(x=>x.has).length }} 位、待套用 <b style="color:var(--warn)">{{ pendingMatches.length }}</b> 位、沒有組別 {{ loginMatches.filter(x=>!x.hit && !x.has).length }} 位（當班級導師）</div>
               <button class="btn btn-primary btn-sm" v-if="pendingMatches.length" @click="applyMatches()">全部套用 {{ pendingMatches.length }} 位</button>
               <div class="tblwrap mt-2" style="max-height:220px;overflow:auto" v-if="loginMatches.length"><table class="tbl small"><tbody>
                 <tr v-for="x in loginMatches" :key="x.email"><td style="word-break:break-all">{{ x.email }}</td><td>{{ x.gname || '—' }}</td>
-                  <td>{{ x.hit ? x.hit.name+'：'+x.hit.roles.map(id=>(ROLES.find(r=>r.id===id)||{}).name||id).join('、') : '名單沒有（導師）' }}</td>
-                  <td>{{ x.has ? '✔ 已設定' : x.hit ? '⧗ 待套用' : '' }}</td></tr>
+                  <td>{{ x.role ? (x.role.name ? x.role.name+'：' : '')+x.role.roles.map(id=>(ROLES.find(r=>r.id===id)||{}).name||id).join('、') : x.hit ? x.hit.name+'：'+x.hit.roles.map(id=>(ROLES.find(r=>r.id===id)||{}).name||id).join('、') : '沒有組別（班級導師）' }}</td>
+                  <td style="white-space:nowrap">{{ x.has ? '✔ 已設定' : x.hit ? '⧗ 待套用' : '' }}</td></tr>
               </tbody></table></div>
               <details class="mt-2"><summary class="font-bold cursor-pointer small" style="min-height:36px">工作分配名單（姓名＋組別，一行一人）</summary>
                 <textarea class="inp mt-1" id="rfRoster" rows="8" v-model="rosterDraft" @input="onRosterInput" placeholder="王小明 器材組、環保組"></textarea>
@@ -1426,6 +1438,47 @@ html.ov-transparent body::before{ display:none; }
 
     <!-- ===================== 司儀台 ===================== -->
     <section v-if="page==='mc'" class="fade-up">
+      <!-- 節目單：司儀知道現在、下一個要做什麼 -->
+      <div class="card mb-4" style="border:2px solid var(--brand)">
+        <div class="flex items-center justify-between gap-2 flex-wrap mb-2">
+          <h2 class="h-sec">📋 節目單提示</h2>
+          <span class="small">現在時間 <b class="num" style="font-size:20px">{{ clock }}</b><span v-if="scheduledTl" class="muted">　依節目單應進行：{{ tlNo(scheduledTl) }} {{ scheduledTl.title }}</span><span v-if="st.delayMin" class="chip st-review ml-1">順延 {{ st.delayMin }} 分</span></span>
+        </div>
+        <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr))">
+          <div class="prog-box now">
+            <div class="prog-lbl">▶ 現在進行</div>
+            <template v-if="nowTl">
+              <div class="prog-title">{{ tlNo(nowTl) }}　{{ nowTl.title }}</div>
+              <div class="prog-meta"><span class="num">{{ tlRange(nowTl) }}</span><span v-if="nowTl.place">・{{ nowTl.place }}</span><span v-if="nowTl.unit">・{{ nowTl.unit }}</span></div>
+              <div v-if="nowTl.award" class="prog-award">🏅 同時頒獎：{{ nowTl.award }}</div>
+              <div class="mc-card mt-2" style="font-size:20px">{{ mcScriptOf(nowTl) }}</div>
+              <button class="btn btn-sm mt-2" @click="copy(mcScriptOf(nowTl))">複製司儀稿</button>
+            </template>
+            <div v-else class="muted">總控還沒開始流程。<span v-if="nextTl">第一個節目：{{ nextTl.title }}（{{ tlRange(nextTl) }}）</span></div>
+          </div>
+          <div :class="['prog-box', {soon: nextMinsLeft!==null && nextMinsLeft<=5}]">
+            <div class="prog-lbl">⏭ 下一個<span v-if="nextTl && nextMinsLeft!==null">　<b>{{ nextMinsLeft>0 ? '還有 '+nextMinsLeft+' 分鐘' : (nextMinsLeft===0 ? '現在就該開始' : '已超過 '+(-nextMinsLeft)+' 分鐘') }}</b></span></div>
+            <template v-if="nextTl">
+              <div class="prog-title">{{ tlNo(nextTl) }}　{{ nextTl.title }}</div>
+              <div class="prog-meta"><span class="num">{{ tlRange(nextTl) }}</span><span v-if="nextTl.place">・{{ nextTl.place }}</span><span v-if="nextTl.unit">・{{ nextTl.unit }}</span></div>
+              <div v-if="nextTl.check" class="prog-award">📣 檢錄 {{ nextTl.check }}・比賽 {{ nextTl.race }}（全學年同時檢錄）</div>
+              <div class="mc-card mt-2" style="font-size:18px">{{ prepScriptOf(nextTl) }}</div>
+              <button class="btn btn-sm mt-2" @click="copy(prepScriptOf(nextTl))">複製預告稿</button>
+            </template>
+            <div v-else class="muted">後面沒有節目了。</div>
+          </div>
+        </div>
+        <details class="mt-3" :open="mcProgOpen" @toggle="mcProgOpen=$event.target.open">
+          <summary class="font-bold" style="cursor:pointer;font-size:17px">完整節目單（{{ st.timeline.length }} 項）</summary>
+          <div class="tblwrap mt-2"><table class="tbl small">
+            <thead><tr><th>#</th><th>時間</th><th>節目</th><th>參加單位</th><th>場地</th><th>狀態</th></tr></thead>
+            <tbody><tr v-for="t in st.timeline" :key="t.id" :style="t.status==='now'?'background:var(--brand-soft,#E8F1FA);font-weight:800':(t.status==='done'?'opacity:.55':'')">
+              <td class="num">{{ t.no || '' }}</td><td class="num" style="white-space:nowrap">{{ tlRange(t) }}</td>
+              <td><b>{{ t.title }}</b><div v-if="t.items && t.items.length>1" class="muted">{{ t.items.join('、') }}</div><div v-if="t.award" style="color:#B4500A">🏅 頒獎：{{ t.award }}</div><div v-if="t.check">檢錄 {{ t.check }}・比賽 {{ t.race }}</div><div v-if="t.note" class="muted">※ {{ t.note }}</div></td>
+              <td>{{ t.unit }}</td><td>{{ t.place }}</td><td style="white-space:nowrap">{{ t.status==='done'?'✔ 完成':t.status==='now'?'▶ 進行中':'○' }}</td></tr></tbody>
+          </table></div>
+        </details>
+      </div>
       <div class="card-flat mb-4">
         <div class="small">進行中：<b>{{ nowTl ? nowTl.title : '—' }}</b>　下一項：<b>{{ nextTl ? nextTl.title : '—' }}</b></div>
         <div class="small mt-1" v-if="readyBatchObj">目前頒獎：<b>{{ shortTitle(readyBatchObj.title) }}</b>　頒獎人：<b style="font-size:20px;color:var(--brand)">{{ personText(presenterOf(readyBatchObj).p) }}</b></div>
@@ -1670,13 +1723,13 @@ html.ov-transparent body::before{ display:none; }
       <div class="card no-print mb-4">
         <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr))">
           <div><div class="lbl">要印哪些成績</div>
-            <div class="seg" role="group" aria-label="成績類別"><button v-for="k in [['ind','個人賽'],['team','團體賽'],['champ','總錦標'],['all','全部']]" :key="k[0]" :class="{on:sheetOpt.kind===k[0]}" :aria-pressed="sheetOpt.kind===k[0]" @click="sheetOpt.kind=k[0]">{{ k[1] }}</button></div></div>
+            <div class="seg" role="group" aria-label="成績類別"><button v-for="k in [['ind','個人賽'],['team','團體賽'],['champ','總錦標'],['all','全部'],['program','節目單']]" :key="k[0]" :class="{on:sheetOpt.kind===k[0]}" :aria-pressed="sheetOpt.kind===k[0]" @click="sheetOpt.kind=k[0]">{{ k[1] }}</button></div></div>
           <div><div class="lbl">排列方式</div>
             <div class="seg" role="group" aria-label="排列方式"><button :class="{on:sheetOpt.group==='batch'}" @click="sheetOpt.group='batch'">依頒獎梯次</button><button :class="{on:sheetOpt.group==='grade'}" @click="sheetOpt.group='grade'">依年級項目</button></div></div>
           <div><label class="lbl" for="shGrade">年級</label>
             <select class="inp" id="shGrade" v-model.number="sheetOpt.grade"><option :value="0">全部年級</option><option v-for="g in [1,2,3,4,5,6]" :key="g" :value="g">{{ ZH[g] }}年級</option></select></div>
         </div>
-        <div class="flex flex-wrap gap-x-5 gap-y-2 mt-3 small">
+        <div class="flex flex-wrap gap-x-5 gap-y-2 mt-3 small" v-if="sheetOpt.kind!=='program'">
           <label class="flex items-center gap-2"><input type="checkbox" v-model="sheetOpt.pubOnly" style="width:20px;height:20px"> 只印已公布的成績</label>
           <label class="flex items-center gap-2"><input type="checkbox" v-model="sheetOpt.sign" style="width:20px;height:20px"> 加「領獎確認」欄</label>
           <label class="flex items-center gap-2"><input type="checkbox" v-model="sheetOpt.all" style="width:20px;height:20px"> 列出全部參賽者（不只得獎）</label>
@@ -1684,9 +1737,10 @@ html.ov-transparent body::before{ display:none; }
           <label class="flex items-center gap-2"><input type="checkbox" v-model="sheetOpt.breakEach" style="width:20px;height:20px"> 每個{{ sheetOpt.group==='batch' ? '梯次' : '年級' }}換新的一頁</label>
         </div>
         <div class="flex flex-wrap gap-2 items-center mt-3">
-          <button class="btn btn-primary" @click="doPrint('bw')" :disabled="!sheetStat.events && !sheetChamp.length">🖨 列印黑白</button>
-          <button class="btn" @click="doPrint('color')" :disabled="!sheetStat.events && !sheetChamp.length">🖨 列印彩色</button>
-          <span class="small muted">共 {{ sheetStat.events }} 個項目、得獎 {{ sheetStat.people }} 人次<span v-if="sheetStat.waiting">；{{ sheetStat.waiting }} 項尚未公布<span v-if="sheetOpt.pubOnly">（未列入）</span></span>。A4 直式，建議用電腦列印。</span>
+          <button class="btn btn-primary" @click="doPrint('bw')" :disabled="!sheetStat.events && !sheetChamp.length && sheetOpt.kind!=='program'">🖨 列印黑白</button>
+          <button class="btn" @click="doPrint('color')" :disabled="!sheetStat.events && !sheetChamp.length && sheetOpt.kind!=='program'">🖨 列印彩色</button>
+          <span class="small muted" v-if="sheetOpt.kind==='program'">共 {{ st.timeline.length }} 項節目，含每一項的司儀稿。A4 直式。</span>
+          <span class="small muted" v-else>共 {{ sheetStat.events }} 個項目、得獎 {{ sheetStat.people }} 人次<span v-if="sheetStat.waiting">；{{ sheetStat.waiting }} 項尚未公布<span v-if="sheetOpt.pubOnly">（未列入）</span></span>。A4 直式，建議用電腦列印。</span>
         </div>
       </div>
 
@@ -1697,7 +1751,23 @@ html.ov-transparent body::before{ display:none; }
           <div class="sh-meta"><div>比賽日期：{{ sheetDate }}</div><div>列印時間：{{ sheetPrintedAt }}</div></div>
         </div>
 
-        <div v-if="!sheetGroups.length && !sheetChamp.length" class="sh-empty" style="padding:30px 0;text-align:center;font-size:18px">
+        <div v-if="sheetOpt.kind==='program'">
+          <table class="sh-tbl prog-tbl">
+            <thead><tr><th style="width:34px">#</th><th style="width:92px">時間</th><th>節目與司儀稿</th><th style="width:20%">參加單位・場地</th><th style="width:18%">指導老師</th></tr></thead>
+            <tbody><tr v-for="t in st.timeline" :key="t.id" style="break-inside:avoid">
+              <td class="sh-mark">{{ t.no || '' }}</td>
+              <td class="sh-mark">{{ t.time }}<span v-if="t.end"><br>–{{ t.end }}</span></td>
+              <td><div class="sh-name">{{ t.title }}</div>
+                <div v-if="t.items && t.items.length>1" style="color:#46596B">{{ t.items.join('、') }}</div>
+                <div v-if="t.award" style="color:#B4500A;font-weight:800">🏅 同時頒獎：{{ t.award }}</div>
+                <div v-if="t.check" style="font-weight:800">檢錄 {{ t.check }}・比賽 {{ t.race }}（全學年同時檢錄）</div>
+                <div v-if="t.note" style="color:#46596B">※ {{ t.note }}</div>
+                <div class="prog-script">🎤 {{ mcScriptOf(t) }}</div></td>
+              <td>{{ t.unit }}<div style="color:#46596B">{{ t.place }}</div></td>
+              <td style="color:#46596B">{{ t.teacher }}</td></tr></tbody>
+          </table>
+        </div>
+        <div v-else-if="!sheetGroups.length && !sheetChamp.length" class="sh-empty" style="padding:30px 0;text-align:center;font-size:18px">
           目前沒有符合條件的成績。<span v-if="sheetOpt.pubOnly">（成績要在「審核公布」按公布後才會出現；可取消勾選「只印已公布的成績」先印空白表。）</span>
         </div>
 
@@ -1737,7 +1807,7 @@ html.ov-transparent body::before{ display:none; }
           </div></div>
         </div>
 
-        <div class="sh-foot"><span>⚠ 內含學生全名，僅供工作人員使用　頒獎組核對：＿＿＿＿＿＿　紀錄組：＿＿＿＿＿＿</span><span>本表由運動會即時通報系統產生</span></div>
+        <div class="sh-foot"><span v-if="sheetOpt.kind==='program'">流程如有延誤，以司令台廣播為準</span><span v-else>⚠ 內含學生全名，僅供工作人員使用　頒獎組核對：＿＿＿＿＿＿　紀錄組：＿＿＿＿＿＿</span><span>本表由運動會即時通報系統產生</span></div>
       </div>
     </section>
 
@@ -2033,8 +2103,9 @@ html.ov-transparent body::before{ display:none; }
           <fold-card k="cfg-flow" :open="false" id="tlCard">
   <template #title>🕘 當天流程表</template>
   <template #sum><span class="sumchip">{{ st.timeline.length }} 個時段</span></template>
-            <p class="small muted mb-2">改時間或名稱後立刻同步到總控台、看板、司儀台。</p>
-            <div class="flex flex-col gap-2" style="max-height:340px;overflow:auto">
+            <p class="small muted mb-2">改時間或名稱後立刻同步到總控台、看板、司儀台。點「詳細」可改參加單位、場地、指導老師與自訂司儀稿。</p>
+            <button class="btn btn-sm btn-primary mb-2" v-if="can('flow')" @click="applyProgram">📋 套用 115 學年度節目單</button>
+            <div class="flex flex-col gap-2" style="max-height:520px;overflow:auto">
               <div v-for="t in st.timeline" :key="t.id">
                 <div class="flex gap-2 items-center">
                   <input class="inp num" type="time" style="width:120px" :id="'tt_'+t.id" v-model="t.time">
@@ -2042,6 +2113,15 @@ html.ov-transparent body::before{ display:none; }
                   <button class="btn btn-sm" @click="tlPick=tlPick===t.id?'':t.id" :aria-expanded="tlPick===t.id">比賽 {{ (t.eventIds||[]).length || '' }}</button>
                   <button class="btn btn-sm" @click="removeTl(t)" :disabled="t.status!=='todo'" aria-label="刪除這一項">刪除</button>
                 </div>
+                <details class="small mt-1"><summary style="cursor:pointer">詳細（參加單位、場地、司儀稿）</summary>
+                  <div class="grid gap-2 mt-1" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr))">
+                    <label>結束時間<input class="inp num" type="time" v-model="t.end"></label>
+                    <label>參加單位<input class="inp" v-model="t.unit" maxlength="80"></label>
+                    <label>場地<input class="inp" v-model="t.place" maxlength="40"></label>
+                    <label>指導老師<input class="inp" v-model="t.teacher" maxlength="80"></label>
+                  </div>
+                  <label class="block mt-1">自訂司儀稿（空白＝自動產生）<textarea class="inp" rows="2" v-model="t.mc" maxlength="300" :placeholder="mcScriptOf(t)"></textarea></label>
+                </details>
                 <div v-if="tlPick===t.id" class="card-flat mt-1 mb-2 small fade-up">
                   <div class="muted mb-1">勾選這個時段要比的項目（檢錄、司儀稿、看板、器材會跟著流程走）</div>
                   <div v-for="g in evGroups.filter(g=>g.stage==='day')" :key="g.base" class="mb-1"><b :style="{ color:toneOf(g.base) }">{{ g.base }}</b>
@@ -2464,7 +2544,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261125100000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261125120000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -2765,28 +2845,15 @@ function seed(){
     if(st!=='none') e.entries.forEach(x=>{ const [a,b]=e.range; let v=a+(b-a)*Math.pow(R(),e.better==='low'?1.6:0.7); x.mark=(Math.round(v*100)/100).toFixed(2); x.present=true; });
     e.status=st; if(st==='published'){ e.ts=Date.now()-(pre.length-i)*5*3600000; const d=new Date(e.ts); e.publishedAt=(d.getMonth()+1)+'/'+pad(d.getDate())+' '+hhmm(d); }
   });
-  const timeline=[
-    ['07:40','各班進場就位','prep',[]], ['08:00','運動員進場（體育團隊・天使班・幼兒園・一年級化裝進場）','show',[]],
-    ['08:30','開幕典禮（校長致詞・來賓介紹）','ceremony',[]], ['08:50','表演節目（體育團隊・天使班・幼兒園・電音三太子・社區媽媽舞曲・松鼠舞）','show',[]],
-    ['09:30','個人項目頒獎（會前賽田賽・徑賽）','award',[]], ['09:50','全員賽跑（幼兒園・天使班・一、二年級）','race',[]],
-    ['10:30','全員賽跑（三、四年級）','race',[]], ['11:00','4×100公尺接力決賽','race',events.filter(e=>e.base.startsWith('4×100')).map(e=>e.id)],
-    ['11:20','全員賽跑（五、六年級）','race',[]], ['11:50','大隊接力（四年級）','race',['relay-4-X']],
-    ['12:05','大隊接力（五年級）','race',['relay-5-X']], ['12:20','大隊接力（六年級）','race',['relay-6-X']],
-    ['12:40','團體賽與總錦標頒獎','award',[]], ['12:55','閉幕・賦歸','ceremony',[]],
-  ].map((t,i)=>({ id:'t'+i, time:t[0], title:t[1], kind:t[2], eventIds:t[3], status: i<4?'done': i===4?'now':'todo' }));
+  const evIdsAll=events.map(e=>e.id);
+  const timeline=programTimeline(evIdsAll).map((t,i)=>({ ...t, status: i<4?'done': i===4?'now':'todo' }));
   const guests=[
     ['家長會','林○○','會長',true], ['後援會','戴○○','會長',true], ['校友會','林○○','會長',false],
     ['清豐里','○○○','里長',true], ['東寧里','○○○','里長',false], ['享平里','○○○','里長',false], ['惠楠里','○○○','里長',false],
     ['社區發展協會','○○○','理事長',false],
   ].map((g,i)=>({ id:'g'+i, org:g[0], name:g[1], title:g[2], arrived:g[3], arrivedAt:g[3]?'08:'+pad(10+i*4):'', introduced:g[3] }));
   const fieldIds=events.filter(e=>e.cat==='field').map(e=>e.id), trackIds=events.filter(e=>e.cat==='track').map(e=>e.id);
-  const batches=[
-    { id:'b1', title:'個人田賽頒獎（跳遠・壘球擲遠・樂樂棒球擲遠）', eventIds:fieldIds, presenter:'g0', status:'ready' },
-    { id:'b2', title:'個人徑賽頒獎（60・100・200公尺）', eventIds:trackIds, presenter:'g1', status:'todo' },
-    { id:'b3', title:'4×100公尺接力頒獎', eventIds:events.filter(e=>e.base.startsWith('4×100')).map(e=>e.id), presenter:'g3', status:'todo' },
-    { id:'b4', title:'大隊接力頒獎', eventIds:['relay-4-X','relay-5-X','relay-6-X'], presenter:'', status:'todo' },
-    { id:'b5', title:'總錦標頒獎（五、六年級各前三名）', eventIds:[], champ:true, presenter:'', status:'todo' },
-  ];
+  const batches=programBatches(evIdsAll).map((b,i)=>({ ...b, presenter:['g0','g1','',''][i]||'', status: i===0?'ready':'todo' }));
   // 全員賽跑：約一半的班已填報
   const allrun={}; const arCls=[];
   for(let k=1;k<=settings.kg;k++) arCls.push('K'+k); for(let a=1;a<=settings.angel;a++) arCls.push('A'+a);
@@ -2801,6 +2868,44 @@ function seed(){
 }
 
 /* 舊版資料補上新欄位（直播） */
+/* ===== 115 學年度節目單（115.11.25 版，依學務處節目單 PDF） =====
+   每一項：no 序號、time 開始、end 結束、kind 類別、title 節目名稱、items 節目內容、unit 參加單位、place 場地、teacher 指導老師、
+   award 同時頒獎、check／race 大隊接力檢錄與比賽時間、ev 對應的比賽項目、note 備註；mc 可填自訂司儀稿（空白就自動產生） */
+const PROGRAM = [
+  { no:1, time:'07:50', end:'09:00', kind:'ceremony', title:'開幕', items:['運動員就位（二、三年級跑道區，四～六年級操場就位）','天使班、幼兒園、一年級進場','電音三太子（彌陀國小）'], unit:'全校師生、天使班、幼兒園、彌陀國小', place:'操場、司令台', teacher:'二～六年級導師；李玉芳主任、黃曉嵐組長、一年級導師；黃雅雯主任' },
+  { no:2, time:'09:00', end:'09:10', kind:'show', title:'表演：松鼠舞', items:['松鼠舞'], unit:'二、三年級', place:'操場', teacher:'二、三年級導師、體育老師' },
+  { no:3, time:'09:10', end:'09:20', kind:'show', title:'表演：舞曲', items:['舞曲'], unit:'社區媽媽', place:'操場', teacher:'陳素月老師' },
+  { no:4, time:'09:20', end:'09:30', kind:'fun', title:'親師趣味競賽', items:['親師趣味競賽'], unit:'教職員工、家長會、後援會及社區人士、志工媽媽、導護志工、補校師生', place:'操場', teacher:'由各處室、社區、家長會、後援會、導護志工、志工媽媽、補校師生等組成' },
+  { no:5, time:'09:30', end:'09:50', kind:'race', title:'4×100公尺接力決賽', items:['徑賽：4×100公尺接力決賽'], unit:'五、六年級', place:'操場跑道', teacher:'五、六年級導師', ev:['r4-5-M','r4-5-F','r4-6-M','r4-6-F'] },
+  { no:6, time:'09:50', end:'10:00', kind:'fun', title:'趣味競賽：動物賽跑', items:['動物賽跑'], unit:'天使班、幼兒園學童', place:'內場', teacher:'天使班、幼兒園老師', award:'三、四年級樂樂棒球擲遠、四年級60公尺、四年級4×100公尺接力' },
+  { no:7, time:'10:00', end:'10:10', kind:'fun', title:'趣味競賽：穿越時空・造橋鋪路', items:['穿越時空（五年級・乙）','造橋鋪路（六年級・甲）'], unit:'五年級、六年級', place:'內場', teacher:'五年級導師、六年級導師' },
+  { no:8, time:'10:10', end:'10:20', kind:'fun', title:'趣味競賽：趣味接力・羽我同行', items:['趣味接力（三年級・乙）','羽我同行（四年級・甲）'], unit:'三年級、四年級', place:'內場', teacher:'三年級導師、四年級導師' },
+  { no:9, time:'10:20', end:'10:30', kind:'fun', title:'趣味競賽：鑽龍洞・來一個甜甜圈', items:['鑽龍洞（一年級・乙）','來一個甜甜圈（二年級・甲）'], unit:'一年級、二年級', place:'內場', teacher:'一年級導師、二年級導師' },
+  { no:10, time:'10:30', end:'10:40', kind:'race', title:'60、100公尺決賽', items:['60公尺（三年級）','100公尺（四～六年級）'], unit:'三年級、四～六年級', place:'操場跑道', teacher:'三～六年級導師', ev:['m60-3-M','m60-3-F','m100-4-M','m100-4-F','m100-5-M','m100-5-F','m100-6-M','m100-6-F'] },
+  { no:11, time:'10:40', end:'11:00', kind:'race', title:'全員跑：40公尺賽跑（天使班、幼兒園）', items:['40公尺賽跑'], unit:'天使班、幼兒園', place:'北跑道', teacher:'天使班、幼兒園老師', award:'三年級60公尺、四年級100公尺、高年級個人賽和4×100公尺接力' },
+  { no:12, time:'11:00', end:'11:25', kind:'race', title:'全員跑：四年級60公尺・一年級40公尺', items:['60公尺賽跑（四年級・南跑道）','40公尺賽跑（一年級・北跑道）'], unit:'四年級、一年級', place:'南跑道、北跑道', teacher:'一、四年級導師' },
+  { no:13, time:'11:25', end:'11:50', kind:'race', title:'全員跑：三年級60公尺・二年級40公尺', items:['60公尺賽跑（三年級・南跑道）','40公尺賽跑（二年級・北跑道）'], unit:'三年級、二年級', place:'南跑道、北跑道', teacher:'二、三年級導師' },
+  { no:14, time:'11:50', end:'12:50', kind:'prep', title:'午餐・午休', items:['休息用餐'], unit:'全校師生', place:'各班教室', teacher:'各班導師', note:'一～三年級中午 12:40 放學' },
+  { no:15, time:'12:50', end:'13:40', kind:'race', title:'大隊接力計時決賽（四年級）', items:['大隊接力計時決賽'], unit:'四年級', place:'操場跑道', teacher:'四年級導師', check:'12:50–13:10', race:'13:10–13:40', note:'全學年同時檢錄', ev:['relay-4-X'] },
+  { no:16, time:'13:20', end:'14:10', kind:'race', title:'大隊接力計時決賽（五年級）', items:['大隊接力計時決賽'], unit:'五年級', place:'操場跑道', teacher:'五年級導師', check:'13:20–13:40', race:'13:40–14:10', note:'全學年同時檢錄', ev:['relay-5-X'] },
+  { no:17, time:'13:50', end:'14:40', kind:'race', title:'大隊接力計時決賽（六年級）', items:['大隊接力計時決賽'], unit:'六年級', place:'操場跑道', teacher:'六年級導師', check:'13:50–14:10', race:'14:10–14:40', note:'全學年同時檢錄', ev:['relay-6-X'] },
+  { no:18, time:'14:50', end:'15:10', kind:'ceremony', title:'閉幕及頒獎', items:['閉幕及頒獎'], unit:'全校師生', place:'操場', teacher:'體育組', award:'大隊接力、總錦標' },
+  { no:19, time:'15:20', end:'15:30', kind:'prep', title:'整理環境', items:['校園整理'], unit:'全校師生', place:'操場', teacher:'全校師生', note:'四～六年級下午 3:30 放學' },
+];
+const tlIdOf = no => 'n'+String(no).padStart(2,'0');
+/* 舊版流程（t0～t13）對應到節目單，用來搬移器材清單與頒獎梯次 */
+const OLD_TL = { t0:'n01', t1:'n01', t2:'n01', t3:'n02', t4:'n06', t5:'n11', t6:'n12', t7:'n05', t8:'n10', t9:'n15', t10:'n16', t11:'n17', t12:'n18', t13:'n18' };
+/* 頒獎梯次（依節目單的【頒獎】時間） */
+const PROGRAM_BATCHES = [
+  { id:'b1', tl:'n06', title:'頒獎：三、四年級樂樂棒球擲遠・四年級60公尺・四年級4×100公尺接力', ev:['tball-3-M','tball-3-F','tball-4-M','tball-4-F','m60-4-M','m60-4-F','r4-4-M','r4-4-F'] },
+  { id:'b2', tl:'n11', title:'頒獎：三年級60公尺・四年級100公尺・高年級個人賽・五六年級4×100公尺接力', ev:['m60-3-M','m60-3-F','m100-4-M','m100-4-F','jump-5-M','jump-5-F','jump-6-M','jump-6-F','soft-5-M','soft-5-F','soft-6-M','soft-6-F','m60-5-M','m60-5-F','m60-6-M','m60-6-F','m100-5-M','m100-5-F','m100-6-M','m100-6-F','m200-5-M','m200-5-F','m200-6-M','m200-6-F','r4-5-M','r4-5-F','r4-6-M','r4-6-F'] },
+  { id:'b4', tl:'n18', title:'閉幕頒獎：大隊接力', ev:['relay-4-X','relay-5-X','relay-6-X'] },
+  { id:'b5', tl:'n18', title:'閉幕頒獎：總錦標', ev:[], champ:true },
+];
+const PROGRAM_DROP_BATCHES = ['b3'];
+function programTimeline(evIds){ return PROGRAM.map(p=>{ const o={ ...p, id:tlIdOf(p.no), eventIds:(p.ev||[]).filter(id=>evIds.includes(id)), status:'todo', mc:'' }; delete o.ev; return o; }); }
+function programBatches(evIds){ return PROGRAM_BATCHES.map(b=>({ id:b.id, title:b.title, tl:b.tl, eventIds:b.ev.filter(id=>evIds.includes(id)), champ:!!b.champ, status:'todo' })); }
+
 /* 正式版旗標：有 config.js（Firebase 連線設定）才啟用；沒有就是體驗版 */
 const FORMAL = !!(window.FIREBASE_CONFIG && window.FIREBASE_CONFIG.apiKey && window.firebase);
 function liveDefault(){ return { on:false, platform:'YouTube', url:'', title:'楠梓國小創校127週年校慶運動會 網路直播', startedAt:'', startTs:0, marks:[], overlayBg:'green', overlayModes:['award','result','flow','stand'] }; }
@@ -2809,16 +2914,16 @@ function liveDefault(){ return { on:false, platform:'YouTube', url:'', title:'�
 function supportDefaults(){
   const E=(tl,item,qty,place)=>({ id:'q'+tl+'_'+item.replace(/[^\w一-鿿]/g,'').slice(0,8), tl, item, qty, place, status:'todo', at:'' });
   const equip=[
-    E('t2','會旗、旗手手套',1,'司令台'), E('t2','麥克風與音響',1,'司令台'),
-    E('t4','頒獎台、獎盤',1,'司令台前頒獎台'), E('t4','獎狀與獎牌（個人項目）',1,'司令台前頒獎台'),
-    E('t5','終點線帶、名次牌（1～3）',1,'終點'), E('t5','碼錶',3,'終點'),
-    E('t6','終點線帶、名次牌（1～3）',1,'終點'), E('t6','碼錶',3,'終點'),
-    E('t7','接力棒',12,'起跑區'), E('t7','碼錶',6,'終點'),
-    E('t8','終點線帶、名次牌（1～3）',1,'終點'),
-    E('t9','接力棒',11,'起跑區'), E('t9','頭巾（各班顏色）',11,'檢錄處'),
-    E('t10','接力棒',12,'起跑區'), E('t10','頭巾（各班顏色）',12,'檢錄處'),
-    E('t11','接力棒',12,'起跑區'), E('t11','頭巾（各班顏色）',12,'檢錄處'),
-    E('t12','頒獎台、獎盤、錦旗',1,'司令台前頒獎台'),
+    E('n01','會旗、旗手手套',1,'司令台'), E('n01','麥克風與音響',1,'司令台'),
+    E('n06','頒獎台、獎盤',1,'司令台前頒獎台'), E('n06','獎狀與獎牌（個人項目）',1,'司令台前頒獎台'),
+    E('n11','終點線帶、名次牌（1～3）',1,'終點'), E('n11','碼錶',3,'終點'),
+    E('n12','終點線帶、名次牌（1～3）',1,'終點'), E('n12','碼錶',3,'終點'),
+    E('n05','接力棒',12,'起跑區'), E('n05','碼錶',6,'終點'),
+    E('n10','終點線帶、名次牌（1～3）',1,'終點'),
+    E('n15','接力棒',11,'起跑區'), E('n15','頭巾（各班顏色）',11,'檢錄處'),
+    E('n16','接力棒',12,'起跑區'), E('n16','頭巾（各班顏色）',12,'檢錄處'),
+    E('n17','接力棒',12,'起跑區'), E('n17','頭巾（各班顏色）',12,'檢錄處'),
+    E('n18','頒獎台、獎盤、錦旗',1,'司令台前頒獎台'),
   ];
   const stations=['投籃高手','跳繩挑戰','呼拉圈','平衡木','擲準大師','敏捷梯'].map((n,i)=>({ id:'s'+(i+1), name:'第'+(i+1)+'關　'+n, place:'操場周邊', status:'open', at:'' }));
   return { equip, stations, lunch:{ _info:{ time:'11:50', place:'各班至午餐室領取' } } };
@@ -2830,7 +2935,7 @@ function blankFormal(){
   o.events.forEach(e=>{ if(!e.team) e.entries=[]; else e.entries.forEach(x=>{ x.mark=''; x.place=''; x.dq=false; x.present=null; }); e.status='none'; e.publishedAt=''; e.ts=0; e.scoreMode='default'; e.customPoints=[]; });
   o.timeline.forEach(t=>{ t.status='todo'; });
   o.guests=[['p0','','○○○','校長'],['p1','教務處','○○○','主任'],['p2','學務處','○○○','主任'],['p3','總務處','○○○','主任'],['p4','輔導處','○○○','主任'],['g0','家長會','○○○','會長']].map((x,i)=>({ id:x[0], kind:x[0]==='g0'?'家長會':'校內', org:x[1], name:x[2], title:x[3], arrived:false, arrivedAt:'', introduced:x[0]!=='g0', absent:false, ord:i }));
-  const tl={ b1:'t4', b2:'t4', b3:'t12', b4:'t12', b5:'t12' };
+  const tl={ b1:'n06', b2:'n11', b4:'n18', b5:'n18' };
   o.batches.forEach(b=>{ b.status='todo'; b.presenter='p0'; b.backup='g0'; b.override=''; b.place='司令台前頒獎台'; b.tl=tl[b.id]||''; });
   o.allrun={}; o.broadcasts=[]; o.logs=[]; o.delayMin=0; o.live=liveDefault();
   const sd=supportDefaults(); o.equip=sd.equip; o.stations=sd.stations; o.lunch=sd.lunch; o.reports=[]; o.medical=[]; o.gifts=[];
@@ -2844,7 +2949,7 @@ function migrate(o){
   if(!FORMAL && !o.stations.length){ const sd=supportDefaults(); o.equip=sd.equip; o.stations=sd.stations; o.lunch=sd.lunch;
     o.gifts=[{ id:'gf1', ts:Date.now()-3600000, at:'08:20', donor:'家長會', item:'運動飲料 200 瓶', amount:'', note:'範例', announced:true },{ id:'gf2', ts:Date.now()-1800000, at:'08:45', donor:'（範例）○○商行', item:'加油毛巾 100 條', amount:'', note:'範例', announced:false }];
     o.reports=[{ id:'rp1', ts:Date.now()-900000, at:'09:10', type:'env', place:'東側廁所', text:'衛生紙用完了（範例）', urgent:false, status:'open', by:'班級導師', handledBy:'', doneAt:'' }];
-    o.equip.filter(x=>['t2','t4'].includes(x.tl)).forEach(x=>{ x.status='sent'; x.at='08:10'; });
+    o.equip.filter(x=>['n01','n06'].includes(x.tl)).forEach(x=>{ x.status='sent'; x.at='08:10'; });
   }
   // 頒獎人：校內人員、家長會、來賓都放在同一份名單，加上「無法出席」（正式版不補範例）
   if(!FORMAL && !o.guests.some(g=>g.kind)){
@@ -2853,7 +2958,7 @@ function migrate(o){
     o.guests.unshift(...inner.map(x=>({ id:x[0], kind:'校內', org:x[1], name:x[2], title:x[3], arrived:x[4], arrivedAt:x[4]?'07:30':'', introduced:true, absent:false })));
     const g3=o.guests.find(g=>g.id==='g3'); if(g3){ g3.absent=true; g3.arrived=false; } // 範例：清豐里里長臨時無法出席
   }
-  const BK={ b1:['g0','p0','t4'], b2:['g1','p1','t4'], b3:['g3','p2','t12'], b4:['p0','g0','t12'], b5:['p0','g0','t12'] };
+  const BK={ b1:['g0','p0','n06'], b2:['g1','p1','n11'], b4:['p0','g0','n18'], b5:['p0','g0','n18'] };
   if(!FORMAL) o.batches.forEach(b=>{
     if(b.backup===undefined){ const d=BK[b.id]||['p0','','']; if(!b.presenter) b.presenter=d[0]; b.backup=d[1]; b.override=''; b.place='司令台前頒獎台'; b.tl=d[2]; }
   });
@@ -3233,12 +3338,47 @@ createApp({
       return Object.values(m).filter(o=>o.events.length>st.value.settings.maxPerStudent).map(o=>({ ...o, count:o.events.length }));
     });
 
+    /* ----- 節目單：司儀稿與時間提醒 ----- */
+    function shiftHM(hm,t){ if(!hm || !t || t.status==='done' || !st.value.delayMin) return hm||''; const [h,m]=hm.split(':').map(Number); return hhmm(new Date(2000,0,1,h,m+st.value.delayMin)); }
+    function tlRange(t){ return tlTime(t)+(t.end ? '–'+shiftHM(t.end,t) : ''); }
+    function tlNo(t){ return t.no ? '第 '+t.no+' 項' : ''; }
+    function mcScriptOf(t){ if(!t) return ''; if(t.mc && t.mc.trim()) return t.mc.trim();
+      const items=(t.items||[]).length>1 ? t.items : (t.items||[]).filter(x=>!t.title.includes(x.replace(/（.*$/,'')) && !x.includes(t.title));
+      if(t.check) return '大會報告：'+(t.no?'第 '+t.no+' 項節目，':'')+t.title+'。請'+t.unit+'全學年同學到檢錄處檢錄，檢錄時間 '+t.check+'，比賽時間 '+t.race+'，請'+t.teacher+'協助帶隊。';
+      if(t.kind==='prep' && /午餐/.test(t.title)) return '大會報告：上午的節目到此告一段落，現在是午餐、午休時間，請各班回教室用餐。'+(t.note?t.note+'，請家長準時接送。':'')+'下午大隊接力的班級請準時到檢錄處檢錄。';
+      if(t.kind==='prep') return '大會報告：現在進行'+t.title+'，請全校師生一起整理校園。'+(t.note?t.note+'。':'')+'謝謝大家，我們明年見！';
+      let txt='各位來賓、各位師生：接下來進行'+(t.no?'第 '+t.no+' 項節目，':'')+'「'+t.title+'」';
+      if(items.length) txt+='，內容有'+items.join('、');
+      txt+='。參加單位：'+t.unit+'，地點在'+t.place+'。';
+      if(t.award) txt+='同時在司令台前進行頒獎：'+t.award+'，請得獎同學到頒獎台旁集合。';
+      return txt; }
+    function prepScriptOf(t){ if(!t) return ''; if(t.check) return '預告：請'+t.unit+'同學準備，'+t.check.split('–')[0]+' 開始到檢錄處檢錄（全學年同時檢錄），請'+t.teacher+'協助帶隊。';
+      if(t.kind==='prep') return '預告：'+tlTime(t)+' 進行「'+t.title+'」。'+(t.note||'');
+      return '預告：下一個節目是'+(t.no?'第 '+t.no+' 項':'')+'「'+t.title+'」，'+tlTime(t)+' 開始，請'+t.unit+'到'+t.place+'準備。'+(t.award?'得獎同學（'+t.award+'）請先到頒獎台旁集合。':''); }
+    const toMin = hm => { if(!hm) return null; const [h,m]=hm.split(':').map(Number); return h*60+m; };
+    const clockMin = computed(()=>toMin(clock.value));
+    const nextMinsLeft = computed(()=>{ const t=nextTl.value; if(!t) return null; const d=toMin(tlTime(t)) - clockMin.value; return Math.abs(d)>90 ? null : d; });
+    const scheduledTl = computed(()=>{ const now=clockMin.value; let cur=null; st.value.timeline.forEach(t=>{ if(toMin(tlTime(t))<=now) cur=t; }); return cur; });
+    const mcProgOpen = ref(false);
+    function applyProgram(){ if(!need('flow')) return;
+      ask('把當天流程換成「115 學年度節目單」（共 '+PROGRAM.length+' 項），並依節目單的頒獎時間重新排頒獎梯次、搬移器材清單嗎？目前的流程進度會重設為未開始。', ()=>{
+        const ids=st.value.events.map(e=>e.id), nt=programTimeline(ids);
+        if(FORMAL) st.value.timeline.forEach(t=>{ if(!nt.some(n=>n.id===t.id)) fbDelete('timeline',t.id); });
+        st.value.timeline.splice(0, st.value.timeline.length, ...nt);
+        st.value.equip.forEach(x=>{ if(OLD_TL[x.tl]) x.tl=OLD_TL[x.tl]; }); st.value.broadcasts.forEach(x=>{ if(x.tl && OLD_TL[x.tl]) x.tl=OLD_TL[x.tl]; });
+        programBatches(ids).forEach(nb=>{ const b=st.value.batches.find(x=>x.id===nb.id);
+          if(b){ b.title=nb.title; b.tl=nb.tl; b.eventIds=nb.eventIds; b.champ=nb.champ; }
+          else st.value.batches.push({ ...nb, presenter:'p0', backup:'g0', override:'', place:'司令台前頒獎台' }); });
+        PROGRAM_DROP_BATCHES.forEach(id=>{ const i=st.value.batches.findIndex(b=>b.id===id); if(i>=0){ st.value.batches.splice(i,1); if(FORMAL) fbDelete('batches',id); } });
+        const ord=PROGRAM_BATCHES.map(b=>b.id); st.value.batches.sort((a,b)=>(ord.indexOf(a.id)+1||99)-(ord.indexOf(b.id)+1||99));
+        st.value.delayMin=0; log('流程表套用 115 學年度節目單'); toast('已套用節目單：'+nt.length+' 項流程、'+PROGRAM_BATCHES.length+' 個頒獎梯次');
+      }); }
     /* ----- 流程 ----- */
     function tlTime(t){ if(t.status==='done' || !st.value.delayMin) return t.time; const [h,m]=t.time.split(':').map(Number); const d=new Date(2000,0,1,h,m+st.value.delayMin); return hhmm(d); }
     function startTl(t){ if(!need('flow')) return; equipAlert(t.id);
       st.value.timeline.forEach(x=>{ if(x.status==='now') x.status='done'; }); t.status='now';
       const nx=st.value.timeline.find(x=>x.status==='todo');
-      bc('flow','大會報告：現在進行「'+t.title+'」。'+(nx?'下一個項目是「'+nx.title+'」，請相關班級做好準備。':''));
+      bc('flow', mcScriptOf(t)+(nx?'\n'+prepScriptOf(nx):''));
       // 司儀自己的講稿：綁定這個流程的，依順序加入待播報
       scriptsOf(t.id).forEach((sc,i)=>bc('script', sc.text, { title:sc.title, libId:sc.id, ts:Date.now()+i+1 }));
       log('流程開始：'+t.title); toast('已開始「'+t.title+'」，司儀台已收到報告稿'+(scriptsOf(t.id).length?'與 '+scriptsOf(t.id).length+' 篇講稿':''));
@@ -3528,8 +3668,8 @@ createApp({
     const sheetPrintedAt = ref('');
     const sheetDate = computed(()=>{ const d=String(st.value.settings.date||'').split('-'); return d.length===3 ? (+d[0]-1911)+'年'+(+d[1])+'月'+(+d[2])+'日' : (st.value.settings.date||''); });
     function stampSheet(){ const d=new Date(); sheetPrintedAt.value=(d.getFullYear()-1911)+'/'+(d.getMonth()+1)+'/'+d.getDate()+' '+hhmm(); }
-    const sheetTitle = computed(()=>({ ind:'個人賽成績單', team:'團體賽成績單', champ:'班級總錦標成績單', all:'運動會成績單（個人賽・團體賽・總錦標）' })[sheetOpt.kind]);
-    const sheetBase = computed(()=>{ if(sheetOpt.kind==='champ') return [];
+    const sheetTitle = computed(()=>({ ind:'個人賽成績單', team:'團體賽成績單', champ:'班級總錦標成績單', all:'運動會成績單（個人賽・團體賽・總錦標）', program:'運動會節目單（司儀版）' })[sheetOpt.kind]);
+    const sheetBase = computed(()=>{ if(sheetOpt.kind==='champ' || sheetOpt.kind==='program') return [];
       return st.value.events.filter(e=>(sheetOpt.kind==='all' || (sheetOpt.kind==='team') === !!e.team) && (!sheetOpt.grade || e.grade===sheetOpt.grade))
         .sort((a,b)=>(a.order||0)-(b.order||0)); });
     const sheetEvents = computed(()=>sheetBase.value.filter(e=>!sheetOpt.pubOnly || isPub(e)));
@@ -3903,7 +4043,7 @@ createApp({
     const md = reactive({ cls:'', name:'', issue:'', care:'', parent:false });
     function addMedical(){ if(!need('medic')) return; st.value.medical.push({ id:'m'+Date.now()+uid(), ts:Date.now(), at:hhmm(), cls:md.cls, name:md.name, issue:md.issue, care:md.care, parent:md.parent, notified:false, status:'open', by:roleObj.value.name }); log('醫護：登記一筆'); toast('已登記'); md.name=''; md.issue=''; md.care=''; md.parent=false; }
     const medicalRows = computed(()=>[['時間','班級','姓名','狀況','處理','通知家長','狀態']].concat(st.value.medical.map(m=>[m.at, m.cls?clsLabel(m.cls):'', m.name, m.issue, m.care, m.parent?(m.notified?'已通知':'需通知'):'', m.status==='closed'?'結案':'處理中'])));
-    const eqFilter = ref('todo'); const ne = reactive({ tl:'t7', item:'', qty:1, place:'' });
+    const eqFilter = ref('todo'); const ne = reactive({ tl:'n05', item:'', qty:1, place:'' });
     function tlLabel(id){ const t=st.value.timeline.find(x=>x.id===id); return t ? tlTime(t)+' '+t.title : ''; }
     const equipGroups = computed(()=>{ const out=[]; st.value.timeline.forEach(t=>{ const items=st.value.equip.filter(x=>x.tl===t.id && (eqFilter.value==='all' || x.status!=='back')); if(items.length) out.push({ tl:t.id, time:tlTime(t), title:t.title, items }); }); const orphan=st.value.equip.filter(x=>!st.value.timeline.some(t=>t.id===x.tl)); if(orphan.length) out.push({ tl:'_', time:'', title:'其他', items:orphan }); return out; });
     const nextEquip = computed(()=>{ const ids=st.value.timeline.filter(t=>t.status!=='done').slice(0,3).map(t=>t.id); return st.value.equip.filter(x=>ids.includes(x.tl) && x.status==='todo'); });
@@ -4125,7 +4265,7 @@ createApp({
     function nameKeys(n){ const s=String(n||'').replace(/teacher|老師|教師/gi,'').replace(/[^一-鿿]/g,''); if(!s) return []; const k=[s]; if(s.length>=3){ k.push(s.slice(-1)+s.slice(0,-1)); k.push(s.slice(-2)+s.slice(0,-2)); } return k; }
     function matchName(n){ const m=rosterMap.value; const key=nameKeys(n).find(k=>m[k]); return key ? { name:key, roles:m[key] } : null; }
     const loginMatches = computed(()=>{ const set=new Set(fb.roles.map(r=>r.email)); const admins=(window.ADMIN_EMAILS||[]).map(x=>String(x).toLowerCase());
-      return fb.users.filter(u=>u.email && !admins.includes(u.email)).map(u=>({ email:u.email, gname:u.name, hit:matchName(u.name), has:set.has(u.email) })).sort((a,b)=>(a.has?1:0)-(b.has?1:0) || (a.hit?0:1)-(b.hit?0:1)); });
+      return fb.users.filter(u=>u.email && !admins.includes(u.email)).map(u=>({ email:u.email, gname:u.name, hit:matchName(u.name), has:set.has(u.email), role:fb.roles.find(r=>r.email===u.email)||null })).sort((a,b)=>(a.has?1:0)-(b.has?1:0) || (a.hit?0:1)-(b.hit?0:1)); });
     const pendingMatches = computed(()=>loginMatches.value.filter(x=>x.hit && !x.has));
     async function saveRoster(){ const t=rosterDraft.value.trim(); try{ await fref('roster','main').set({ text:t, auto:fb.rosterAuto, by:fb.email, ts:Date.now() }); rosterDraftTouched=false; toast('已儲存工作分配名單（'+Object.keys(rosterMap.value).length+' 人）'); log('更新工作分配名單'); }catch(e){ toast('儲存失敗：'+((e&&e.code)||''),true); } }
     async function setRosterAuto(v){ fb.rosterAuto=v; try{ await fref('roster','main').set({ text:fb.roster, auto:v, by:fb.email, ts:Date.now() }); }catch(e){} }
@@ -4166,7 +4306,7 @@ createApp({
 
     return { st, role, page, helpOpen, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
       SHORT, cd, pad, insertOpen, openInsert, promptGroup, promptNext, scriptState, jumpScripts, ringLong, toggleRing, refOk, refChanged, confirmRef, needRef, doneTab, doneShown, restoreBc, scriptLib, scriptsOf, scriptGroups, nextScriptGroup, sf, editScript, saveScript, removeScript, moveScript, queueScript, sPaste, sParsed, importScripts, canBc, pushState, registerPush, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
-      drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
+      drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, tlRange, tlNo, mcScriptOf, prepScriptOf, nextMinsLeft, scheduledTl, mcProgOpen, applyProgram, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
       roleObj, myPages, navPages, myTasks, dateLabel, go, badge, kpi, ask, modalOk, clsLabel,
       ranked, top, fmtMark, standings, barW, classPts, classRank, preEvents, dayEvents, reviewEvents, publishedEvents, latestPublished, checkinEvents,
