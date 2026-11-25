@@ -1405,7 +1405,7 @@ html.ov-transparent body::before{ display:none; }
           </div>
           <span :class="['chip','st-'+scEv.status]">{{ STATUS[scEv.status] }}</span>
         </div>
-        <div class="note mb-3" v-if="isLocked(scEv)">這個項目已經公布，成績已鎖定。要修改請到「審核公布」頁按「申請修改」並寫明原因。</div>
+        <div class="note mb-3" v-if="isLocked(scEv)">這個項目已經公布，成績已鎖定。<b>只是姓名打錯</b>：紀錄組直接按姓名旁的「✏️ 改姓名」，不用退回、看板馬上更新。<b>成績或名次錯了</b>：到「審核公布」頁按「申請修改」並寫明原因。</div>
         <div class="note mb-3" v-if="scEv.returnNote && scEv.status!=='review' && !isLocked(scEv)">紀錄組退回：{{ scEv.returnNote }}</div>
         <ul class="mb-3 small" v-if="scIssues.length">
           <li v-for="m in scIssues" :style="'color:'+(m.block?'var(--bad)':'var(--warn)')">{{ m.block ? '✗' : '!' }} {{ m.text }}</li>
@@ -1417,7 +1417,7 @@ html.ov-transparent body::before{ display:none; }
               <tr v-for="x in scRows" :key="x.e.id" :class="{shake: scShake && needsMark(scEv,x.e)}">
                 <td data-label="即時名次"><span :class="['place','p'+x.place]">{{ x.place || '—' }}</span></td>
                 <td data-label="班級">{{ clsLabel(x.e.cls) }}</td>
-                <td data-label="姓名" v-if="!scEv.team">{{ x.e.name }}</td>
+                <td data-label="姓名" v-if="!scEv.team">{{ x.e.name }} <button v-if="canFixName(scEv)" class="btn btn-sm" style="min-height:32px;padding:2px 8px" @click="fixName(scEv,x.e)" :aria-label="'修改 '+x.e.name+' 的姓名'">✏️ 改姓名</button></td>
                 <td data-label="成績" style="min-width:130px">
                   <input v-if="scEv.better!=='place'" class="inp num" style="font-size:22px;max-width:160px" inputmode="decimal" :id="'mk_'+x.e.id" v-model.trim="x.e.mark" :disabled="isLocked(scEv) || x.e.dq || !can('score')" :class="{err: markWarn(scEv,x.e)}">
                   <input v-else class="inp num" style="font-size:22px;max-width:110px" inputmode="numeric" :id="'pl_'+x.e.id" v-model.number="x.e.place" :disabled="isLocked(scEv) || x.e.dq || !can('score')">
@@ -2589,7 +2589,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261125140000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261125141500'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -2799,7 +2799,7 @@ const HELP = {
   teacher:['先選「我的班級」，系統會記住。','可以查看本班當天出賽與檢錄狀態、本班得獎名單。','全員賽跑結束後，填每組前三名並送出，就不用再交紙本。'],
   checkin:['選擇比賽項目，按「開始檢錄」，司儀台會自動出現檢錄廣播稿。','每班（每位選手）按「到」或「缺」。','有人沒到就按「呼叫第二次檢錄」；人齊了按「檢錄完成」。'],
   score:['選擇項目，在成績欄輸入秒數或公尺，右邊「即時名次」會自動排好。','沒跑完或犯規的勾「棄權/犯規」。','輸入完按「送出審核」，紀錄組確認後才會公布。'],
-  review:['檢查前幾名是否正確，沒問題按「公布成績」。','有疑問就寫原因按「退回修改」，裁判會看到原因。','已公布的成績會鎖定，要改必須按「申請修改」並寫原因，系統會留下紀錄。'],
+  review:['只是學生姓名打錯：到「成績登錄」選該項目，按姓名旁「✏️ 改姓名」即可，不用退回。','檢查前幾名是否正確，沒問題按「公布成績」。','有疑問就寫原因按「退回修改」，裁判會看到原因。','已公布的成績會鎖定，要改必須按「申請修改」並寫原因，系統會留下紀錄。'],
   mc:['最上面「節目單提示」：左邊是現在要唸的稿子，右邊是下一個節目的預告；變成橘色代表快到了。','總控忘記按開始時，畫面上方會跳出橘色條，按「通知總控」就好。','各組的消息會自動變成播報稿，最上面藍框是下一則。','唸完按「已播報」，就不會重唸或漏唸。','臨時有事可用「臨時插播」，常用句子按一下就帶入。'],
   guests:['來賓、家長會、校內頒獎人都在這裡報到；來賓報到後司儀台會自動出現介紹稿。','有人臨時不能來就按「無法出席」，他負責的頒獎梯次會自動改由備援頒獎人。','臨時來的來賓或代表頒獎的老師，可在下方新增。'],
   watch:['開播後所有人都能從右上角紅色「看直播」進來。','手機掃 QR Code 或按「開始觀看」。','旁邊會同步顯示進行中項目、頒獎與最新成績。'],
@@ -2811,6 +2811,7 @@ const HELP = {
 };
 /* 新功能公告：依組別顯示，每台裝置看過按「知道了」就不再出現（之後新增功能時，在最上面加一筆） */
 const WHATS_NEW = [
+  { id:'n20261125g', roles:['record','sport'], page:'score', title:'學生姓名打錯可以直接改', text:'到「成績登錄」選項目，按姓名旁的「✏️ 改姓名」，輸入正確姓名就好；不用退回重審，看板馬上更新，系統會留紀錄。已公布的項目只有紀錄組能改。' },
   { id:'n20261125f', roles:['control','record','mc'], page:'board', title:'大會看板最上方跑馬燈會預告節目', text:'跑馬燈移到看板最上面，自動顯示現在進行、接下來兩個節目（時間、地點）、頒獎預告、檢錄與放學提醒，家長一眼就看到。總錦標排行只顯示前 3 名。' },
   { id:'n20261125e', roles:['control'], page:'accounts', title:'總控也可以設定帳號與權限', text:'當天有老師臨時換人，總控可以直接在「帳號與權限」改組別，不用等系統管理員。「總控」身分本身只有系統管理員能給。' },
   { id:'n20261125c', roles:['mc'], page:'mc', title:'司儀台最上方多了「節目單提示」', text:'現在要唸的稿子、下一個節目的預告稿都寫好了，照著唸就好。總控忘記按開始時，畫面上方會跳出橘色條，按「通知總控」即可。' },
@@ -3538,6 +3539,11 @@ createApp({
     }
     function publish(ev){ if(!need('publish')) return; if(!refOk(ev)){ toast(refChanged(ev) ? '「'+ev.name+'」在裁判確認後有改動，請裁判重新確認' : '「'+ev.name+'」還沒經過裁判確認，不能公布', true); return; } ev.status='published'; ev.ts=Date.now(); ev.publishedAt=(new Date().getMonth()+1)+'/'+pad(new Date().getDate())+' '+hhmm(); bc('result', annText(ev)); log('公布成績：'+ev.name); toast('已公布！看板、司儀台、導師頁同步更新'); boardIdx.value=0; }
     function sendBack(ev){ if(!need('publish')) return; const n=(rvNote[ev.id]||'').trim(); if(!n){ toast('請先寫退回原因，裁判才知道要改哪裡',true); return; } ev.status='running'; ev.returnNote=n; rvNote[ev.id]=''; log('退回修改：'+ev.name+'（'+n+'）'); toast('已退回給裁判組'); }
+    /* 姓名打錯：不影響名次，不用退回重新審核；已公布的只有紀錄組能改，系統留紀錄 */
+    function canFixName(ev){ return !!ev && !ev.team && (can('publish') || (can('score') && !isLocked(ev))); }
+    function fixName(ev, e){ if(!canFixName(ev)) return; const old=e.name||'';
+      modal.value={ title:'修改姓名（'+clsLabel(e.cls)+'）', text:'「'+ev.name+'」裡的「'+old+'」要改成什麼？只改姓名，成績與名次不變。', input:old, placeholder:'輸入正確姓名', okText:'儲存姓名',
+        onOk:(v)=>{ const name=String(v||'').trim(); if(!name || name===old) return; e.name=name; log('修正姓名：'+ev.name+' '+clsLabel(e.cls)+' '+old+' → '+name); toast('已改成「'+name+'」，看板與成績查詢已更新'); } }; }
     function askReopen(ev){ if(!need('publish')) return; modal.value={ title:'申請修改「'+ev.name+'」', text:'已公布的成績要修改，請寫明原因，系統會留下紀錄。', input:'', placeholder:'例：第2名與第3名秒數登錄顛倒', okText:'退回重新登錄', onOk:(reason)=>{ ev.status='review'; log('申請修改已公布成績：'+ev.name+'（原因：'+reason+'）'); bc('flow','大會報告：'+ev.name+' 成績重新核對中，正確成績稍後公布。'); toast('已改為待審核，請重新登錄或確認'); scEvId.value=ev.id; } }; }
 
     /* ----- 司儀 ----- */
@@ -4426,7 +4432,7 @@ createApp({
 
     return { st, role, page, helpOpen, acctMgr, isCtrlEmail, closeHelp, newsList, dismissNews, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
       SHORT, cd, pad, insertOpen, openInsert, promptGroup, promptNext, scriptState, jumpScripts, ringLong, toggleRing, refOk, refChanged, confirmRef, needRef, doneTab, doneShown, restoreBc, scriptLib, scriptsOf, scriptGroups, nextScriptGroup, sf, editScript, saveScript, removeScript, moveScript, queueScript, sPaste, sParsed, importScripts, canBc, pushState, registerPush, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
-      drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, overdueTl, overdueSnoozed, snoozeOverdue, remindControl, setAutoFlow, ADHOC_TPL, adhocOpen, adhoc, useAdhocTpl, addAdhoc, tlRange, tlNo, mcScriptOf, prepScriptOf, nextMinsLeft, scheduledTl, mcProgOpen, applyProgram, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
+      drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, canFixName, fixName, overdueTl, overdueSnoozed, snoozeOverdue, remindControl, setAutoFlow, ADHOC_TPL, adhocOpen, adhoc, useAdhocTpl, addAdhoc, tlRange, tlNo, mcScriptOf, prepScriptOf, nextMinsLeft, scheduledTl, mcProgOpen, applyProgram, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
       roleObj, myPages, navPages, myTasks, dateLabel, go, badge, kpi, ask, modalOk, clsLabel,
       ranked, top, fmtMark, standings, barW, classPts, classRank, preEvents, dayEvents, reviewEvents, publishedEvents, latestPublished, checkinEvents,
