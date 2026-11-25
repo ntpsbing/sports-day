@@ -1029,7 +1029,7 @@ html.ov-transparent body::before{ display:none; }
       <div class="card mt-4 ar-pub" v-if="arPubShown.length || arPubGrades.length">
         <div class="flex items-center justify-between gap-2 flex-wrap mb-2">
           <h2 class="h-sec">🏃 全員賽跑・各班前三名</h2>
-          <span class="small muted">{{ arPubGradeText }}・導師送出後馬上出現</span>
+          <span class="small muted">{{ arPubGradeText }}・導師送出後馬上出現<b v-if="arFull" style="color:var(--ok)">・你是老師，看得到全名（家長看到「王○明」）</b></span>
         </div>
         <div v-if="!arPubShown.length" class="muted" style="padding:10px 0">還沒有班級送出成績，全員賽跑結束後導師填報就會出現在這裡。</div>
         <div class="ar-grid">
@@ -2795,7 +2795,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261125210000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261125210500'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -3707,7 +3707,9 @@ createApp({
     const arPubGradeText = computed(()=>{ const n=arPubGrades.value.map(x=>(AR_PUB_OPTS.find(o=>o.id===x)||{}).name).filter(Boolean); return n.length ? n.join('、') : '目前不公開'; });
     const pubAllrun = reactive({});
     const maskGroups = d => ({ at:d.at||'', groups:(d.groups||[]).map(g=>g.map(n=>maskName(n))) });
-    const arPubData = computed(()=> FORMAL ? pubAllrun : Object.fromEntries(Object.entries(st.value.allrun||{}).map(([k,v])=>[k, maskGroups(v)])));
+    /* 登入的老師（工作人員畫面）看全名；家長、大螢幕只拿得到遮名版（allrunPub），全名資料不會傳到家長手機 */
+    const arFull = computed(()=> !maskOn.value && (!FORMAL || !!fb.user));
+    const arPubData = computed(()=> arFull.value ? (st.value.allrun||{}) : (FORMAL ? pubAllrun : Object.fromEntries(Object.entries(st.value.allrun||{}).map(([k,v])=>[k, maskGroups(v)]))));
     const arGradeOf = c => /^[KA]/.test(c) ? 'kg' : String(c)[0];
     const arPubShown = computed(()=>{ const q=String(resQ.value||'').trim();
       return allrunClasses.value.filter(c=>arPubData.value[c] && arPubGrades.value.includes(arGradeOf(c)) && (resGrade.value==='all' || String(resGrade.value)===arGradeOf(c)) && (!q || clsLabel(c).includes(q) || c.replace('-','').includes(q.replace(/^0/,''))))
@@ -4736,7 +4738,7 @@ createApp({
 
     return { st, role, page, helpOpen, acctMgr, isCtrlEmail, closeHelp, newsList, dismissNews, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
       SHORT, arOpen, homeroomDraft, homeroomRows, homeroomLogins, saveHomeroom, myHomeroom, onHrInput, cd, pad, insertOpen, openInsert, promptGroup, promptNext, scriptState, jumpScripts, ringLong, toggleRing, refOk, refChanged, confirmRef, needRef, doneTab, doneShown, restoreBc, scriptLib, scriptsOf, scriptGroups, nextScriptGroup, sf, editScript, saveScript, removeScript, moveScript, queueScript, sPaste, sParsed, importScripts, canBc, pushState, registerPush, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
-      drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, AR_PUB_OPTS, arPubGrades, toggleArPub, arPubGradeText, arPubShown, PG_GRADES, pgGrade, progList, progLeave, shiftHM, flashLine, reportLine, TICKER_TPL, tkOpen, tk, tickerMsgs, hhmmOf, addTicker, removeTicker, canFixName, fixName, overdueTl, overdueSnoozed, snoozeOverdue, remindControl, setAutoFlow, ADHOC_TPL, adhocOpen, adhoc, useAdhocTpl, addAdhoc, tlRange, tlNo, mcScriptOf, prepScriptOf, nextMinsLeft, scheduledTl, mcProgOpen, applyProgram, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
+      drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, arFull, AR_PUB_OPTS, arPubGrades, toggleArPub, arPubGradeText, arPubShown, PG_GRADES, pgGrade, progList, progLeave, shiftHM, flashLine, reportLine, TICKER_TPL, tkOpen, tk, tickerMsgs, hhmmOf, addTicker, removeTicker, canFixName, fixName, overdueTl, overdueSnoozed, snoozeOverdue, remindControl, setAutoFlow, ADHOC_TPL, adhocOpen, adhoc, useAdhocTpl, addAdhoc, tlRange, tlNo, mcScriptOf, prepScriptOf, nextMinsLeft, scheduledTl, mcProgOpen, applyProgram, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
       roleObj, myPages, navPages, myTasks, dateLabel, go, badge, kpi, ask, modalOk, clsLabel,
       ranked, top, fmtMark, standings, barW, classPts, classRank, preEvents, dayEvents, reviewEvents, publishedEvents, latestPublished, checkinEvents,
