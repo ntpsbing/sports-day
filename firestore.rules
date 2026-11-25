@@ -28,7 +28,11 @@ service cloud.firestore {
     match /allrun/{cls}    { allow read, write: if isSchool(); }
     match /logs/{id}       { allow read: if hasRole(['record','control']); allow create: if isSchool(); }
     match /devices/{id}    { allow read: if hasRole(['record','control']); allow write: if isSchool(); }
-    match /roles/{e}       { allow read: if isSchool() || (signedIn() && e == email()); allow write: if isAdmin(); }
+    match /roles/{e}       { allow read: if isSchool() || (signedIn() && e == email());
+                             allow write: if isAdmin();
+                             // 總控也能設定組別，但不能給或拿掉「總控」身分（避免自己加權限）
+                             allow create, update: if hasRole(['control']) && !request.resource.data.get('roles', []).hasAny(['control']) && request.resource.data.get('role', '') != 'control' && (resource == null || (!resource.data.get('roles', []).hasAny(['control']) && resource.data.get('role', '') != 'control'));
+                             allow delete: if hasRole(['control']) && !resource.data.get('roles', []).hasAny(['control']) && resource.data.get('role', '') != 'control'; }
     match /users/{e}       { allow read: if isAdmin(); allow write: if isSchool() && e == email(); }   // 登入姓名，供管理員對照組別
     match /roster/{id}     { allow read, write: if isAdmin(); }   // 工作分配名單（姓名→組別）
     // 後勤支援

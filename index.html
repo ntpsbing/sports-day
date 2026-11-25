@@ -1093,7 +1093,7 @@ html.ov-transparent body::before{ display:none; }
       </div>
     </section>
 
-    <!-- ===================== 帳號與權限（只有系統管理員）===================== -->
+    <!-- ===================== 帳號與權限（系統管理員＋總控；總控不能動「總控」這個身分）===================== -->
     <section v-if="page==='accounts'" class="fade-up">
       <fold-card k="acc-how" :open="false" class="mb-4">
   <template #title>💡 身分是怎麼給的？</template>
@@ -1107,8 +1107,9 @@ html.ov-transparent body::before{ display:none; }
         </ol>
       </fold-card>
       <div v-if="!FORMAL" class="card note note-info">體驗版沒有登入，用左上方的身分選單切換。正式版用學校帳號登入後，這一頁才能設定。</div>
-      <div v-else-if="!fb.admin" class="card">只有系統管理員（config.js 的 ADMIN_EMAILS）可以設定帳號權限。</div>
+      <div v-else-if="!acctMgr" class="card">只有系統管理員和總控可以設定帳號權限。需要調整請找總控或紀錄組（系統管理員）。</div>
           <div class="card" v-else>
+            <div v-if="!fb.admin" class="note note-info mb-3">你是<b>總控</b>，可以幫老師設定或修改組別（例如當天臨時換人）。為了安全，「總控」這個身分只有系統管理員能給或拿掉。</div>
             <h2 class="h-sec mb-1">設定誰負責哪一組</h2>
             <p class="small muted mb-3">用學校 Google 帳號登入。沒有設定的人一律是「班級導師」。</p>
             <div class="grid gap-2 mb-3" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
@@ -1117,7 +1118,7 @@ html.ov-transparent body::before{ display:none; }
             </div>
             <div class="lbl">負責組別（可以勾選多個；每位學校帳號都保有導師功能）</div>
             <div class="flex flex-wrap gap-2 mb-3">
-              <label v-for="r in ROLES.filter(x=>!['public','teacher'].includes(x.id))" :key="r.id" class="btn btn-sm" :class="roleForm.roles.includes(r.id)?'btn-primary':''"><input type="checkbox" class="sr-only" :value="r.id" v-model="roleForm.roles">{{ roleForm.roles.includes(r.id) ? '✔ ' : '' }}{{ r.name }}</label>
+              <label v-for="r in ROLES.filter(x=>!['public','teacher'].includes(x.id) && (fb.admin || x.id!=='control'))" :key="r.id" class="btn btn-sm" :class="roleForm.roles.includes(r.id)?'btn-primary':''"><input type="checkbox" class="sr-only" :value="r.id" v-model="roleForm.roles">{{ roleForm.roles.includes(r.id) ? '✔ ' : '' }}{{ r.name }}</label>
             </div>
             <details class="card-flat mb-3">
               <summary class="font-bold cursor-pointer" style="min-height:40px">批次設定（從 Excel 貼上名單）</summary>
@@ -1126,7 +1127,7 @@ html.ov-transparent body::before{ display:none; }
               <div class="small mt-1" v-if="roleBulkRows.length"><b style="color:var(--ok)">✔ 可設定 {{ roleBulkRows.filter(r=>r.ok).length }} 位</b>　<b v-if="roleBulkRows.some(r=>!r.ok)" style="color:var(--bad)">✗ {{ roleBulkRows.filter(r=>!r.ok).length }} 列有問題：{{ roleBulkRows.filter(r=>!r.ok).map(r=>r.msg).join('；') }}</b></div>
               <button class="btn btn-primary mt-2" @click="applyRoleBulk" :disabled="!roleBulkRows.some(r=>r.ok)">一次設定 {{ roleBulkRows.filter(r=>r.ok).length }} 位</button>
             </details>
-            <div class="card-flat mb-3">
+            <div class="card-flat mb-3" v-if="fb.admin">
               <div class="flex justify-between items-center gap-2 flex-wrap"><b>登入自動對照（不用輸入帳號）</b>
                 <label class="flex items-center gap-2 small"><input type="checkbox" id="rfAuto" :checked="fb.rosterAuto" @change="setRosterAuto($event.target.checked)" style="width:20px;height:20px"> 對得到名單就自動套用</label></div>
               <p class="small muted my-1">老師用學校帳號登入一次，系統用帳號上的姓名對照「工作分配名單」，自動設定組別。名單共 {{ Object.keys(rosterMap).length }} 人。</p>
@@ -1151,7 +1152,7 @@ html.ov-transparent body::before{ display:none; }
             </div>
             <div v-if="roleTab!=='all' && !roleRowsTab.length" class="card-flat small muted text-center" style="padding:24px">「{{ roleName(roleTab) }}」還沒有設定成員。在上方輸入帳號、勾選這一組，按「設定權限」。</div>
             <div v-else class="tblwrap" style="max-height:480px;overflow:auto"><table class="tbl small"><thead><tr><th>姓名</th><th>組別</th><th></th></tr></thead><tbody>
-              <tr v-for="r in roleRowsTab" :key="r.email"><td><b style="font-size:1.05em">{{ r.name || '（未填姓名）' }}</b><div class="muted" style="word-break:break-all;font-size:.8em">{{ r.email }}</div></td><td>{{ r.roles.map(id=>(ROLES.find(x=>x.id===id)||{}).name||id).join('、') }}</td><td class="flex gap-1"><button class="btn btn-sm" @click="editRole(r)">修改</button><button class="btn btn-sm" @click="removeRole(r.email)">移除</button></td></tr>
+              <tr v-for="r in roleRowsTab" :key="r.email"><td><b style="font-size:1.05em">{{ r.name || '（未填姓名）' }}</b><div class="muted" style="word-break:break-all;font-size:.8em">{{ r.email }}</div></td><td>{{ r.roles.map(id=>(ROLES.find(x=>x.id===id)||{}).name||id).join('、') }}</td><td class="flex gap-1" v-if="!fb.admin && r.roles.includes('control')"><span class="small muted">僅管理員可改</span></td><td class="flex gap-1" v-else><button class="btn btn-sm" @click="editRole(r)">修改</button><button class="btn btn-sm" @click="removeRole(r.email)">移除</button></td></tr>
             </tbody></table></div>
           </div>
     </section>
@@ -2588,7 +2589,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261125130000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261125133000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -2672,7 +2673,7 @@ const NOTICE_TO = { all:'全體人員', teachers:'全體導師', staff:'全體�
 const PLACE_TPL = ['檢錄處','司令台','起跑區','終點','頒獎台','東側廁所','西側廁所','觀眾區','○年○班休息區'];
 /* 身分與分工：pages＝這組要用的頁面；duty＝總控台「分工表」的說明 */
 const ROLES = [
-  { id:'control', name:'總控（司令台）',  pages:['home','board','mc','live'], duty:'整場主控：按流程「開始／完成」、流程延誤通知、掌握各組進度（建議由總幹事或其指定的人坐鎮司令台）' },
+  { id:'control', name:'總控（司令台）',  pages:['home','board','mc','live','accounts'], duty:'整場主控：按流程「開始／完成」、流程延誤通知、掌握各組進度（建議由總幹事或其指定的人坐鎮司令台）' },
   { id:'record',  name:'紀錄組',          pages:['review','import','export','board','config','accounts','home'], duty:'系統管理員：審核並公布成績、匯入匯出資料、獎狀名單、上網公告；總控不在時可代為控制流程' },
   { id:'sport',   name:'體育組・裁判組',  pages:['checkin','score','config','board'], duty:'登錄比賽成績、訂定積分辦法' },
   { id:'checkin', name:'檢錄組',          pages:['checkin','board'], duty:'檢錄點名、呼叫第二次檢錄' },
@@ -2695,7 +2696,7 @@ const ROLES = [
 ];
 /* 權限：每個動作由哪些組別操作（正式版改由學校 Google 帳號判斷） */
 const PERMS = {
-  flow:['control','record'], checkin:['checkin','sport','record'], score:['sport','record'], publish:['record'],
+  acct:['control'], flow:['control','record'], checkin:['checkin','sport','record'], score:['sport','record'], publish:['record'],
   mc:['mc','control'], guest:['guest','doc','control','award','record'], award:['award','control','record','ceremony'], live:['live','control'],
   data:['record'], config:['record','sport'], allrun:['teacher','record'],
   report:['control','record','sport','checkin','mc','guest','award','live','doc','ceremony','equip','medic','lunch','env','quest','gift','promo','affairs','teacher'],
@@ -2704,7 +2705,7 @@ const PERMS = {
 };
 /* 通報類別：誰負責處理 */
 const RTYPES = { equip:{ name:'器材', perm:'equipH' }, env:{ name:'環境清潔', perm:'envH' }, lunch:{ name:'午餐', perm:'lunchH' }, medic:{ name:'醫護', perm:'medic' }, site:{ name:'場地事務', perm:'siteH' }, other:{ name:'其他', perm:'flow' } };
-const PAGE_PERM = { home:'flow', checkin:'checkin', score:'score', review:'publish', mc:'mc', guests:'guest', awards:'award', live:'live', import:'data', config:'config', teacher:'allrun', reports:'report', medical:'medic', equip:'equipH', lunch:'lunchH', gifts:'gift', stations:'quest' };
+const PAGE_PERM = { accounts:'acct', home:'flow', checkin:'checkin', score:'score', review:'publish', mc:'mc', guests:'guest', awards:'award', live:'live', import:'data', config:'config', teacher:'allrun', reports:'report', medical:'medic', equip:'equipH', lunch:'lunchH', gifts:'gift', stations:'quest' };
 const PAGES = [
   { id:'start', name:'首頁' }, { id:'home', name:'總控台' }, { id:'board', name:'大會看板' }, { id:'results', name:'成績查詢' }, { id:'teacher', name:'導師查詢' },
   { id:'checkin', name:'檢錄' }, { id:'score', name:'成績登錄' }, { id:'review', name:'審核公布' },
@@ -2785,6 +2786,7 @@ const TASK_DESC = {
   stations:'各闖關站即時狀態，導師與看板同步看得到哪一站人少。',
 };
 const HELP = {
+  accounts:['找到老師（可用搜尋），按「修改」勾選組別再儲存；一個人可以兼多組。','新增：輸入學校帳號（tc 開頭）＋勾選組別，或用「批次設定」一次貼多位。','沒設定的老師登入後就是「班級導師」；改完請對方重新整理頁面就生效。'],
   sheets:['上方選「個人賽／團體賽／總錦標／全部／節目單」，再選依頒獎梯次或依年級排列。','預設只印已公布的成績；成績更新後重新整理這頁再印，就是最新版本。','按「列印黑白」或「列印彩色」，A4 直式，每個梯次可自動換頁；「領獎確認」欄給頒獎組現場打勾。'],
   reports:['選類別、填地點和狀況，按「送出通報」。','負責的組別會在這頁和右下角「即時動態」看到，按「處理中」「已完成」回報。','很急的狀況勾「緊急」，可同時請司儀廣播。'],
   medical:['學生受傷或不舒服時登記：班級、姓名、狀況、處理方式。','需要通知家長的請勾選，處理完按「結案」。','為保護學生隱私，這頁資料只有醫護組、總控、紀錄組看得到。'],
@@ -2809,6 +2811,7 @@ const HELP = {
 };
 /* 新功能公告：依組別顯示，每台裝置看過按「知道了」就不再出現（之後新增功能時，在最上面加一筆） */
 const WHATS_NEW = [
+  { id:'n20261125e', roles:['control'], page:'accounts', title:'總控也可以設定帳號與權限', text:'當天有老師臨時換人，總控可以直接在「帳號與權限」改組別，不用等系統管理員。「總控」身分本身只有系統管理員能給。' },
   { id:'n20261125c', roles:['mc'], page:'mc', title:'司儀台最上方多了「節目單提示」', text:'現在要唸的稿子、下一個節目的預告稿都寫好了，照著唸就好。總控忘記按開始時，畫面上方會跳出橘色條，按「通知總控」即可。' },
   { id:'n20261125b', roles:['control','record'], page:'home', title:'總控台可以「＋ 臨時插入流程」', text:'下雨、醫護、場地整理等突發狀況：點範本→按送出，司儀和相關組別手機同時收到。' },
   { id:'n20261125a', roles:['control','record'], page:'home', title:'忘記按「開始」會提醒你', text:'超過表定時間 2 分鐘，畫面上方跳出橘色提醒，可一鍵開始或順延；也可以勾選讓系統自動開始。' },
@@ -4280,7 +4283,7 @@ createApp({
         fUnsubs.push(fdb.collection('users').onSnapshot(s=>{ fb.users=s.docs.map(d=>d.data()); }, ()=>{}));
         fUnsubs.push(fref('roster','main').onSnapshot(d=>{ const x=d.exists?d.data():{}; fb.roster=x.text||''; fb.rosterAuto=x.auto!==false; if(!rosterDraftTouched) rosterDraft.value=fb.roster; }, ()=>{}));
       }
-      if(fb.user && fb.admin) fUnsubs.push(fdb.collection('roles').onSnapshot(s=>{ fb.roles=s.docs.map(d=>{ const x=d.data(); return { email:d.id, name:x.name||'', roles: Array.isArray(x.roles)&&x.roles.length ? x.roles : (x.role?[x.role]:[]) }; }); }, ()=>{}));
+      if(fb.user && (fb.admin || fb.myRoles.includes('control'))) fUnsubs.push(fdb.collection('roles').onSnapshot(s=>{ fb.roles=s.docs.map(d=>{ const x=d.data(); return { email:d.id, name:x.name||'', roles: Array.isArray(x.roles)&&x.roles.length ? x.roles : (x.role?[x.role]:[]) }; }); }, ()=>{}));
     }
     const nowTick=ref(Date.now()); setInterval(()=>{ nowTick.value=Date.now(); },10000);
     function isOnline(d){ return d.tsMs && nowTick.value-d.tsMs < 75000; }
@@ -4352,8 +4355,14 @@ createApp({
       if(bad.length){ row.msg=em+' 看不懂「'+bad.join('、')+'」'; return row; }
       return { ok:true, email:em, roles:ids, name };
     }));
+    const acctMgr = computed(()=>FORMAL && !!fb.user && (fb.admin || fb.myRoles.includes('control')));
+    const isCtrlEmail = em => (fb.roles.find(x=>x.email===em)||{ roles:[] }).roles.includes('control');
+    function acctGuard(em, rs){ if(fb.admin) return true; if(!acctMgr.value){ toast('只有系統管理員和總控可以設定',true); return false; }
+      if((rs||[]).includes('control') || isCtrlEmail(em)){ toast('「總控」身分只有系統管理員能設定或移除',true); return false; }
+      if((window.ADMIN_EMAILS||[]).map(x=>String(x).toLowerCase()).includes(em)){ toast('系統管理員的帳號不能修改',true); return false; } return true; }
     async function applyRoleBulk(){
       const rows=roleBulkRows.value.filter(r=>r.ok); if(!rows.length) return;
+      if(!fb.admin){ const bad=rows.filter(r=>!acctGuard(r.email, r.roles)); if(bad.length) return; }
       try{ const batch=fdb.batch(); rows.forEach(r=>batch.set(fref('roles',r.email), { role:r.roles[0], roles:r.roles, name:r.name||((fb.roles.find(x=>x.email===r.email)||{}).name||''), by:fb.email, ts:Date.now() })); await batch.commit();
         log('批次設定權限 '+rows.length+' 位'); toast('已設定 '+rows.length+' 位老師的組別'); roleBulk.value=''; }
       catch(e){ toast('設定失敗：'+((e&&e.code)||''),true); }
@@ -4379,8 +4388,8 @@ createApp({
     // 管理員開著系統時，新登入且名單對得到的人自動套用
     watch(()=>pendingMatches.value.map(x=>x.email).join(','), v=>{ if(v && FORMAL && fb.admin && fb.rosterAuto) setTimeout(()=>applyMatches(null,true),800); });
     function editRole(r){ roleForm.email=r.email; roleForm.roles=r.roles.slice(); window.scrollTo({ top:0, behavior:'smooth' }); }
-    function setRole(){ const em=roleForm.email.toLowerCase().trim(); if(window.SCHOOL_DOMAIN && !em.endsWith('@'+window.SCHOOL_DOMAIN)){ toast('請輸入學校帳號（@'+window.SCHOOL_DOMAIN+'）',true); return; } const rs=roleForm.roles.slice(); fref('roles',em).set({ role:rs[0], roles:rs, name:((fb.roles.find(x=>x.email===em)||{}).name||''), by:fb.email, ts:Date.now() }).then(()=>{ toast('已設定 '+em+'：'+rs.length+' 個組別'); roleForm.email=''; roleForm.roles=[]; log('設定權限：'+em+' → '+rs.join('、')); }).catch(e=>toast('設定失敗：'+((e&&e.code)||''),true)); }
-    function removeRole(em){ fref('roles',em).delete().then(()=>toast('已移除 '+em)).catch(e=>toast('移除失敗：'+((e&&e.code)||''),true)); }
+    function setRole(){ const em=roleForm.email.toLowerCase().trim(); if(window.SCHOOL_DOMAIN && !em.endsWith('@'+window.SCHOOL_DOMAIN)){ toast('請輸入學校帳號（@'+window.SCHOOL_DOMAIN+'）',true); return; } const rs=roleForm.roles.slice(); if(!acctGuard(em, rs)) return; fref('roles',em).set({ role:rs[0], roles:rs, name:((fb.roles.find(x=>x.email===em)||{}).name||''), by:fb.email, ts:Date.now() }).then(()=>{ toast('已設定 '+em+'：'+rs.length+' 個組別'); roleForm.email=''; roleForm.roles=[]; log('設定權限：'+em+' → '+rs.join('、')); }).catch(e=>toast('設定失敗：'+((e&&e.code)||''),true)); }
+    function removeRole(em){ if(!acctGuard(em, [])) return; fref('roles',em).delete().then(()=>toast('已移除 '+em)).catch(e=>toast('移除失敗：'+((e&&e.code)||''),true)); }
     /* 流程表編輯、刪除人員（兩種版本都可用） */
     function addTl(){ if(!need('flow')) return; const last=st.value.timeline[st.value.timeline.length-1]; st.value.timeline.push({ id:'t'+Date.now(), time:last?last.time:'08:00', title:'新的流程項目', kind:'other', eventIds:[], status:'todo' }); }
     function removeTl(t){ if(!need('flow')) return; ask('確定刪除流程「'+t.title+'」嗎？', ()=>{ const i=st.value.timeline.indexOf(t); if(i>=0) st.value.timeline.splice(i,1); if(FORMAL) fbDelete('timeline',t.id); log('刪除流程：'+t.title); }); }
@@ -4404,7 +4413,7 @@ createApp({
         text:(r.urgent?'🚨 緊急通報':'🚨 現場通報')+'【'+(RTYPES[r.type]?RTYPES[r.type].name:'其他')+'】'+(r.place?r.place+'：':'')+r.text })); }, { immediate:true });
     onMounted(()=>{ readHash(); if(!hashGiven && isPublicView.value) page.value='board'; loadDraft(); syncLiveDraft(); renderQR(); if(FORMAL) fbInit(); else initCloud(); });
 
-    return { st, role, page, helpOpen, closeHelp, newsList, dismissNews, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
+    return { st, role, page, helpOpen, acctMgr, isCtrlEmail, closeHelp, newsList, dismissNews, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
       SHORT, cd, pad, insertOpen, openInsert, promptGroup, promptNext, scriptState, jumpScripts, ringLong, toggleRing, refOk, refChanged, confirmRef, needRef, doneTab, doneShown, restoreBc, scriptLib, scriptsOf, scriptGroups, nextScriptGroup, sf, editScript, saveScript, removeScript, moveScript, queueScript, sPaste, sParsed, importScripts, canBc, pushState, registerPush, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
       drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, overdueTl, overdueSnoozed, snoozeOverdue, remindControl, setAutoFlow, ADHOC_TPL, adhocOpen, adhoc, useAdhocTpl, addAdhoc, tlRange, tlNo, mcScriptOf, prepScriptOf, nextMinsLeft, scheduledTl, mcProgOpen, applyProgram, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
