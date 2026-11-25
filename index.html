@@ -997,7 +997,7 @@ html.ov-transparent body::before{ display:none; }
           </div>
           <div v-if="tkOpen && can('flow')" class="card-flat mb-3 fade-up" style="border:2px solid #C99A00">
             <div class="font-bold mb-1" style="font-size:18px">📢 跑馬燈公告（大會看板最上方）</div>
-            <div class="small muted mb-2">輸入要讓家長看到的話，按「上跑馬燈」就會排在跑馬燈最前面，時間到自動下架。</div>
+            <div class="small muted mb-2">輸入要讓家長看到的話，按「上跑馬燈」就會排在跑馬燈最前面，時間到自動下架。<b>同時最多 2 則</b>，第 3 則送出時最舊的會自動拿掉，家長才不用等太久。</div>
             <div class="flex flex-wrap gap-2 mb-2"><button v-for="q in TICKER_TPL" :key="q" class="btn btn-sm" @click="tk.text=q">{{ q.length>14 ? q.slice(0,14)+'…' : q }}</button></div>
             <textarea class="inp" id="tkText" rows="2" v-model="tk.text" maxlength="80" placeholder="例如：下雨了，比賽暫停，請家長到風雨操場等候"></textarea>
             <div class="flex flex-wrap gap-3 items-center mt-2 small">
@@ -2613,7 +2613,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261125150000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261125151500'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -3490,7 +3490,7 @@ createApp({
     function addTicker(){ if(!need('flow')) return; const text=tk.text.trim(); if(!text) return;
       const list=(st.value.settings.ticker||[]).filter(m=>!m.until || m.until>Date.now());
       list.unshift({ id:'tk'+Date.now(), text, at:hhmm(), ts:Date.now(), until: tk.mins ? Date.now()+tk.mins*60000 : 0 });
-      st.value.settings.ticker=list.slice(0,5);
+      st.value.settings.ticker=list.slice(0,2);
       if(tk.mc) bc('insert', '大會報告：'+text);
       log('跑馬燈公告：'+text); toast('已上跑馬燈'+(tk.mc?'，司儀台也收到了':'')); tk.text=''; tk.mc=false; }
     function removeTicker(m){ if(!need('flow')) return; st.value.settings.ticker=(st.value.settings.ticker||[]).filter(x=>x.id!==m.id); log('跑馬燈公告下架：'+m.text); toast('已從跑馬燈移除'); }
@@ -4130,13 +4130,13 @@ createApp({
     const tickerText = computed(()=>{ const items=[], tl=st.value.timeline;
       const where = t => [t.unit, t.place].filter(Boolean).join('・');
       items.push('楠梓國小'+st.value.settings.title+'　活力躍動　魅力楠梓');
-      tickerMsgs.value.forEach(m=>items.push('【公告】'+m.text));
+      tickerMsgs.value.slice(0,2).forEach(m=>items.push('【公告】'+m.text));
       if(nowTl.value) items.push('【現在進行】'+(nowTl.value.no?'第'+nowTl.value.no+'項 ':'')+nowTl.value.title+(where(nowTl.value)?'（'+where(nowTl.value)+'）':''));
-      tl.filter(t=>t.status==='todo').slice(0,2).forEach(t=>items.push('【節目預告】'+tlTime(t)+' '+(t.no?'第'+t.no+'項 ':'')+t.title+(where(t)?'（'+where(t)+'）':'')+(t.check?'，檢錄 '+t.check:'')));
+      tl.filter(t=>t.status==='todo').slice(0,2).forEach((t,i)=>items.push('【節目預告】'+tlTime(t)+' '+t.title+(i===0 && where(t)?'（'+where(t)+'）':'')+(t.check?'，檢錄 '+t.check:'')));
       const aw=tl.find(t=>t.status!=='done' && t.award); if(aw) items.push('【頒獎預告】'+tlTime(aw)+' 頒獎：'+aw.award+'，得獎同學請到司令台前頒獎台旁集合');
-      checkinEvents.value.forEach(e=>items.push('【檢錄】'+e.name+' 請到檢錄處報到'));
-      st.value.gifts.filter(g=>g.announced).slice(-3).forEach(g=>items.push('【感謝】'+g.donor+' 捐贈 '+g.item));
-      st.value.broadcasts.filter(b=>b.done && !b.cancelled && b.type==='insert').slice(-2).forEach(b=>items.push('【大會報告】'+b.text.replace(/^大會報告：/,'')));
+      if(checkinEvents.value.length) items.push('【檢錄】'+checkinEvents.value.slice(0,3).map(e=>e.name).join('、')+(checkinEvents.value.length>3?' 等':'')+' 請到檢錄處報到');
+      st.value.gifts.filter(g=>g.announced).slice(-1).forEach(g=>items.push('【感謝】'+g.donor+' 捐贈 '+g.item));
+      st.value.broadcasts.filter(b=>b.done && !b.cancelled && b.type==='insert').slice(-1).forEach(b=>items.push('【大會報告】'+b.text.replace(/^大會報告：/,'')));
       const leave=tl.filter(t=>t.note && /放學/.test(t.note)).map(t=>t.note);
       if(leave.length) items.push('【放學時間】'+leave.join('；')+'，請家長準時接送');
       return items.join('　　◆　　'); });
