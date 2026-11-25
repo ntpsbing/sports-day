@@ -2667,7 +2667,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261125120000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261125203000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -4550,6 +4550,7 @@ createApp({
 
     watch(()=>[isPublicView.value, page.value], ()=>{ if(page.value==='start' && isPublicView.value) page.value='board'; });
     watch(()=>fb.user, (u,old)=>{ if(u && !old && !hashGiven && page.value==='board') go('start'); }); // 剛登入：帶到自己的首頁
+    watch(()=>fb.myRoles.join(','), v=>{ if(v==='teacher' && !hashGiven && ['start','board'].includes(page.value)) go('teacher'); }); // 只有導師身分的老師：登入直接到「導師查詢」（自己的班）
     /* 新版本偵測：每分鐘、或切回這個分頁時，檢查網站上的版本；有新版就提示一鍵更新 */
     const newVersion = ref(false);
     async function checkVersion(){ if(BUILD_ID==='dev' || newVersion.value || document.hidden) return;
