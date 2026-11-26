@@ -909,6 +909,7 @@ html.ov-transparent body::before{ display:none; }
             <button v-if="shareHere" @click="closeMore(); sharePage(page)">🔗 分享這一頁</button>
             <button @click="closeMore(); printPage('bw')">🖨️ 列印（黑白）</button>
             <button @click="closeMore(); printPage('color')">🖨️ 列印（彩色）</button>
+            <button @click="closeMore(); savePdf()">📄 存成 PDF</button>
           </div>
         </details>
       </div>
@@ -1533,10 +1534,12 @@ html.ov-transparent body::before{ display:none; }
             </div>
           </div>
           <button class="btn btn-primary btn-big w-full" @click="submitAllrun">{{ st.allrun[tCls] ? '修改後重新送出' : '送出全員賽跑名單' }}</button>
-          <div v-if="st.allrun[tCls] && canPrint" class="flex flex-wrap gap-2 mt-3 items-center">
+          <div v-if="st.allrun[tCls]" class="flex flex-wrap gap-2 mt-3 items-center">
             <span class="small muted">已送出的名單：</span>
             <button class="btn" @click="printAr('bw')">🖨 列印本班得獎名單（黑白）</button>
             <button class="btn" @click="printAr('color')">🖨 彩色</button>
+            <button class="btn" @click="savePdf">📄 存成 PDF</button>
+            <button class="btn" @click="downloadArXlsx([tCls], clsLabel(tCls))">📊 下載 Excel</button>
           </div>
         </div>
         <div class="card" v-if="tOpen==='prog'">
@@ -2074,6 +2077,7 @@ html.ov-transparent body::before{ display:none; }
         <div class="flex flex-wrap gap-2 items-center mt-3">
           <button class="btn btn-primary" @click="doPrint('bw')" :disabled="sheetOpt.kind==='allrun' ? !arSheetDone : (!sheetStat.events && !sheetChamp.length && sheetOpt.kind!=='program')">🖨 列印黑白</button>
           <button class="btn" @click="doPrint('color')" :disabled="sheetOpt.kind==='allrun' ? !arSheetDone : (!sheetStat.events && !sheetChamp.length && sheetOpt.kind!=='program')">🖨 列印彩色</button>
+          <template v-if="sheetOpt.kind==='allrun'"><button class="btn" @click="savePdf" :disabled="!arSheetDone">📄 存成 PDF</button><button class="btn" @click="downloadArXlsx(arSheet.flatMap(g=>g.done), sheetOpt.grade ? (sheetOpt.grade===9 ? '幼兒園天使班' : ZH[sheetOpt.grade]+'年級') : '全部')" :disabled="!arSheetDone">📊 下載 Excel</button></template>
           <span class="small muted" v-if="sheetOpt.kind==='allrun'">已送出 {{ arSheetDone }} 班<span v-if="arSheetMissing">、還沒送出 {{ arSheetMissing }} 班</span>。A4 直式，每班一張表，學生姓名為全名（給頒獎組、文書組用）。</span>
           <span class="small muted" v-else-if="sheetOpt.kind==='program'">共 {{ st.timeline.length }} 項節目，含每一項的司儀稿。A4 直式。</span>
           <span class="small muted" v-else>共 {{ sheetStat.events }} 個項目、得獎 {{ sheetStat.people }} 人次<span v-if="sheetStat.waiting">；{{ sheetStat.waiting }} 項尚未公布<span v-if="sheetOpt.pubOnly">（未列入）</span></span>。A4 直式，建議用電腦列印。</span>
@@ -2983,7 +2987,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261126131000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261126131500'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -4706,6 +4710,15 @@ createApp({
       }catch(e){ if(e && e.code==='declined') return; toast('無法下載，請用「複製」貼到 Excel',true); }
     }
     function sheetFrom(rows, widths){ const ws=XLSX.utils.aoa_to_sheet(rows); ws['!cols']=(widths||rows[0].map(()=>18)).map(w=>({wch:w})); return ws; }
+    /* 全員賽跑名單下載 Excel：一列一位學生（班級、組別、名次、姓名），可直接拿去套印獎狀 */
+    function downloadArXlsx(classes, label){ const rows=[['班級','組別','名次','姓名','送出時間','送出者']];
+      classes.filter(c=>st.value.allrun[c]).forEach(c=>{ const d=st.value.allrun[c]; (d.groups||[]).forEach((g,gi)=>g.forEach((n,ni)=>rows.push([clsLabel(c),'第'+(gi+1)+'組','第'+ZH[ni+1]+'名',n,d.at||'',d.by||'']))); });
+      if(rows.length<2){ toast('還沒有送出的名單',true); return; }
+      if(!window.XLSX){ toast('Excel 元件沒載入，請重新整理再試',true); return; }
+      const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, sheetFrom(rows,[12,8,8,12,14,12]), '全員賽跑');
+      saveBlob('全員賽跑名單_'+label+'.xlsx', new Blob([XLSX.write(wb,{bookType:'xlsx',type:'array'})])); }
+    /* 存成 PDF：用瀏覽器的列印視窗，「目的地」選「另存為 PDF」 */
+    function savePdf(){ toast('列印視窗打開後，「目的地／印表機」選「另存為 PDF」再按儲存（手機：按分享 → 儲存到檔案）'); setTimeout(()=>printPage('color'), 900); }
     async function downloadXlsx(rows,name){
       if(!window.XLSX){ toast('Excel 元件沒載入，請改用「複製表格」',true); return; }
       const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,sheetFrom(rows),name.slice(0,30));
@@ -5107,7 +5120,7 @@ createApp({
     watch(myHomeroom, c=>{ if(c && !hrApplied){ hrApplied=true; if(c!==tCls.value){ tCls.value=c; toast('已依你的帳號切換到 '+clsLabel(c)); } } }); // 放在 fb 建立之後（避免初始化順序錯誤）
     onMounted(()=>{ readHash(); if(!hashGiven && isPublicView.value) page.value='board'; loadDraft(); syncLiveDraft(); renderQR(); if(FORMAL) fbInit(); else initCloud(); });
 
-    return { st, role, page, helpOpen, newsOpen, tOpen, openHomeFlow, checkTimeOf, ownCls, tClsEdit, backToOwnCls, arHelper, arSheet, arSheetDone, arSheetMissing, printAr, printPage, arSheet, arSheetDone, arSheetMissing, printAr, openT, tHelloName, myProg, myProgNext, tTodo, teacherNotices, acctMgr, isCtrlEmail, closeHelp, newsList, dismissNews, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
+    return { st, role, page, helpOpen, newsOpen, tOpen, openHomeFlow, checkTimeOf, ownCls, tClsEdit, backToOwnCls, arHelper, arSheet, arSheetDone, arSheetMissing, printAr, printPage, downloadArXlsx, savePdf, arSheet, arSheetDone, arSheetMissing, printAr, openT, tHelloName, myProg, myProgNext, tTodo, teacherNotices, acctMgr, isCtrlEmail, closeHelp, newsList, dismissNews, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
       SHORT, arOpen, homeroomDraft, homeroomRows, homeroomLogins, saveHomeroom, myHomeroom, onHrInput, cd, pad, insertOpen, openInsert, promptGroup, promptNext, scriptState, jumpScripts, ringLong, toggleRing, refOk, refChanged, confirmRef, needRef, doneTab, doneShown, restoreBc, scriptLib, scriptsOf, scriptGroups, nextScriptGroup, sf, editScript, saveScript, removeScript, moveScript, queueScript, sPaste, sParsed, importScripts, canBc, pushState, registerPush, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
       drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, arFull, AR_PUB_OPTS, arPubGrades, toggleArPub, arPubGradeText, arPubShown, PG_GRADES, pgGrade, progList, progLeave, shiftHM, flashLine, reportLine, TICKER_TPL, tkOpen, tk, tickerMsgs, hhmmOf, addTicker, removeTicker, canFixName, fixName, overdueTl, overdueSnoozed, snoozeOverdue, remindControl, setAutoFlow, ADHOC_TPL, adhocOpen, adhoc, useAdhocTpl, addAdhoc, tlRange, tlNo, mcScriptOf, prepScriptOf, nextMinsLeft, scheduledTl, mcProgOpen, applyProgram, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
