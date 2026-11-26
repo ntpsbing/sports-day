@@ -844,7 +844,7 @@ html.ov-transparent body::before{ display:none; }
         </div>
       </div>
       <div class="flex gap-2 items-center no-print">
-        <button class="btn btn-sm" v-if="HELP[page] && !gate && !isPublicView" @click="helpOpen=!helpOpen" :aria-expanded="helpOpen">{{ helpOpen ? '收起說明' : '？這頁怎麼用' }}</button>
+        <button class="btn btn-sm" v-if="HELP[page] && !gate && !isPublicView" @click="helpOpen=!helpOpen" :aria-expanded="helpOpen" title="需要時再打開">{{ helpOpen ? '✕ 收起說明' : '💡 怎麼用' }}</button>
         <button v-if="!printHere && shareHere" class="btn btn-sm" @click="sharePage(page)">🔗 分享</button>
         <details v-if="printHere" class="more" ref="moreEl">
           <summary class="btn btn-sm" :aria-label="shareHere ? '更多功能' : '列印'">{{ shareHere ? '⋯ 更多' : '🖨️ 列印' }}</summary>
@@ -858,13 +858,13 @@ html.ov-transparent body::before{ display:none; }
     </div>
     <div class="note note-info mb-4 no-print" v-if="!gate && PAGE_PERM[page] && !can(PAGE_PERM[page]) && page!=='overlay' && page!=='start'">👀 這頁你可以看，操作由 <b>{{ whoCan(PAGE_PERM[page]) }}</b> 負責。<span v-if="!FORMAL">想體驗操作，請在選單最上面切換身分。</span></div>
     <div class="card-flat helpbox mb-4 no-print" v-if="helpOpen && HELP[page] && !gate && !isPublicView" style="border:2px solid var(--brand)">
-      <div class="font-bold mb-1" style="font-size:17px">💡 這頁怎麼用（30 秒看完）</div>
+      <div class="font-bold mb-1" style="font-size:17px">💡 這頁怎麼用</div>
       <ol class="list-decimal" style="font-size:16px;line-height:1.7;padding-left:2em"><li v-for="h in HELP[page]" class="py-0.5">{{ h }}</li></ol>
-      <button class="btn btn-sm btn-primary mt-2" @click="closeHelp">知道了</button><span class="small muted ml-2">之後要看，按右上角「？這頁怎麼用」</span>
+      <button class="btn btn-sm btn-primary mt-2" @click="closeHelp">收起</button>
     </div>
-    <div class="card-flat mb-4 no-print" v-if="newsList.length && !gate && !isPublicView && !['board','overlay','watch'].includes(page)" style="border:2px solid #1E9E5A;background:color-mix(in srgb,#1E9E5A 8%,var(--card))">
-      <div class="flex items-center justify-between gap-2 flex-wrap mb-1"><b style="font-size:17px;color:#14774A">🆕 新功能（{{ newsList.length }}）</b><button class="btn btn-sm" @click="dismissNews">全部知道了</button></div>
-      <div v-for="n in newsList" :key="n.id" class="py-2" style="border-top:1px solid var(--line)">
+    <div class="mb-3 no-print" v-if="newsList.length && !gate && !isPublicView && !['board','overlay','watch'].includes(page)" style="border:1.5px solid #1E9E5A;border-radius:14px;padding:4px 6px 4px 12px;background:color-mix(in srgb,#1E9E5A 7%,var(--card))">
+      <div class="flex items-center justify-between gap-2"><button class="font-bold" style="font-size:15px;color:#14774A;background:none;border:0;padding:6px 0;cursor:pointer;text-align:left;flex:1;min-width:0" @click="newsOpen=!newsOpen" :aria-expanded="newsOpen">🆕 {{ newsList.length }} 項新功能 {{ newsOpen ? '▲ 收合' : '▼' }}</button><button style="background:none;border:0;font-size:20px;color:#14774A;width:40px;height:40px;cursor:pointer;flex:none" @click="dismissNews" aria-label="不再顯示新功能" title="不再顯示">✕</button></div>
+      <div v-for="n in newsList" v-show="newsOpen" :key="n.id" class="py-2" style="border-top:1px solid var(--line)">
         <div class="font-bold" style="font-size:16px">{{ n.title }}</div>
         <div class="small" style="line-height:1.6">{{ n.text }}</div>
         <button v-if="n.page && n.page!==page" class="btn btn-sm mt-1" @click="go(n.page)">帶我去看 →</button>
@@ -2810,7 +2810,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261126074500'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261126113500'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -3429,7 +3429,9 @@ createApp({
     const previewing = computed(()=>FORMAL && fb.admin && role.value!=='record');
     const myRoleIds = computed(()=> previewing.value ? [role.value] : (FORMAL && fb.myRoles.length ? fb.myRoles : [role.value]));
     const newsList = computed(()=>{ const all = FORMAL && fb.admin && !previewing.value; return WHATS_NEW.filter(n=>!newsSeen.value.includes(n.id) && (all || !n.roles || n.roles.some(r=>myRoleIds.value.includes(r)))); });
-    watch(()=>page.value, p=>{ helpOpen.value = !!(HELP[p] && !helpSeen.value[p] && !['board','overlay','watch','start'].includes(p)); });
+    /* 說明預設收起，需要時按「💡 怎麼用」再打開（不再自動跳出） */
+    watch(()=>page.value, ()=>{ helpOpen.value = false; });
+    const newsOpen = ref(false);
     function can(a){ const list=PERMS[a]||[];
       if(FORMAL && fb.admin && !previewing.value) return true; /* 系統管理員全部可操作 */
       if(previewing.value) return list.includes(role.value);
@@ -4878,7 +4880,7 @@ createApp({
     watch(myHomeroom, c=>{ if(c && !hrApplied){ hrApplied=true; if(c!==tCls.value){ tCls.value=c; toast('已依你的帳號切換到 '+clsLabel(c)); } } }); // 放在 fb 建立之後（避免初始化順序錯誤）
     onMounted(()=>{ readHash(); if(!hashGiven && isPublicView.value) page.value='board'; loadDraft(); syncLiveDraft(); renderQR(); if(FORMAL) fbInit(); else initCloud(); });
 
-    return { st, role, page, helpOpen, acctMgr, isCtrlEmail, closeHelp, newsList, dismissNews, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
+    return { st, role, page, helpOpen, newsOpen, acctMgr, isCtrlEmail, closeHelp, newsList, dismissNews, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
       SHORT, arOpen, homeroomDraft, homeroomRows, homeroomLogins, saveHomeroom, myHomeroom, onHrInput, cd, pad, insertOpen, openInsert, promptGroup, promptNext, scriptState, jumpScripts, ringLong, toggleRing, refOk, refChanged, confirmRef, needRef, doneTab, doneShown, restoreBc, scriptLib, scriptsOf, scriptGroups, nextScriptGroup, sf, editScript, saveScript, removeScript, moveScript, queueScript, sPaste, sParsed, importScripts, canBc, pushState, registerPush, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
       drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, arFull, AR_PUB_OPTS, arPubGrades, toggleArPub, arPubGradeText, arPubShown, PG_GRADES, pgGrade, progList, progLeave, shiftHM, flashLine, reportLine, TICKER_TPL, tkOpen, tk, tickerMsgs, hhmmOf, addTicker, removeTicker, canFixName, fixName, overdueTl, overdueSnoozed, snoozeOverdue, remindControl, setAutoFlow, ADHOC_TPL, adhocOpen, adhoc, useAdhocTpl, addAdhoc, tlRange, tlNo, mcScriptOf, prepScriptOf, nextMinsLeft, scheduledTl, mcProgOpen, applyProgram, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
