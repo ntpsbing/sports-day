@@ -1454,20 +1454,17 @@ html.ov-transparent body::before{ display:none; }
           <div class="t-hi">{{ tHelloName }}</div>
           <div class="small muted" v-if="tCls">今天要做的事有 <b>{{ tTodo }}</b> 件<span v-if="!tTodo">，都完成了 👍</span></div>
         </div>
-        <!-- 自己的班已自動帶入時只顯示班名；要代理別班（代課、幫忙）才打開選單 -->
-        <div class="t-cls" v-if="ownCls && tCls===ownCls && !tClsEdit">
-          <span class="lbl" style="margin:0">我的班級</span><b class="t-cls-name">{{ clsLabel(tCls) }}</b>
-          <button class="btn btn-sm" @click="tClsEdit=true">幫別班看</button>
+        <!-- 自己的班已依帳號帶入：只顯示班名；沒有對到班級的人（幼兒園、天使班、代課老師）才出現選單 -->
+        <div class="t-cls" v-if="ownCls && !arHelper">
+          <span class="lbl" style="margin:0">我的班級</span><b class="t-cls-name">{{ clsLabel(ownCls) }}</b>
         </div>
         <div class="t-cls" v-else>
-          <label class="lbl" for="tcls" style="margin:0">{{ ownCls ? '要看哪一班' : '我的班級' }}</label>
+          <label class="lbl" for="tcls" style="margin:0">{{ arHelper ? '要看哪一班' : '我的班級' }}</label>
           <select id="tcls" class="inp" v-model="tCls">
             <option value="" disabled>👉 請選擇</option>
             <option v-for="c in allrunClasses" :key="c" :value="c">{{ clsLabel(c) }}</option>
           </select>
-          <button class="btn btn-sm" v-if="ownCls" @click="backToOwnCls">回到我的班</button>
         </div>
-        <div v-if="ownCls && tCls && tCls!==ownCls" class="t-proxy">👥 你正在幫 <b>{{ clsLabel(tCls) }}</b> 看（代課或代理）；送出的名單會記下你的名字。自己的班是 {{ clsLabel(ownCls) }}。</div>
         <a v-if="st.live.on && validUrl(st.live.url)" class="btn btn-sm" :href="st.live.url" target="_blank" rel="noopener">● 觀看直播</a>
         <div v-if="!tCls" class="t-pick">請先在右邊選「你帶的班級」，選一次就會記住（換手機也記得）。</div>
       </div>
@@ -2928,7 +2925,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261126122500'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261126124000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -3037,7 +3034,7 @@ const ROLES = [
 const PERMS = {
   acct:['control'], flow:['control','record'], checkin:['checkin','sport','record'], score:['sport','record'], publish:['record'],
   mc:['mc','control'], guest:['guest','doc','control','award','record'], award:['award','control','record','ceremony'], live:['live','control'],
-  data:['record'], config:['record','sport'], allrun:['teacher','record'],
+  data:['record'], config:['record','sport'], allrun:['teacher','record','control'],
   report:['control','record','sport','checkin','mc','guest','award','live','doc','ceremony','equip','medic','lunch','env','quest','gift','promo','affairs','teacher'],
   equipH:['equip','control','record'], envH:['env','affairs','control','record'], lunchH:['lunch','control','record'], siteH:['affairs','control','record'],
   medic:['medic','control','record'], gift:['gift','control','record'], quest:['quest','control','record'],
@@ -3553,8 +3550,7 @@ createApp({
     watch(()=>page.value, ()=>{ helpOpen.value = false; });
     const newsOpen = ref(false);
     function can(a){ const list=PERMS[a]||[];
-      if(FORMAL && fb.admin && !previewing.value) return true;
-      if(a==='allrun' && FORMAL && fb.user && !previewing.value) return true; /* 代課、代理：任何教職員都能幫某一班送全員賽跑名單（會記下是誰送的） */ /* 系統管理員全部可操作 */
+      if(FORMAL && fb.admin && !previewing.value) return true; /* 系統管理員全部可操作 */
       if(previewing.value) return list.includes(role.value);
       if(FORMAL && fb.myRoles.length) return fb.myRoles.some(r=>list.includes(r)); return list.includes(role.value); }
     function whoCan(a){ return (PERMS[a]||[]).map(id=>(ROLES.find(r=>r.id===id)||{}).name).join('、'); }
@@ -3855,8 +3851,9 @@ createApp({
       return allrunClasses.value.filter(c=>arPubData.value[c] && arPubGrades.value.includes(arGradeOf(c)) && (resGrade.value==='all' || String(resGrade.value)===arGradeOf(c)) && (!q || clsLabel(c).includes(q) || c.replace('-','').includes(q.replace(/^0/,''))))
         .map(c=>({ cls:c, d:arPubData.value[c] })); });
     /* 有填報權限的人登入時，把完整名單同步一份遮名版（補上以前送出的班級） */
-    watch(()=>[JSON.stringify(st.value.allrun||{}), fb.user && fb.user.email, Object.keys(pubAllrun).length], ()=>{ if(!FORMAL || !fb.user || !(fb.admin || can('allrun'))) return;
-      Object.entries(st.value.allrun||{}).forEach(([c,d])=>{ const m=maskGroups(d); if(JSON.stringify(m)!==JSON.stringify(pubAllrun[c]||null)){ try{ fref('allrunPub',c).set(m); }catch(e){} } }); });
+    /* 用到 fb（在後面才宣告）的監看，等畫面掛上後才開始，避免「fb 尚未初始化」錯誤 */
+    onMounted(()=>{ watch(()=>[JSON.stringify(st.value.allrun||{}), fb.user && fb.user.email, Object.keys(pubAllrun).length], ()=>{ if(!FORMAL || !fb.user || !(fb.admin || can('allrun'))) return;
+      Object.entries(st.value.allrun||{}).forEach(([c,d])=>{ const m=maskGroups(d); if(JSON.stringify(m)!==JSON.stringify(pubAllrun[c]||null)){ try{ fref('allrunPub',c).set(m); }catch(e){} } }); }, { immediate:true }); });
     /* ----- 臨時插入流程（突發狀況） ----- */
     const ADHOC_TPL = [
       { k:'雨天備案', title:'雨天暫停，移至室內', unit:'全校師生', place:'風雨操場、各班教室', notify:['site','equip'], mc:'大會報告：因為下雨，比賽暫停，請各班依照導師指示移到風雨操場或回教室休息，器材組、場地組請協助收器材，恢復時間請聽廣播。' },
@@ -4436,6 +4433,9 @@ createApp({
     const ownClsDb = ref('');
     const ownCls = computed(()=>myHomeroom.value || ownClsDb.value);
     const tClsEdit = ref(false);
+    /* 總控、系統管理員可以選任何一班（老師請假時幫忙填全員賽跑）；一般老師只看、只送自己的班 */
+    const arHelper = computed(()=>FORMAL && !!fb.user && !previewing.value && (fb.admin || fb.myRoles.includes('control')));
+    onMounted(()=>{ watch(ownCls, c=>{ if(c && tCls.value!==c && !arHelper.value) tCls.value=c; }); });
     function backToOwnCls(){ if(ownCls.value) tCls.value=ownCls.value; tClsEdit.value=false; }
     const teacherEvents = computed(()=>dayEvents.value.filter(e=>e.entries.some(x=>x.cls===tCls.value)).map(ev=>{ const t=st.value.timeline.find(t=>t.eventIds.includes(ev.id)); return { ev, time:t?tlTime(t):'' }; }));
     const teacherCalls = computed(()=>st.value.batches.filter(b=>b.status!=='done').map(b=>({ b, list:winnersOf(b).filter(w=>w.cls===tCls.value) })).filter(x=>x.list.length).sort((a,c)=>(a.b.status==='ready'?0:1)-(c.b.status==='ready'?0:1)));
@@ -4472,7 +4472,7 @@ createApp({
     function blankGroups(n){ return Array.from({length:n},()=>['','','']); }
     function loadDraft(){ const s=st.value.allrun[tCls.value]; arTried.value=false; if(s){ arDraft.count=s.groups.length; arDraft.groups=s.groups.map(g=>[...g]); } else { arDraft.count=5; arDraft.groups=blankGroups(5); } }
     function fitDraft(){ while(arDraft.groups.length<arDraft.count) arDraft.groups.push(['','','']); arDraft.groups.length=arDraft.count; }
-    function submitAllrun(){ if(!need('allrun')) return; arTried.value=true; if(arDraft.groups.some(g=>g.some(n=>!n))){ toast('還有空白欄位，請把每組前三名都填上',true); return; } st.value.allrun[tCls.value]={ at:(new Date().getMonth()+1)+'/'+pad(new Date().getDate())+' '+hhmm(), groups:arDraft.groups.map(g=>[...g]), by:(FORMAL && fb.user ? String(fb.user.name||fb.email) : roleObj.value.name) }; log('全員賽跑名單送出：'+clsLabel(tCls.value)); toast('已送出！紀錄組會彙整成獎狀名單'); }
+    function submitAllrun(){ if(!need('allrun')) return; if(FORMAL && !arHelper.value && !can('data') && ownCls.value && tCls.value!==ownCls.value){ toast('只能送自己班的名單；老師請假時請總控幫忙填',true); return; } arTried.value=true; if(arDraft.groups.some(g=>g.some(n=>!n))){ toast('還有空白欄位，請把每組前三名都填上',true); return; } st.value.allrun[tCls.value]={ at:(new Date().getMonth()+1)+'/'+pad(new Date().getDate())+' '+hhmm(), groups:arDraft.groups.map(g=>[...g]), by:(FORMAL && fb.user ? String(fb.user.name||fb.email) : roleObj.value.name) }; log('全員賽跑名單送出：'+clsLabel(tCls.value)); toast('已送出！紀錄組會彙整成獎狀名單'); }
 
     /* ----- 匯出 ----- */
     const exTab = ref('cert');
@@ -5033,7 +5033,7 @@ createApp({
     watch(myHomeroom, c=>{ if(c && !hrApplied){ hrApplied=true; if(c!==tCls.value){ tCls.value=c; toast('已依你的帳號切換到 '+clsLabel(c)); } } }); // 放在 fb 建立之後（避免初始化順序錯誤）
     onMounted(()=>{ readHash(); if(!hashGiven && isPublicView.value) page.value='board'; loadDraft(); syncLiveDraft(); renderQR(); if(FORMAL) fbInit(); else initCloud(); });
 
-    return { st, role, page, helpOpen, newsOpen, tOpen, openHomeFlow, checkTimeOf, ownCls, tClsEdit, backToOwnCls, openT, tHelloName, myProg, myProgNext, tTodo, teacherNotices, acctMgr, isCtrlEmail, closeHelp, newsList, dismissNews, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
+    return { st, role, page, helpOpen, newsOpen, tOpen, openHomeFlow, checkTimeOf, ownCls, tClsEdit, backToOwnCls, arHelper, openT, tHelloName, myProg, myProgNext, tTodo, teacherNotices, acctMgr, isCtrlEmail, closeHelp, newsList, dismissNews, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
       SHORT, arOpen, homeroomDraft, homeroomRows, homeroomLogins, saveHomeroom, myHomeroom, onHrInput, cd, pad, insertOpen, openInsert, promptGroup, promptNext, scriptState, jumpScripts, ringLong, toggleRing, refOk, refChanged, confirmRef, needRef, doneTab, doneShown, restoreBc, scriptLib, scriptsOf, scriptGroups, nextScriptGroup, sf, editScript, saveScript, removeScript, moveScript, queueScript, sPaste, sParsed, importScripts, canBc, pushState, registerPush, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
       drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, arFull, AR_PUB_OPTS, arPubGrades, toggleArPub, arPubGradeText, arPubShown, PG_GRADES, pgGrade, progList, progLeave, shiftHM, flashLine, reportLine, TICKER_TPL, tkOpen, tk, tickerMsgs, hhmmOf, addTicker, removeTicker, canFixName, fixName, overdueTl, overdueSnoozed, snoozeOverdue, remindControl, setAutoFlow, ADHOC_TPL, adhocOpen, adhoc, useAdhocTpl, addAdhoc, tlRange, tlNo, mcScriptOf, prepScriptOf, nextMinsLeft, scheduledTl, mcProgOpen, applyProgram, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
