@@ -672,6 +672,10 @@ html.ov-transparent body::before{ display:none; }
 .sh-chk{ display:inline-block; width:20px; height:20px; border:2px solid #46596B; border-radius:4px; vertical-align:middle; }
 .sh-empty{ color:#8A9BAC; font-style:italic; }
 .prog-tbl td{ vertical-align:top; font-size:15px; } .prog-script{ margin-top:6px; background:#F4F7FA; border-left:4px solid #0B62A4; padding:6px 10px; border-radius:6px; font-size:15px; line-height:1.6; }
+.ar-tbl td.sh-name{ font-size:18px; } .ar-tbl th:first-child{ width:76px; }
+.ar-sign{ display:flex; align-items:flex-end; gap:8px; justify-content:flex-end; padding:6px 14px 10px; font-weight:700; color:#46596B; } .ar-sign .box{ display:inline-block; width:140px; border-bottom:1.5px dashed #9AAABB; height:24px; }
+.ar-missing{ margin-top:10px; padding:8px 12px; border:1.5px dashed #C99A00; border-radius:10px; color:#6B4E00; font-weight:700; }
+.print-only{ display:none; }
 .sh-foot{ margin-top:16px; font-size:13px; color:#6A7B8C; display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; border-top:1px solid #D2DCE6; padding-top:8px; }
 @media (max-width:640px){ .paper{ padding:16px 12px; } .paper .sh-title{ font-size:22px; } .sh-tbl{ font-size:15px; } .sh-place{ min-width:58px; font-size:15px; } .sh-sign{ display:none; } .sh-cls,.sh-name{ font-size:16px; } }
 
@@ -689,6 +693,12 @@ html.ov-transparent body::before{ display:none; }
   .tbl th, .tbl td{ border:1px solid #888; }
   @page{ size:A4; margin:12mm 11mm; }
   .print-sheets .pagehead{ display:none !important; }
+  /* 只印得獎名單：頁首、說明、通知都不印 */
+  .print-focus .pagehead, .print-focus .pf-hide, .print-focus .noticebar{ display:none !important; }
+  .print-focus .print-only{ display:block !important; }
+  .print-focus .res-grid{ display:grid; grid-template-columns:1fr 1fr; gap:4mm; } .print-focus .res-grid .card{ break-inside:avoid; box-shadow:none; border:1px solid #999; }
+  .ar-big td{ padding:10px 8px !important; font-size:15pt !important; } .ar-big th{ font-size:11pt !important; }
+  .sh-tbl.ar-tbl, .sh-tbl.aw-tbl{ table-layout:fixed; } .sh-tbl.ar-tbl th:nth-child(n+2), .sh-tbl.aw-tbl th{ width:auto !important; } .sh-tbl.ar-tbl th:first-child{ width:80px !important; } .sh-tbl.aw-tbl th:first-child{ width:40% !important; }
   .paper{ box-shadow:none; border-radius:0; padding:0; }
   .sh-break{ break-before:page; page-break-before:always; }
   .sh-group{ margin-top:10px; } .sh-group-h{ padding:6px 12px; border-radius:8px; } .sh-group-h .t{ font-size:15pt; } .sh-group-h .s{ font-size:11pt; }
@@ -897,8 +907,8 @@ html.ov-transparent body::before{ display:none; }
           <summary class="btn btn-sm" :aria-label="shareHere ? '更多功能' : '列印'">{{ shareHere ? '⋯ 更多' : '🖨️ 列印' }}</summary>
           <div class="more-menu">
             <button v-if="shareHere" @click="closeMore(); sharePage(page)">🔗 分享這一頁</button>
-            <button @click="closeMore(); doPrint('bw')">🖨️ 列印（黑白）</button>
-            <button @click="closeMore(); doPrint('color')">🖨️ 列印（彩色）</button>
+            <button @click="closeMore(); printPage('bw')">🖨️ 列印（黑白）</button>
+            <button @click="closeMore(); printPage('color')">🖨️ 列印（彩色）</button>
           </div>
         </details>
       </div>
@@ -1049,7 +1059,7 @@ html.ov-transparent body::before{ display:none; }
         <div class="res-legend mt-2">已公布 {{ publishedEvents.length }} 個項目・<b v-if="!fullResults">每項公布前 6 名得獎名單・</b><span v-else>你是工作人員，可以看完整成績（家長只看得到前 6 名）・</span><span v-if="maskOn">學生姓名依個資保護顯示為「王○明」・</span><span v-else-if="st.settings.maskNames!==false">學生顯示全名（家長看到的是「王○明」）・</span><span v-if="fullResults">NM＝無有效成績　DNS＝未出賽　DNF＝未跑完　DQ＝犯規</span></div>
       </div>
       <div v-if="!resultsShown.length" class="card text-center muted" style="padding:40px 16px">{{ publishedEvents.length ? '找不到符合的項目，換個關鍵字試試。' : '目前還沒有公布的成績，公布後這裡會即時出現。' }}</div>
-      <div class="res-grid">
+      <div class="res-grid print-target">
         <article v-for="ev in resultsShown" :key="ev.id" class="card">
           <header class="res-h" :style="{ borderBottomColor: toneOf(ev.base) }">
             <div style="min-width:0">
@@ -1073,7 +1083,7 @@ html.ov-transparent body::before{ display:none; }
         </article>
       </div>
       <!-- 🏃 全員賽跑（家長也看得到；公開哪些年級在「積分與設定 → 基本資料」） -->
-      <div class="card mt-4 ar-pub" v-if="arPubShown.length || arPubGrades.length">
+      <div class="card mt-4 ar-pub print-target" v-if="arPubShown.length || arPubGrades.length">
         <div class="flex items-center justify-between gap-2 flex-wrap mb-2">
           <h2 class="h-sec">🏃 全員賽跑・各班前三名</h2>
           <span class="small muted">{{ arPubGradeText }}・導師送出後馬上出現<b v-if="arFull" style="color:var(--ok)">・你是老師，看得到全名（家長看到「王○明」）</b></span>
@@ -1522,7 +1532,12 @@ html.ov-transparent body::before{ display:none; }
               <input v-for="(n,ni) in g" :key="ni" class="inp" :id="'ar'+gi+'_'+ni" v-model.trim="arDraft.groups[gi][ni]" :placeholder="['第一名','第二名','第三名'][ni]" maxlength="10" :class="{err: arTried && !arDraft.groups[gi][ni]}">
             </div>
           </div>
-          <button class="btn btn-primary btn-big w-full" @click="submitAllrun">送出全員賽跑名單</button>
+          <button class="btn btn-primary btn-big w-full" @click="submitAllrun">{{ st.allrun[tCls] ? '修改後重新送出' : '送出全員賽跑名單' }}</button>
+          <div v-if="st.allrun[tCls] && canPrint" class="flex flex-wrap gap-2 mt-3 items-center">
+            <span class="small muted">已送出的名單：</span>
+            <button class="btn" @click="printAr('bw')">🖨 列印本班得獎名單（黑白）</button>
+            <button class="btn" @click="printAr('color')">🖨 彩色</button>
+          </div>
         </div>
         <div class="card" v-if="tOpen==='prog'">
           <div class="flex items-center justify-between gap-2 flex-wrap mb-2"><h2 class="h-sec">我們班的節目（{{ clsLabel(tCls) }}）</h2><button class="btn btn-sm" @click="go('program')">看完整節目單</button></div>
@@ -1560,6 +1575,27 @@ html.ov-transparent body::before{ display:none; }
             </tr></tbody>
           </table>
         </div>
+      </div>
+      <!-- 列印用（螢幕上看不到）：按頁首「列印」只印這張本班得獎名單 A4 -->
+      <div id="arPrint" class="print-only print-target paper" v-if="tCls">
+        <div class="sh-head">
+          <div><div class="sh-school">高雄市楠梓區楠梓國民小學　{{ st.settings.title }}</div>
+            <div class="sh-title">{{ clsLabel(tCls) }}　得獎名單</div></div>
+          <div class="sh-meta"><div>比賽日期：{{ sheetDate }}</div><div>列印時間：{{ sheetPrintedAt }}</div></div>
+        </div>
+        <div class="sh-group-h mt-2"><span class="t">本班得獎（會前賽與當天）</span><span class="s">{{ teacherAwards.length }} 筆・本班積分 {{ classPts(tCls) }} 分</span></div>
+        <table class="sh-tbl aw-tbl mt-2" v-if="teacherAwards.length">
+          <thead><tr><th>項目</th><th>名次</th><th>姓名</th><th>成績</th></tr></thead>
+          <tbody><tr v-for="a in teacherAwards" :key="a.key"><td>{{ a.ev }}</td><td class="sh-mark">第 {{ ZH[a.place] }} 名</td><td class="sh-name">{{ a.name || '班隊' }}</td><td class="sh-mark">{{ a.mark }}</td></tr></tbody>
+        </table>
+        <div v-else class="sh-empty" style="padding:10px 4px">目前還沒有公布的得獎名單。</div>
+        <div class="sh-group-h mt-4"><span class="t">全員賽跑各組前三名</span><span class="s" v-if="st.allrun[tCls]">{{ st.allrun[tCls].at }} 送出<template v-if="st.allrun[tCls].by">・{{ st.allrun[tCls].by }}</template></span></div>
+        <table class="sh-tbl ar-tbl ar-big mt-2" v-if="st.allrun[tCls]">
+          <thead><tr><th>組別</th><th>第一名</th><th>第二名</th><th>第三名</th></tr></thead>
+          <tbody><tr v-for="(g,i) in st.allrun[tCls].groups" :key="i"><td class="sh-mark">第 {{ i+1 }} 組</td><td v-for="(n,ni) in g" :key="ni" class="sh-name">{{ n }}</td></tr></tbody>
+        </table>
+        <div v-else class="sh-empty" style="padding:10px 4px">還沒有送出全員賽跑名單。</div>
+        <div class="ar-sign" style="margin-top:28px">導師簽名：<span class="box" style="width:200px"></span></div>
       </div>
     </section>
 
@@ -2017,13 +2053,18 @@ html.ov-transparent body::before{ display:none; }
       <div class="card no-print mb-4">
         <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr))">
           <div><div class="lbl">要印哪些成績</div>
-            <div class="seg" role="group" aria-label="成績類別"><button v-for="k in [['ind','個人賽'],['team','團體賽'],['champ','總錦標'],['all','全部'],['program','節目單']]" :key="k[0]" :class="{on:sheetOpt.kind===k[0]}" :aria-pressed="sheetOpt.kind===k[0]" @click="sheetOpt.kind=k[0]">{{ k[1] }}</button></div></div>
-          <div><div class="lbl">排列方式</div>
+            <div class="seg" role="group" aria-label="成績類別"><button v-for="k in [['ind','個人賽'],['team','團體賽'],['champ','總錦標'],['all','全部'],['program','節目單'],['allrun','全員賽跑']]" :key="k[0]" :class="{on:sheetOpt.kind===k[0]}" :aria-pressed="sheetOpt.kind===k[0]" @click="sheetOpt.kind=k[0]">{{ k[1] }}</button></div></div>
+          <div v-if="sheetOpt.kind!=='allrun'"><div class="lbl">排列方式</div>
             <div class="seg" role="group" aria-label="排列方式"><button :class="{on:sheetOpt.group==='batch'}" @click="sheetOpt.group='batch'">依頒獎梯次</button><button :class="{on:sheetOpt.group==='grade'}" @click="sheetOpt.group='grade'">依年級項目</button></div></div>
           <div><label class="lbl" for="shGrade">年級</label>
-            <select class="inp" id="shGrade" v-model.number="sheetOpt.grade"><option :value="0">全部年級</option><option v-for="g in [1,2,3,4,5,6]" :key="g" :value="g">{{ ZH[g] }}年級</option></select></div>
+            <select class="inp" id="shGrade" v-model.number="sheetOpt.grade"><option :value="0">全部年級</option><option v-for="g in [1,2,3,4,5,6]" :key="g" :value="g">{{ ZH[g] }}年級</option><option v-if="sheetOpt.kind==='allrun'" :value="9">幼兒園・天使班</option></select></div>
         </div>
-        <div class="flex flex-wrap gap-x-5 gap-y-2 mt-3 small" v-if="sheetOpt.kind!=='program'">
+        <div class="flex flex-wrap gap-x-5 gap-y-2 mt-3 small" v-if="sheetOpt.kind==='allrun'">
+          <label class="flex items-center gap-2"><input type="checkbox" v-model="sheetOpt.arMissing" style="width:20px;height:20px"> 列出還沒送出的班級</label>
+          <label class="flex items-center gap-2"><input type="checkbox" v-model="sheetOpt.sign" style="width:20px;height:20px"> 加「核對」簽名欄</label>
+          <label class="flex items-center gap-2"><input type="checkbox" v-model="sheetOpt.breakEach" style="width:20px;height:20px"> 每個年級換新的一頁</label>
+        </div>
+        <div class="flex flex-wrap gap-x-5 gap-y-2 mt-3 small" v-if="sheetOpt.kind!=='program' && sheetOpt.kind!=='allrun'">
           <label class="flex items-center gap-2"><input type="checkbox" v-model="sheetOpt.pubOnly" style="width:20px;height:20px"> 只印已公布的成績</label>
           <label class="flex items-center gap-2"><input type="checkbox" v-model="sheetOpt.sign" style="width:20px;height:20px"> 加「領獎確認」欄</label>
           <label class="flex items-center gap-2"><input type="checkbox" v-model="sheetOpt.all" style="width:20px;height:20px"> 列出全部參賽者（不只得獎）</label>
@@ -2031,9 +2072,10 @@ html.ov-transparent body::before{ display:none; }
           <label class="flex items-center gap-2"><input type="checkbox" v-model="sheetOpt.breakEach" style="width:20px;height:20px"> 每個{{ sheetOpt.group==='batch' ? '梯次' : '年級' }}換新的一頁</label>
         </div>
         <div class="flex flex-wrap gap-2 items-center mt-3">
-          <button class="btn btn-primary" @click="doPrint('bw')" :disabled="!sheetStat.events && !sheetChamp.length && sheetOpt.kind!=='program'">🖨 列印黑白</button>
-          <button class="btn" @click="doPrint('color')" :disabled="!sheetStat.events && !sheetChamp.length && sheetOpt.kind!=='program'">🖨 列印彩色</button>
-          <span class="small muted" v-if="sheetOpt.kind==='program'">共 {{ st.timeline.length }} 項節目，含每一項的司儀稿。A4 直式。</span>
+          <button class="btn btn-primary" @click="doPrint('bw')" :disabled="sheetOpt.kind==='allrun' ? !arSheetDone : (!sheetStat.events && !sheetChamp.length && sheetOpt.kind!=='program')">🖨 列印黑白</button>
+          <button class="btn" @click="doPrint('color')" :disabled="sheetOpt.kind==='allrun' ? !arSheetDone : (!sheetStat.events && !sheetChamp.length && sheetOpt.kind!=='program')">🖨 列印彩色</button>
+          <span class="small muted" v-if="sheetOpt.kind==='allrun'">已送出 {{ arSheetDone }} 班<span v-if="arSheetMissing">、還沒送出 {{ arSheetMissing }} 班</span>。A4 直式，每班一張表，學生姓名為全名（給頒獎組、文書組用）。</span>
+          <span class="small muted" v-else-if="sheetOpt.kind==='program'">共 {{ st.timeline.length }} 項節目，含每一項的司儀稿。A4 直式。</span>
           <span class="small muted" v-else>共 {{ sheetStat.events }} 個項目、得獎 {{ sheetStat.people }} 人次<span v-if="sheetStat.waiting">；{{ sheetStat.waiting }} 項尚未公布<span v-if="sheetOpt.pubOnly">（未列入）</span></span>。A4 直式，建議用電腦列印。</span>
         </div>
       </div>
@@ -2045,7 +2087,23 @@ html.ov-transparent body::before{ display:none; }
           <div class="sh-meta"><div>比賽日期：{{ sheetDate }}</div><div>列印時間：{{ sheetPrintedAt }}</div></div>
         </div>
 
-        <div v-if="sheetOpt.kind==='program'">
+        <!-- 全員賽跑：依年級，每班一張「各組前三名」表 -->
+        <div v-if="sheetOpt.kind==='allrun'">
+          <div v-if="!arSheet.length" class="sh-empty" style="padding:30px 0;text-align:center;font-size:18px">這個年級還沒有班級送出全員賽跑名單。</div>
+          <div v-for="(gp,gi) in arSheet" :key="gp.key" :class="['sh-group', {'sh-break': sheetOpt.breakEach && gi>0}]">
+            <div class="sh-group-h"><span class="t">{{ gp.title }}　全員賽跑各班前三名</span><span class="s">已送出 {{ gp.done.length }}／{{ gp.done.length + gp.missing.length }} 班</span></div>
+            <div class="sh-evs"><div v-for="c in gp.done" :key="c" class="sh-ev">
+              <div class="sh-ev-h"><span class="n">{{ clsLabel(c) }}</span><span class="small" style="color:#46596B;font-weight:700">{{ st.allrun[c].at }} 送出<template v-if="st.allrun[c].by">・{{ st.allrun[c].by }}</template></span></div>
+              <table class="sh-tbl ar-tbl">
+                <thead><tr><th>組別</th><th>第一名</th><th>第二名</th><th>第三名</th></tr></thead>
+                <tbody><tr v-for="(g,i) in st.allrun[c].groups" :key="i"><td class="sh-mark">第 {{ i+1 }} 組</td><td v-for="(n,ni) in g" :key="ni" class="sh-name">{{ n }}</td></tr></tbody>
+              </table>
+              <div v-if="sheetOpt.sign" class="ar-sign">核對：<span class="box"></span></div>
+            </div></div>
+            <div v-if="sheetOpt.arMissing && gp.missing.length" class="ar-missing">還沒送出：{{ gp.missing.map(clsLabel).join('、') }}</div>
+          </div>
+        </div>
+        <div v-else-if="sheetOpt.kind==='program'">
           <table class="sh-tbl prog-tbl">
             <thead><tr><th style="width:34px">#</th><th style="width:92px">時間</th><th>節目與司儀稿</th><th style="width:20%">參加單位・場地</th><th style="width:18%">指導老師</th></tr></thead>
             <tbody><tr v-for="t in st.timeline" :key="t.id" style="break-inside:avoid">
@@ -2925,7 +2983,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261126124000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261126131000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -4269,11 +4327,27 @@ createApp({
       const out=[]; b.eventIds.forEach(id=>{ const e=st.value.events.find(x=>x.id===id); if(e && isPub(e)) ranked(e).forEach(x=>{ if(x.place && x.place<=e.awardTop) out.push({ key:e.id+x.e.id, label:e.name, ev:e.name, place:x.place, cls:x.e.cls, name:x.e.name }); }); }); return out;
     }
     /* ----- 成績單列印 ----- */
-    const sheetOpt = reactive({ kind:'all', group:'batch', grade:0, pubOnly:true, sign:true, all:false, breakEach:true, presenter:false });
+    const sheetOpt = reactive({ kind:'all', group:'batch', grade:0, pubOnly:true, sign:true, all:false, breakEach:true, presenter:false, arMissing:true });
+    /* 全員賽跑列印：依年級分組（9＝幼兒園・天使班） */
+    /* 頁首「列印」：頁面裡有標 .print-target 的區塊（得獎名單）時，只印那些區塊，其他（搜尋、說明、卡片）都不印 */
+    function printPage(mode){ const main=document.querySelector('.main'); const targets=main ? [...main.querySelectorAll('.print-target')] : [];
+      if(!targets.length){ doPrint(mode); return; }
+      const hidden=[], opened=[];
+      const walk=el=>{ [...el.children].forEach(ch=>{ if(targets.includes(ch)) return; if(targets.some(t=>ch.contains(t))) walk(ch); else { ch.classList.add('pf-hide'); hidden.push(ch); } }); };
+      walk(main); targets.forEach(t=>t.querySelectorAll('details:not([open])').forEach(d=>{ d.open=true; opened.push(d); }));
+      document.documentElement.classList.add('print-focus');
+      const off=()=>{ hidden.forEach(h=>h.classList.remove('pf-hide')); opened.forEach(d=>d.open=false); document.documentElement.classList.remove('print-focus'); };
+      window.addEventListener('afterprint', off, { once:true }); setTimeout(off, 60000); doPrint(mode); }
+    function printAr(mode){ printPage(mode); }
+    const arSheetGrade = c => /^\d/.test(c) ? +c[0] : 9;
+    const arSheet = computed(()=>{ const out=[]; [1,2,3,4,5,6,9].filter(g=>!sheetOpt.grade || sheetOpt.grade===g).forEach(g=>{ const cs=allrunClasses.value.filter(c=>arSheetGrade(c)===g); if(!cs.length) return;
+        const done=cs.filter(c=>st.value.allrun[c]), missing=cs.filter(c=>!st.value.allrun[c]); if(done.length || (sheetOpt.arMissing && sheetOpt.grade)) out.push({ key:'g'+g, title: g===9 ? '幼兒園・天使班' : ZH[g]+'年級', done, missing }); }); return out; });
+    const arSheetDone = computed(()=>arSheet.value.reduce((n,g)=>n+g.done.length,0));
+    const arSheetMissing = computed(()=>arSheet.value.reduce((n,g)=>n+g.missing.length,0));
     const sheetPrintedAt = ref('');
     const sheetDate = computed(()=>{ const d=String(st.value.settings.date||'').split('-'); return d.length===3 ? (+d[0]-1911)+'年'+(+d[1])+'月'+(+d[2])+'日' : (st.value.settings.date||''); });
     function stampSheet(){ const d=new Date(); sheetPrintedAt.value=(d.getFullYear()-1911)+'/'+(d.getMonth()+1)+'/'+d.getDate()+' '+hhmm(); }
-    const sheetTitle = computed(()=>({ ind:'個人賽成績單', team:'團體賽成績單', champ:'班級總錦標成績單', all:'運動會成績單（個人賽・團體賽・總錦標）', program:'運動會節目單（司儀版）' })[sheetOpt.kind]);
+    const sheetTitle = computed(()=>({ ind:'個人賽成績單', team:'團體賽成績單', champ:'班級總錦標成績單', all:'運動會成績單（個人賽・團體賽・總錦標）', program:'運動會節目單（司儀版）', allrun:'全員賽跑各班前三名' })[sheetOpt.kind]);
     const sheetBase = computed(()=>{ if(sheetOpt.kind==='champ' || sheetOpt.kind==='program') return [];
       return st.value.events.filter(e=>(sheetOpt.kind==='all' || (sheetOpt.kind==='team') === !!e.team) && (!sheetOpt.grade || e.grade===sheetOpt.grade))
         .sort((a,b)=>(a.order||0)-(b.order||0)); });
@@ -5033,7 +5107,7 @@ createApp({
     watch(myHomeroom, c=>{ if(c && !hrApplied){ hrApplied=true; if(c!==tCls.value){ tCls.value=c; toast('已依你的帳號切換到 '+clsLabel(c)); } } }); // 放在 fb 建立之後（避免初始化順序錯誤）
     onMounted(()=>{ readHash(); if(!hashGiven && isPublicView.value) page.value='board'; loadDraft(); syncLiveDraft(); renderQR(); if(FORMAL) fbInit(); else initCloud(); });
 
-    return { st, role, page, helpOpen, newsOpen, tOpen, openHomeFlow, checkTimeOf, ownCls, tClsEdit, backToOwnCls, arHelper, openT, tHelloName, myProg, myProgNext, tTodo, teacherNotices, acctMgr, isCtrlEmail, closeHelp, newsList, dismissNews, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
+    return { st, role, page, helpOpen, newsOpen, tOpen, openHomeFlow, checkTimeOf, ownCls, tClsEdit, backToOwnCls, arHelper, arSheet, arSheetDone, arSheetMissing, printAr, printPage, arSheet, arSheetDone, arSheetMissing, printAr, openT, tHelloName, myProg, myProgNext, tTodo, teacherNotices, acctMgr, isCtrlEmail, closeHelp, newsList, dismissNews, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
       SHORT, arOpen, homeroomDraft, homeroomRows, homeroomLogins, saveHomeroom, myHomeroom, onHrInput, cd, pad, insertOpen, openInsert, promptGroup, promptNext, scriptState, jumpScripts, ringLong, toggleRing, refOk, refChanged, confirmRef, needRef, doneTab, doneShown, restoreBc, scriptLib, scriptsOf, scriptGroups, nextScriptGroup, sf, editScript, saveScript, removeScript, moveScript, queueScript, sPaste, sParsed, importScripts, canBc, pushState, registerPush, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
       drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, arFull, AR_PUB_OPTS, arPubGrades, toggleArPub, arPubGradeText, arPubShown, PG_GRADES, pgGrade, progList, progLeave, shiftHM, flashLine, reportLine, TICKER_TPL, tkOpen, tk, tickerMsgs, hhmmOf, addTicker, removeTicker, canFixName, fixName, overdueTl, overdueSnoozed, snoozeOverdue, remindControl, setAutoFlow, ADHOC_TPL, adhocOpen, adhoc, useAdhocTpl, addAdhoc, tlRange, tlNo, mcScriptOf, prepScriptOf, nextMinsLeft, scheduledTl, mcProgOpen, applyProgram, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
