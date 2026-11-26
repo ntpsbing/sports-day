@@ -11,6 +11,15 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="運動會通報">
 <link rel="apple-touch-icon" href="icon-192.png">
+<script>
+  /* LINE 裡點連結會用 LINE 內建瀏覽器開，Google 不允許在裡面登入學校帳號、也不能下載檔案。
+     網址加上 openExternalBrowser=1，LINE 就會自動改用手機的 Safari／Chrome 打開（只轉一次，不會一直跳） */
+  (function(){ try{ var ua=navigator.userAgent||'';
+    if(/\bLine\//i.test(ua) && !/[?&]openExternalBrowser=1/.test(location.search)){
+      var q=location.search ? location.search+'&openExternalBrowser=1' : '?openExternalBrowser=1';
+      location.replace(location.origin+location.pathname+q+location.hash); }
+  }catch(e){} })();
+</script>
 </head>
 <body>
 <title>楠小運動會通報系統</title>
@@ -2957,7 +2966,7 @@ html.ov-transparent body::before{ display:none; }
   <div class="modal-bg" v-if="modal" @click.self="modal=null">
     <div class="modal" role="dialog" aria-modal="true">
       <div class="h-sec mb-3">{{ modal.title || '請確認' }}</div>
-      <p class="mb-3" v-if="modal.text">{{ modal.text }}</p>
+      <p class="mb-3" v-if="modal.text" style="white-space:pre-line">{{ modal.text }}</p>
       <textarea v-if="modal.input!==undefined" class="inp mb-3" id="modalInp" rows="3" v-model="modal.input" :placeholder="modal.placeholder"></textarea>
       <textarea v-if="modal.copyText" class="inp mb-3" id="modalCopy" rows="8" readonly :value="modal.copyText" @focus="$event.target.select()"></textarea>
       <div class="flex gap-2 justify-end flex-wrap">
@@ -2988,7 +2997,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261126131800'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261126201500'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -4718,6 +4727,9 @@ createApp({
       if(!window.XLSX){ toast('Excel 元件沒載入，請重新整理再試',true); return; }
       const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, sheetFrom(rows,[12,8,8,12,14,12]), '全員賽跑');
       saveBlob('全員賽跑名單_'+label+'.xlsx', new Blob([XLSX.write(wb,{bookType:'xlsx',type:'array'})])); }
+    function openInAppHelp(){ const url=location.origin+location.pathname; const android=/Android/i.test(navigator.userAgent||'');
+      modal.value={ okText: android ? '用 Chrome 打開' : '複製網址', text: '📱 請改用 Safari 或 Chrome 打開\n\n'+(android ? '你現在是在 App 裡面開網頁，Google 不讓這裡登入學校帳號。\n\n按「用 Chrome 打開」就會跳到 Chrome；或按右上角「⋮」→「用瀏覽器開啟」。' : '你現在是在 App 裡面開網頁，Google 不讓這裡登入學校帳號。\n\n請按右下角（或右上角）的「⋯」或「分享」→「用 Safari 開啟」。\n也可以按「複製網址」，貼到 Safari。'),
+        onOk:()=>{ if(android){ location.href='intent://'+location.host+location.pathname+'#Intent;scheme=https;package=com.android.chrome;end'; } else { try{ navigator.clipboard.writeText(url).then(()=>toast('已複製網址，請貼到 Safari'),()=>toast(url)); }catch(e){ toast(url); } } } }; }
     /* 頁首選單的「下載 Excel」：導師頁＝本班全員賽跑；成績單列印（全員賽跑）＝目前選的年級；成績查詢（工作人員）＝畫面上的班級 */
     const pageXlsx = computed(()=>{
       if(page.value==='teacher' && tCls.value) return { label:'下載 Excel', run:()=>{ if(!st.value.allrun[tCls.value]){ toast('全員賽跑名單送出後，才能下載 Excel',true); return; } downloadArXlsx([tCls.value], clsLabel(tCls.value)); } };
@@ -5027,7 +5039,9 @@ createApp({
         });
       }catch(e){ fb.err='正式版連線設定有誤：'+e.message; }
     }
-    function signIn(){ const p=new firebase.auth.GoogleAuthProvider(); if(window.SCHOOL_DOMAIN) p.setCustomParameters({ hd:window.SCHOOL_DOMAIN, prompt:'select_account' }); fauth.signInWithPopup(p).catch(e=>{ const c=e&&e.code; if(c==='auth/popup-blocked'||c==='auth/operation-not-supported-in-environment') fauth.signInWithRedirect(p); else if(c!=='auth/popup-closed-by-user'&&c!=='auth/cancelled-popup-request') toast('登入失敗：'+(c||''),true); }); }
+    /* 其他 App 內建瀏覽器（Facebook、IG、Messenger、微信，或 LINE 沒轉成功）：Google 會擋登入，先請老師改用 Safari／Chrome */
+    const IN_APP = /\bLine\/|FBAN|FBAV|FB_IAB|Instagram|Messenger|MicroMessenger|KAKAOTALK/i.test(navigator.userAgent||'');
+    function signIn(){ if(IN_APP){ openInAppHelp(); return; } const p=new firebase.auth.GoogleAuthProvider(); if(window.SCHOOL_DOMAIN) p.setCustomParameters({ hd:window.SCHOOL_DOMAIN, prompt:'select_account' }); fauth.signInWithPopup(p).catch(e=>{ const c=e&&e.code; if(c==='auth/popup-blocked'||c==='auth/operation-not-supported-in-environment') fauth.signInWithRedirect(p); else if(c!=='auth/popup-closed-by-user'&&c!=='auth/cancelled-popup-request') toast('登入失敗：'+(c||''),true); }); }
     function signOut(){ if(fauth) fauth.signOut(); }
     async function initFormal(){
       if(!fb.admin){ toast('只有系統管理員可以建立正式資料',true); return; }
