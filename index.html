@@ -173,6 +173,9 @@ body::before{ content:""; position:fixed; inset:0 0 auto; height:env(safe-area-i
 .t-hi{ font-size:22px; font-weight:900; line-height:1.3; }
 .t-cls{ display:flex; align-items:center; gap:8px; flex:0 1 auto; }
 .t-cls .inp{ width:auto; min-width:150px; font-weight:800; }
+.t-cls-name{ font-size:20px; }
+.t-cls .lbl{ white-space:nowrap; }
+.t-proxy{ flex:1 1 100%; background:var(--brand-soft); color:var(--ink); border-radius:10px; padding:8px 12px; font-size:15px; }
 .t-pick{ flex:1 1 100%; background:#FFD54A; color:#2A1E00; border-radius:10px; padding:8px 12px; font-weight:800; }
 .t-note{ display:flex; gap:10px; align-items:flex-start; border-radius:14px; padding:12px 14px; margin-bottom:10px; font-size:17px; line-height:1.5; background:var(--brand-soft); border:2px solid var(--brand); color:var(--ink); }
 .t-note.t-urgent{ background:var(--warn-soft); border-color:var(--warn); }
@@ -1451,13 +1454,20 @@ html.ov-transparent body::before{ display:none; }
           <div class="t-hi">{{ tHelloName }}</div>
           <div class="small muted" v-if="tCls">今天要做的事有 <b>{{ tTodo }}</b> 件<span v-if="!tTodo">，都完成了 👍</span></div>
         </div>
-        <div class="t-cls">
-          <label class="lbl" for="tcls" style="margin:0">我的班級</label>
+        <!-- 自己的班已自動帶入時只顯示班名；要代理別班（代課、幫忙）才打開選單 -->
+        <div class="t-cls" v-if="ownCls && tCls===ownCls && !tClsEdit">
+          <span class="lbl" style="margin:0">我的班級</span><b class="t-cls-name">{{ clsLabel(tCls) }}</b>
+          <button class="btn btn-sm" @click="tClsEdit=true">幫別班看</button>
+        </div>
+        <div class="t-cls" v-else>
+          <label class="lbl" for="tcls" style="margin:0">{{ ownCls ? '要看哪一班' : '我的班級' }}</label>
           <select id="tcls" class="inp" v-model="tCls">
             <option value="" disabled>👉 請選擇</option>
             <option v-for="c in allrunClasses" :key="c" :value="c">{{ clsLabel(c) }}</option>
           </select>
+          <button class="btn btn-sm" v-if="ownCls" @click="backToOwnCls">回到我的班</button>
         </div>
+        <div v-if="ownCls && tCls && tCls!==ownCls" class="t-proxy">👥 你正在幫 <b>{{ clsLabel(tCls) }}</b> 看（代課或代理）；送出的名單會記下你的名字。自己的班是 {{ clsLabel(ownCls) }}。</div>
         <a v-if="st.live.on && validUrl(st.live.url)" class="btn btn-sm" :href="st.live.url" target="_blank" rel="noopener">● 觀看直播</a>
         <div v-if="!tCls" class="t-pick">請先在右邊選「你帶的班級」，選一次就會記住（換手機也記得）。</div>
       </div>
@@ -1480,6 +1490,7 @@ html.ov-transparent body::before{ display:none; }
       <div class="t-cards mb-3" v-if="tCls">
         <button :class="['t-card', {on:tOpen==='allrun', hot:!st.allrun[tCls]}]" @click="openT('allrun')" :aria-expanded="tOpen==='allrun'">
           <span class="t-row"><span class="t-ic">🏃</span><b>全員賽跑名單</b><span :class="['pill', st.allrun[tCls] ? 'pill-ok' : 'pill-todo']">{{ st.allrun[tCls] ? '✓ 已送出' : '○ 還沒送出' }}</span></span>
+          <span class="t-desc" v-if="st.allrun[tCls] && st.allrun[tCls].by" style="font-size:14px">{{ st.allrun[tCls].at }}・{{ st.allrun[tCls].by }} 送出</span>
           <span class="t-desc">每組填前三名，送出後家長也看得到（名字會遮一個字）。</span>
           <span class="t-btn primary">{{ tOpen==='allrun' ? '收起' : (st.allrun[tCls] ? '查看或修改' : '開始填寫') }}</span>
         </button>
@@ -2917,7 +2928,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261126121500'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261126122500'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -3542,7 +3553,8 @@ createApp({
     watch(()=>page.value, ()=>{ helpOpen.value = false; });
     const newsOpen = ref(false);
     function can(a){ const list=PERMS[a]||[];
-      if(FORMAL && fb.admin && !previewing.value) return true; /* 系統管理員全部可操作 */
+      if(FORMAL && fb.admin && !previewing.value) return true;
+      if(a==='allrun' && FORMAL && fb.user && !previewing.value) return true; /* 代課、代理：任何教職員都能幫某一班送全員賽跑名單（會記下是誰送的） */ /* 系統管理員全部可操作 */
       if(previewing.value) return list.includes(role.value);
       if(FORMAL && fb.myRoles.length) return fb.myRoles.some(r=>list.includes(r)); return list.includes(role.value); }
     function whoCan(a){ return (PERMS[a]||[]).map(id=>(ROLES.find(r=>r.id===id)||{}).name).join('、'); }
@@ -4419,7 +4431,12 @@ createApp({
     function onHrInput(){ homeroomTouched=true; }
     const homeroomLogins = computed(()=>(fb.users||[]).filter(u=>u.email && u.at).map(u=>({ email:u.email, name:u.name, cls:homeroomOf(u.email,u.name) })));
     async function saveHomeroom(){ const t=homeroomDraft.value.trim(); try{ await fref('meta','homeroom').set({ text:t, by:fb.email, ts:Date.now() }); homeroomTouched=false; homeroomText.value=t; toast('已儲存導師帶班名單（'+parseHomeroom(t).filter(r=>r.ok).length+' 班）'); }catch(e){ toast('儲存失敗：'+((e&&e.code)||''),true); } }
-    async function loadMyCls(){ if(!FORMAL || !fb.user) return; try{ const d=await fref('users',fb.email.toLowerCase()).get(); const c=d.exists && d.data().cls; if(c && c!==tCls.value && !hrApplied){ tCls.value=c; } }catch(e){} }
+    async function loadMyCls(){ if(!FORMAL || !fb.user) return; try{ const d=await fref('users',fb.email.toLowerCase()).get(); const c=d.exists && d.data().cls; if(c){ ownClsDb.value=c; } if(c && c!==tCls.value && !hrApplied){ tCls.value=c; } }catch(e){} }
+    /* 自己帶的班（資料庫 users.cls 或導師帶班名單）；選了別班＝代理（代課老師、學年主任幫忙） */
+    const ownClsDb = ref('');
+    const ownCls = computed(()=>myHomeroom.value || ownClsDb.value);
+    const tClsEdit = ref(false);
+    function backToOwnCls(){ if(ownCls.value) tCls.value=ownCls.value; tClsEdit.value=false; }
     const teacherEvents = computed(()=>dayEvents.value.filter(e=>e.entries.some(x=>x.cls===tCls.value)).map(ev=>{ const t=st.value.timeline.find(t=>t.eventIds.includes(ev.id)); return { ev, time:t?tlTime(t):'' }; }));
     const teacherCalls = computed(()=>st.value.batches.filter(b=>b.status!=='done').map(b=>({ b, list:winnersOf(b).filter(w=>w.cls===tCls.value) })).filter(x=>x.list.length).sort((a,c)=>(a.b.status==='ready'?0:1)-(c.b.status==='ready'?0:1)));
     /* 導師首頁卡片：打招呼、臨時通知、本班節目、展開哪一張 */
@@ -4455,7 +4472,7 @@ createApp({
     function blankGroups(n){ return Array.from({length:n},()=>['','','']); }
     function loadDraft(){ const s=st.value.allrun[tCls.value]; arTried.value=false; if(s){ arDraft.count=s.groups.length; arDraft.groups=s.groups.map(g=>[...g]); } else { arDraft.count=5; arDraft.groups=blankGroups(5); } }
     function fitDraft(){ while(arDraft.groups.length<arDraft.count) arDraft.groups.push(['','','']); arDraft.groups.length=arDraft.count; }
-    function submitAllrun(){ if(!need('allrun')) return; arTried.value=true; if(arDraft.groups.some(g=>g.some(n=>!n))){ toast('還有空白欄位，請把每組前三名都填上',true); return; } st.value.allrun[tCls.value]={ at:(new Date().getMonth()+1)+'/'+pad(new Date().getDate())+' '+hhmm(), groups:arDraft.groups.map(g=>[...g]) }; log('全員賽跑名單送出：'+clsLabel(tCls.value)); toast('已送出！紀錄組會彙整成獎狀名單'); }
+    function submitAllrun(){ if(!need('allrun')) return; arTried.value=true; if(arDraft.groups.some(g=>g.some(n=>!n))){ toast('還有空白欄位，請把每組前三名都填上',true); return; } st.value.allrun[tCls.value]={ at:(new Date().getMonth()+1)+'/'+pad(new Date().getDate())+' '+hhmm(), groups:arDraft.groups.map(g=>[...g]), by:(FORMAL && fb.user ? String(fb.user.name||fb.email) : roleObj.value.name) }; log('全員賽跑名單送出：'+clsLabel(tCls.value)); toast('已送出！紀錄組會彙整成獎狀名單'); }
 
     /* ----- 匯出 ----- */
     const exTab = ref('cert');
@@ -5016,7 +5033,7 @@ createApp({
     watch(myHomeroom, c=>{ if(c && !hrApplied){ hrApplied=true; if(c!==tCls.value){ tCls.value=c; toast('已依你的帳號切換到 '+clsLabel(c)); } } }); // 放在 fb 建立之後（避免初始化順序錯誤）
     onMounted(()=>{ readHash(); if(!hashGiven && isPublicView.value) page.value='board'; loadDraft(); syncLiveDraft(); renderQR(); if(FORMAL) fbInit(); else initCloud(); });
 
-    return { st, role, page, helpOpen, newsOpen, tOpen, openHomeFlow, checkTimeOf, openT, tHelloName, myProg, myProgNext, tTodo, teacherNotices, acctMgr, isCtrlEmail, closeHelp, newsList, dismissNews, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
+    return { st, role, page, helpOpen, newsOpen, tOpen, openHomeFlow, checkTimeOf, ownCls, tClsEdit, backToOwnCls, openT, tHelloName, myProg, myProgNext, tTodo, teacherNotices, acctMgr, isCtrlEmail, closeHelp, newsList, dismissNews, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
       SHORT, arOpen, homeroomDraft, homeroomRows, homeroomLogins, saveHomeroom, myHomeroom, onHrInput, cd, pad, insertOpen, openInsert, promptGroup, promptNext, scriptState, jumpScripts, ringLong, toggleRing, refOk, refChanged, confirmRef, needRef, doneTab, doneShown, restoreBc, scriptLib, scriptsOf, scriptGroups, nextScriptGroup, sf, editScript, saveScript, removeScript, moveScript, queueScript, sPaste, sParsed, importScripts, canBc, pushState, registerPush, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
       drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, arFull, AR_PUB_OPTS, arPubGrades, toggleArPub, arPubGradeText, arPubShown, PG_GRADES, pgGrade, progList, progLeave, shiftHM, flashLine, reportLine, TICKER_TPL, tkOpen, tk, tickerMsgs, hhmmOf, addTicker, removeTicker, canFixName, fixName, overdueTl, overdueSnoozed, snoozeOverdue, remindControl, setAutoFlow, ADHOC_TPL, adhocOpen, adhoc, useAdhocTpl, addAdhoc, tlRange, tlNo, mcScriptOf, prepScriptOf, nextMinsLeft, scheduledTl, mcProgOpen, applyProgram, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
