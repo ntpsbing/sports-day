@@ -190,6 +190,8 @@ body::before{ content:""; position:fixed; inset:0 0 auto; height:env(safe-area-i
 .pill-todo{ background:var(--warn-soft); color:var(--warn); }
 .pill-ok{ background:var(--ok-soft); color:var(--ok); }
 .pill-mute{ background:var(--surface2); color:var(--ink2); }
+.pill-bad{ background:var(--bad-soft); color:var(--bad); }
+.more-sum{ cursor:pointer; font-weight:800; font-size:16px; color:var(--ink2); padding:8px 4px; list-style-position:inside; }
 .t-desc{ color:var(--ink2); font-size:15px; line-height:1.5; }
 .t-btn{ margin-top:auto; display:block; text-align:center; border-radius:12px; padding:10px; font-weight:900; font-size:17px; background:var(--surface2); color:var(--brand); }
 .t-btn.primary{ background:var(--brand); color:var(--brand-ink); }
@@ -205,6 +207,8 @@ body::before{ content:""; position:fixed; inset:0 0 auto; height:env(safe-area-i
 .ph-slim .ph-ico{ width:38px; height:38px; font-size:21px; border-radius:12px; }
 .ph-slim .h-page{ font-size:22px; }
 .ph-slim .ph-l{ flex:1 1 auto; }
+/* 手機：所有頁首都精簡成一行（頁名＋按鈕），說明文字只在電腦上顯示 */
+@media (max-width:640px){ .pagehead{ flex-wrap:nowrap; padding-bottom:8px; margin-bottom:12px; } .pagehead .ph-desc{ display:none; } .pagehead .ph-l{ flex:1 1 auto; gap:10px; } .pagehead .ph-ico{ width:38px; height:38px; font-size:21px; border-radius:12px; } .pagehead .h-page{ font-size:20px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .pagehead > .flex .btn, .pagehead > .flex summary.btn{ padding:0 10px; font-size:14px; min-height:38px; white-space:nowrap; } }
 @media (max-width:640px){ .ph-slim{ flex-wrap:nowrap; } .ph-slim .h-page{ font-size:20px; white-space:nowrap; } .ph-slim > .flex .btn, .ph-slim > .flex summary.btn{ padding:0 10px; font-size:14px; min-height:38px; } }
 @media (max-width:640px){ .pub-wide{ display:none !important; } }
 /* 頁首：只有頁名、一句說明、「怎麼用」與「更多」 */
@@ -1097,8 +1101,29 @@ html.ov-transparent body::before{ display:none; }
         <p class="small muted my-2">器材組、醫護組、午餐組、環保組、體育闖關組、收禮組的功能已加入。按下面按鈕建立器材清單（依流程）、6 個闖關站點與午餐設定。</p>
         <button class="btn btn-primary" @click="initSupport">建立後勤支援資料</button>
       </div>
-      <!-- 數字卡：「待處理」排前面，紅框＝有事要處理 -->
-      <div class="kpis mb-5 stagger">
+      <!-- 總控三件事（卡片式）：流程走到哪、現場通報、跑馬燈 -->
+      <div class="t-cards mb-4" v-if="can('flow')">
+        <div :class="['t-card', {hot:true}]" style="cursor:default">
+          <span class="t-row"><span class="t-ic">▶️</span><b>{{ nowTl ? '現在：'+nowTl.title : (nextTl ? '還沒開始' : '流程都完成了') }}</b><span :class="['pill', nowTl ? 'pill-ok' : 'pill-todo']">{{ nowTl ? '進行中' : (nextTl ? '未開始' : '✓ 完成') }}</span></span>
+          <span class="t-desc"><template v-if="nowTl">{{ tlRange(nowTl) }}<template v-if="nowTl.place">　{{ nowTl.place }}</template>　</template><template v-if="nextTl">下一個：{{ tlTime(nextTl) }} {{ nextTl.title }}</template><template v-if="st.delayMin">　（順延 {{ st.delayMin }} 分）</template></span>
+          <button class="t-btn primary" style="border:0;cursor:pointer" v-if="nowTl" @click="finishTl(nowTl)">完成，開始下一個</button>
+          <button class="t-btn primary" style="border:0;cursor:pointer" v-else-if="nextTl" @click="startTl(nextTl)">開始：{{ nextTl.title.length>12 ? nextTl.title.slice(0,12)+'…' : nextTl.title }}</button>
+        </div>
+        <button :class="['t-card', {hot:openReports.length}]" @click="rFilter='open'; go('reports')">
+          <span class="t-row"><span class="t-ic">🚨</span><b>現場通報</b><span :class="['pill', openReports.length ? 'pill-bad' : 'pill-ok']">{{ openReports.length ? openReports.length+' 件待處理' : '✓ 沒有待處理' }}</span></span>
+          <span class="t-desc">{{ openReports.length ? openReports.slice(0,2).map(r=>(RTYPES[r.type]||{}).name+(r.place?'（'+r.place+'）':'')).join('・') : '各組回報的狀況會出現在這裡' }}</span>
+          <span class="t-btn">{{ openReports.length ? '去處理' : '看通報' }}</span>
+        </button>
+        <button class="t-card" @click="tkOpen=true; openHomeFlow()">
+          <span class="t-row"><span class="t-ic">📢</span><b>跑馬燈公告</b><span class="pill pill-ok">{{ tickerMsgs.length }} 則</span></span>
+          <span class="t-desc">{{ tickerMsgs.length ? tickerMsgs[0].text : '臨時要告訴家長的話，從這裡放上看板' }}</span>
+          <span class="t-btn">{{ tickerMsgs.length ? '修改公告' : '新增公告' }}</span>
+        </button>
+      </div>
+      <!-- 數字卡：「待處理」排前面，紅框＝有事要處理（總控平常收起） -->
+      <details class="mb-4 home-kpis" :open="!can('flow')">
+      <summary class="more-sum">📊 各組進度（審核 {{ kpi.review }}・司儀待播 {{ kpi.mc }}・全員賽跑 {{ allrunDone }}/{{ allrunClasses.length }}）</summary>
+      <div class="kpis mb-5 stagger mt-3">
         <button :class="['card kpi text-left',{hot:openReports.length}]" @click="rFilter='open'; go('reports')"><div class="v num" :style="openReports.length?'color:var(--bad)':''">{{ openReports.length }}</div><div class="l">🚨 現場通報待處理</div></button>
         <button :class="['card kpi text-left',{hot:kpi.review}]" @click="go('review')"><div class="v num" :style="kpi.review?'color:#6B21A8':''">{{ kpi.review }}</div><div class="l">✅ 成績等待審核</div></button>
         <button :class="['card kpi text-left',{hot:kpi.mc}]" @click="go('mc')"><div class="v num" :style="kpi.mc?'color:var(--warn)':''">{{ kpi.mc }}</div><div class="l">🎤 司儀待播報</div></button>
@@ -1108,9 +1133,10 @@ html.ov-transparent body::before{ display:none; }
         <button class="card kpi text-left" @click="exTab='allrun'; go('export')"><div class="v num">{{ allrunDone }}<span class="muted" style="font-size:24px">/{{ allrunClasses.length }}</span></div><div class="l">🏃 全員賽跑已填報</div></button>
         <button class="card kpi text-left" @click="go('live')"><div class="v" style="font-size:28px;font-weight:900;line-height:1.3" :style="st.live.on?'color:#C8102E':''">{{ st.live.on ? '● 直播中' : '○ 未開播' }}</div><div class="l">📡 網路直播</div></button>
       </div>
+      </details>
 
       <div class="grid gap-5 items-start" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,480px),1fr))">
-        <fold-card k="home-flow" style="align-self:start">
+        <fold-card k="home-flow" style="align-self:start" id="homeFlow">
           <template #title>🏁 當天流程</template>
           <template #sum><span class="sumchip info" v-if="nowTl">▶ {{ nowTl.title.length>10 ? nowTl.title.slice(0,10)+'…' : nowTl.title }}</span><span class="sumchip" v-else>尚未開始</span><span class="sumchip" v-if="st.delayMin">順延 {{ st.delayMin }} 分</span></template>
           <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
@@ -1687,6 +1713,17 @@ html.ov-transparent body::before{ display:none; }
 
     <!-- ===================== 司儀台 ===================== -->
     <section v-if="page==='mc'" class="fade-up">
+      <!-- 司儀最上面一張卡：現在要唸的稿子＋一顆大按鈕 -->
+      <div class="t-card hot mb-4" style="cursor:default" v-if="pendingBc.length">
+        <span class="t-row"><span class="t-ic">🎤</span><b>現在唸這段</b><span class="pill pill-todo">還沒播{{ pendingBc.length>1 ? '・後面還有 '+(pendingBc.length-1)+' 則' : '' }}</span></span>
+        <span class="small muted"><span class="chip" :style="bcStyle(pendingBc[0].type)">{{ BC[pendingBc[0].type] }}<span v-if="pendingBc[0].title">：{{ pendingBc[0].title }}</span></span>　{{ pendingBc[0].at }}<template v-if="pendingBc[0].by">・{{ pendingBc[0].by }}</template></span>
+        <div class="mc-card">{{ pendingBc[0].text }}</div>
+        <button class="t-btn primary" style="border:0;cursor:pointer;font-size:19px;padding:14px" v-if="can('mc')" @click="doneBc(pendingBc[0])">唸完了，按這裡</button>
+      </div>
+      <div class="t-card mb-4" style="cursor:default" v-else>
+        <span class="t-row"><span class="t-ic">🎤</span><b>目前沒有要唸的稿子</b><span class="pill pill-ok">✓</span></span>
+        <span class="t-desc">各組有消息、總控按「開始」節目時，稿子會自動出現在這裡。</span>
+      </div>
       <!-- 節目單：司儀知道現在、下一個要做什麼 -->
       <div class="card mb-4" style="border:2px solid var(--brand)">
         <div class="flex items-center justify-between gap-2 flex-wrap mb-2">
@@ -1729,8 +1766,7 @@ html.ov-transparent body::before{ display:none; }
           </table></div>
         </details>
       </div>
-      <div class="card-flat mb-4">
-        <div class="small">進行中：<b>{{ nowTl ? nowTl.title : '—' }}</b>　下一項：<b>{{ nextTl ? nextTl.title : '—' }}</b></div>
+      <div class="card-flat mb-4" v-if="readyBatchObj">
         <div class="small mt-1" v-if="readyBatchObj">目前頒獎：<b>{{ shortTitle(readyBatchObj.title) }}</b>　頒獎人：<b style="font-size:20px;color:var(--brand)">{{ personText(presenterOf(readyBatchObj).p) }}</b></div>
       </div>
       <!-- 📜 講稿提示：現在這段的講稿放最上面，不用往下找 -->
@@ -1759,9 +1795,9 @@ html.ov-transparent body::before{ display:none; }
       </div>
       <div class="grid gap-4" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr))">
         <div style="min-width:0">
-          <h2 class="h-sec mb-2">待播報（{{ pendingBc.length }}）</h2>
-          <div v-if="!pendingBc.length" class="card muted">目前沒有待播報的內容。各組有新消息時，播報稿會自動出現在這裡。</div>
-          <div v-for="(b,i) in pendingBc" :key="b.id" class="card mb-3 fade-up" :style="i===0?'border:2px solid var(--brand)':''">
+          <h2 class="h-sec mb-2">接下來要唸（{{ Math.max(0,pendingBc.length-1) }}）</h2>
+          <div v-if="pendingBc.length<=1" class="card muted">最上面那則唸完，下一則會自動補上來。</div>
+          <div v-for="(b,i) in pendingBc.slice(1)" :key="b.id" class="card mb-3 fade-up">
             <div class="flex items-center justify-between gap-2 mb-1 flex-wrap">
               <span class="chip" :style="bcStyle(b.type)">{{ BC[b.type] }}<span v-if="b.title">：{{ b.title }}</span></span>
               <span class="small muted num">{{ b.at }}</span>
@@ -2881,7 +2917,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261126120500'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261126123000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -4388,6 +4424,7 @@ createApp({
     const teacherCalls = computed(()=>st.value.batches.filter(b=>b.status!=='done').map(b=>({ b, list:winnersOf(b).filter(w=>w.cls===tCls.value) })).filter(x=>x.list.length).sort((a,c)=>(a.b.status==='ready'?0:1)-(c.b.status==='ready'?0:1)));
     /* 導師首頁卡片：打招呼、臨時通知、本班節目、展開哪一張 */
     const tOpen = ref('');
+    function openHomeFlow(){ nextTick(()=>{ const el=document.getElementById('homeFlow'); if(!el) return; const d=el.tagName==='DETAILS' ? el : el.querySelector('details'); if(d) d.open=true; el.scrollIntoView({behavior:'smooth', block:'start'}); }); }
     function openT(k){ tOpen.value = tOpen.value===k ? '' : k; if(tOpen.value) nextTick(()=>{ const el=document.getElementById('tDetail'); if(el) el.scrollIntoView({behavior:'smooth', block:'start'}); }); }
     const tHelloName = computed(()=>{ const h=new Date(nowTick.value).getHours(); const hi=h<11?'早安':h<14?'午安':'您好'; const n=FORMAL && fb.user ? String(fb.user.name||'').replace(/[（(].*$/,'').trim() : ''; return (n ? n+'老師 ' : '老師 ')+hi; });
     const myProg = computed(()=>{ const c=tCls.value; if(!c) return []; const g=/^[KA]/.test(c) ? 'kg' : +c[0];
@@ -4966,7 +5003,7 @@ createApp({
     watch(myHomeroom, c=>{ if(c && !hrApplied){ hrApplied=true; if(c!==tCls.value){ tCls.value=c; toast('已依你的帳號切換到 '+clsLabel(c)); } } }); // 放在 fb 建立之後（避免初始化順序錯誤）
     onMounted(()=>{ readHash(); if(!hashGiven && isPublicView.value) page.value='board'; loadDraft(); syncLiveDraft(); renderQR(); if(FORMAL) fbInit(); else initCloud(); });
 
-    return { st, role, page, helpOpen, newsOpen, tOpen, openT, tHelloName, myProg, myProgNext, tTodo, teacherNotices, acctMgr, isCtrlEmail, closeHelp, newsList, dismissNews, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
+    return { st, role, page, helpOpen, newsOpen, tOpen, openHomeFlow, openT, tHelloName, myProg, myProgNext, tTodo, teacherNotices, acctMgr, isCtrlEmail, closeHelp, newsList, dismissNews, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
       SHORT, arOpen, homeroomDraft, homeroomRows, homeroomLogins, saveHomeroom, myHomeroom, onHrInput, cd, pad, insertOpen, openInsert, promptGroup, promptNext, scriptState, jumpScripts, ringLong, toggleRing, refOk, refChanged, confirmRef, needRef, doneTab, doneShown, restoreBc, scriptLib, scriptsOf, scriptGroups, nextScriptGroup, sf, editScript, saveScript, removeScript, moveScript, queueScript, sPaste, sParsed, importScripts, canBc, pushState, registerPush, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
       drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, arFull, AR_PUB_OPTS, arPubGrades, toggleArPub, arPubGradeText, arPubShown, PG_GRADES, pgGrade, progList, progLeave, shiftHM, flashLine, reportLine, TICKER_TPL, tkOpen, tk, tickerMsgs, hhmmOf, addTicker, removeTicker, canFixName, fixName, overdueTl, overdueSnoozed, snoozeOverdue, remindControl, setAutoFlow, ADHOC_TPL, adhocOpen, adhoc, useAdhocTpl, addAdhoc, tlRange, tlNo, mcScriptOf, prepScriptOf, nextMinsLeft, scheduledTl, mcProgOpen, applyProgram, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
