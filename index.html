@@ -1772,11 +1772,11 @@ body{ min-height:100%; min-height:100dvh; max-width:100%; }
           <span class="t-desc">每組填前三名，送出後家長也看得到（名字會遮一個字）。</span>
           <span class="t-btn primary">{{ tOpen==='allrun' ? '收起' : (st.allrun[tCls] ? '查看或修改' : '開始填寫') }}</span>
         </button>
-        <button v-if="isR4Cls(tCls)" :class="['t-card', {on:tOpen==='r4', hot:!(st.relay4 && st.relay4[tCls])}]" @click="openT('r4')" :aria-expanded="tOpen==='r4'">
-          <span class="t-row"><span class="t-ic">🏃‍♂️</span><b>4×100 選手名單</b><span :class="['pill', (st.relay4 && st.relay4[tCls]) ? 'pill-ok' : 'pill-todo']">{{ (st.relay4 && st.relay4[tCls]) ? '✓ 已送出' : '○ 還沒送出' }}</span></span>
+        <button v-if="isR4Cls(tCls)" :class="['t-card', {on:tOpen==='r4', hot:!isR4Done(tCls)}]" @click="openT('r4')" :aria-expanded="tOpen==='r4'">
+          <span class="t-row"><span class="t-ic">🏃‍♂️</span><b>4×100 選手名單</b><span :class="['pill', isR4Done(tCls) ? 'pill-ok' : 'pill-todo']">{{ isR4Done(tCls) ? '✓ 已送出' : '○ 還沒送出' }}</span></span>
           <span class="t-desc" v-if="st.relay4 && st.relay4[tCls] && st.relay4[tCls].by" style="font-size:14px">{{ st.relay4[tCls].at }}・{{ st.relay4[tCls].by }} 送出</span>
-          <span class="t-desc">四～六年級填男、女生各 4 棒（可選填 1～2 位候補），自動連動檢錄與獎狀。</span>
-          <span class="t-btn primary">{{ tOpen==='r4' ? '收起' : ((st.relay4 && st.relay4[tCls]) ? '查看或修改' : '開始填寫') }}</span>
+          <span class="t-desc">本班晉級決賽：<b>{{ r4GroupLabel(tCls) }}</b>。填 4 棒（可選填候補），自動連動檢錄與獎狀。</span>
+          <span class="t-btn primary">{{ tOpen==='r4' ? '收起' : (isR4Done(tCls) ? '查看或修改' : '開始填寫') }}</span>
         </button>
         <button :class="['t-card', {on:tOpen==='prog'}]" @click="openT('prog')" :aria-expanded="tOpen==='prog'">
           <span class="t-row"><span class="t-ic">🗓️</span><b>我們班的節目</b><span class="pill pill-ok">{{ myProg.length }} 項</span></span>
@@ -1827,21 +1827,24 @@ body{ min-height:100%; min-height:100dvh; max-width:100%; }
         </div>
         <div class="card" v-if="tOpen==='r4' && isR4Cls(tCls)">
           <div class="flex items-center justify-between gap-2 flex-wrap mb-2">
-            <h2 class="h-sec">🏃‍♂️ 4×100 公尺接力 選手名單填報（{{ clsLabel(tCls) }}）</h2>
-            <span :class="['chip', (st.relay4 && st.relay4[tCls]) ? 'st-published' : 'tag-todo']">{{ (st.relay4 && st.relay4[tCls]) ? '✔ 已送出 '+st.relay4[tCls].at : '○ 尚未送出' }}</span>
+            <h2 class="h-sec">🏃‍♂️ 4×100 公尺接力決賽 選手名單填報（{{ clsLabel(tCls) }}）</h2>
+            <span :class="['chip', isR4Done(tCls) ? 'st-published' : 'tag-todo']">{{ isR4Done(tCls) ? '✔ 已送出 '+st.relay4[tCls].at : '○ 尚未送出' }}</span>
           </div>
-          <p class="small muted mb-3">請依棒次填寫男生組 4 位、女生組 4 位選手（可另選填 1～2 位候補）。送出後會自動同步到檢錄處、成績查詢（家長端自動遮名）與獎狀套印名單。</p>
+          <p class="small muted mb-3">本班晉級決賽組別：<b>{{ r4GroupLabel(tCls) }}</b>。請依棒次填寫 4 位正式選手（可另選填 1～2 位候補），送出後自動同步到檢錄處、成績查詢（家長端自動遮名）與獎狀套印名單。</p>
           <details class="card-flat mb-3" style="padding:10px 14px">
             <summary class="font-bold" style="cursor:pointer;min-height:44px;display:flex;align-items:center;gap:6px">📋 從 Excel／LINE 一次貼上（比較快）</summary>
-            <p class="small muted mt-2 mb-2">第一行貼男生組（依序第 1～4 棒，後面可接候補 1、2）、第二行貼女生組，中間用空白、逗號或「、」隔開即可。</p>
-            <textarea id="r4Paste" class="inp" rows="4" v-model="r4Paste" aria-label="貼上4×100選手名單" placeholder="男生：王小明 李大華 陳一心 林大同 候補張三&#10;女生：陳美美 林小芬 吳佳佳 黃琪琪"></textarea>
-            <div class="small mt-1" v-if="r4PasteParsed.M.some(Boolean) || r4PasteParsed.F.some(Boolean)">
-              <b>讀到男生 {{ r4PasteParsed.M.filter(Boolean).length }} 位（候補 {{ r4PasteParsed.Ms.filter(Boolean).length }}）、女生 {{ r4PasteParsed.F.filter(Boolean).length }} 位（候補 {{ r4PasteParsed.Fs.filter(Boolean).length }}）</b>
+            <p class="small muted mt-2 mb-2">{{ (r4FinalsOf(tCls).M && r4FinalsOf(tCls).F) ? '第一行貼男生組（依序第 1～4 棒，後面可接候補 1、2）、第二行貼女生組，中間用空白、逗號或「、」隔開即可。' : '直接貼上本班 '+r4GroupLabel(tCls)+' 的第 1～4 棒姓名（後面可接候補 1、2），中間用空白、逗號或「、」隔開即可。' }}</p>
+            <textarea id="r4Paste" class="inp" rows="4" v-model="r4Paste" aria-label="貼上4×100選手名單" :placeholder="(r4FinalsOf(tCls).M && r4FinalsOf(tCls).F) ? '男生：王小明 李大華 陳一心 林大同 候補張三\n女生：陳美美 林小芬 吳佳佳 黃琪琪' : '王小明 李大華 陳一心 林大同 張三'"></textarea>
+            <div class="small mt-1" v-if="(r4FinalsOf(tCls).M && r4PasteParsed.M.some(Boolean)) || (r4FinalsOf(tCls).F && r4PasteParsed.F.some(Boolean))">
+              <b>已讀到：<template v-if="r4FinalsOf(tCls).M">男生 {{ r4PasteParsed.M.filter(Boolean).length }} 位（候補 {{ r4PasteParsed.Ms.filter(Boolean).length }}）</template><template v-if="r4FinalsOf(tCls).M && r4FinalsOf(tCls).F">、</template><template v-if="r4FinalsOf(tCls).F">女生 {{ r4PasteParsed.F.filter(Boolean).length }} 位（候補 {{ r4PasteParsed.Fs.filter(Boolean).length }}）</template></b>
             </div>
-            <button class="btn btn-primary mt-2" :disabled="!r4PasteParsed.M.some(Boolean) && !r4PasteParsed.F.some(Boolean)" @click="applyR4Paste">填入下面表格</button>
+            <button class="btn btn-primary mt-2" :disabled="!(r4FinalsOf(tCls).M && r4PasteParsed.M.some(Boolean)) && !(r4FinalsOf(tCls).F && r4PasteParsed.F.some(Boolean))" @click="applyR4Paste">填入下面表格</button>
           </details>
-          <div class="card-flat mb-3">
-            <div class="font-bold mb-2" style="font-size:18px;color:var(--brand)">👦 男生組（4×100 公尺）</div>
+          <div class="card-flat mb-3" v-if="r4FinalsOf(tCls).M">
+            <div class="flex flex-wrap items-center gap-2 mb-2">
+              <div class="font-bold" style="font-size:18px;color:var(--brand)">👦 男生組（4×100 公尺決賽）</div>
+              <span v-if="r4FinalsOf(tCls).entryM && (r4FinalsOf(tCls).entryM.lane || r4FinalsOf(tCls).entryM.color)" :style="laneBadgeStyle(r4FinalsOf(tCls).entryM)">{{ laneText(r4FinalsOf(tCls).entryM) }}</span>
+            </div>
             <div class="grid gap-2 mb-2" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr))">
               <div v-for="(n,i) in r4Draft.M" :key="'m'+i">
                 <label class="lbl" :for="'r4M_'+i">第 {{ i+1 }} 棒（必填）</label>
@@ -1855,8 +1858,11 @@ body{ min-height:100%; min-height:100dvh; max-width:100%; }
               </div>
             </div>
           </div>
-          <div class="card-flat mb-3">
-            <div class="font-bold mb-2" style="font-size:18px;color:#B83280">👧 女生組（4×100 公尺）</div>
+          <div class="card-flat mb-3" v-if="r4FinalsOf(tCls).F">
+            <div class="flex flex-wrap items-center gap-2 mb-2">
+              <div class="font-bold" style="font-size:18px;color:#B83280">👧 女生組（4×100 公尺決賽）</div>
+              <span v-if="r4FinalsOf(tCls).entryF && (r4FinalsOf(tCls).entryF.lane || r4FinalsOf(tCls).entryF.color)" :style="laneBadgeStyle(r4FinalsOf(tCls).entryF)">{{ laneText(r4FinalsOf(tCls).entryF) }}</span>
+            </div>
             <div class="grid gap-2 mb-2" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr))">
               <div v-for="(n,i) in r4Draft.F" :key="'f'+i">
                 <label class="lbl" :for="'r4F_'+i">第 {{ i+1 }} 棒（必填）</label>
@@ -1870,12 +1876,12 @@ body{ min-height:100%; min-height:100dvh; max-width:100%; }
               </div>
             </div>
           </div>
-          <button id="r4Submit" class="btn btn-primary btn-big w-full" @click="submitR4">{{ (st.relay4 && st.relay4[tCls]) ? '修改後重新送出 4×100 名單' : '送出 4×100 選手名單' }}</button>
-          <div v-if="st.relay4 && st.relay4[tCls]" class="flex flex-wrap gap-2 mt-3 items-center">
+          <button id="r4Submit" class="btn btn-primary btn-big w-full" @click="submitR4">{{ isR4Done(tCls) ? '修改後重新送出 4×100 名單' : '送出 4×100 選手名單' }}</button>
+          <div v-if="isR4Done(tCls)" class="flex flex-wrap gap-2 mt-3 items-center">
             <span class="small muted">已送出的名單：</span>
-            <button class="btn" @click="printReport('4×100 公尺接力選手名單', clsLabel(tCls), r4ExportRows([tCls]), 'bw', {checkCol:'核對'})">🖨 列印本班名單（黑白）</button>
-            <button class="btn" @click="printReport('4×100 公尺接力選手名單', clsLabel(tCls), r4ExportRows([tCls]), 'color', {checkCol:'核對'})">🖨 彩色</button>
-            <button class="btn" @click="printReport('4×100 公尺接力選手名單', clsLabel(tCls), r4ExportRows([tCls]), 'pdf', {checkCol:'核對'})">📄 存成 PDF</button>
+            <button class="btn" @click="printReport('4×100 公尺接力決賽選手名單', clsLabel(tCls)+'（'+r4GroupLabel(tCls)+'）', r4ExportRows([tCls]), 'bw', {checkCol:'核對'})">🖨 列印本班名單（黑白）</button>
+            <button class="btn" @click="printReport('4×100 公尺接力決賽選手名單', clsLabel(tCls)+'（'+r4GroupLabel(tCls)+'）', r4ExportRows([tCls]), 'color', {checkCol:'核對'})">🖨 彩色</button>
+            <button class="btn" @click="printReport('4×100 公尺接力決賽選手名單', clsLabel(tCls)+'（'+r4GroupLabel(tCls)+'）', r4ExportRows([tCls]), 'pdf', {checkCol:'核對'})">📄 存成 PDF</button>
             <button class="btn" @click="downloadXlsx(r4ExportRows([tCls]), '4x100名單_'+clsLabel(tCls))">📊 下載 Excel</button>
           </div>
         </div>
@@ -2636,46 +2642,48 @@ body{ min-height:100%; min-height:100dvh; max-width:100%; }
         </details>
       </div>
 
-      <!-- 🏃‍♂️ 4×100 公尺接力選手名單彙整（四～六年級導師填報後即時彙整） -->
+      <!-- 🏃‍♂️ 4×100 公尺接力決賽選手名單彙整（僅統計有晉級決賽的班級） -->
       <div v-if="exTab==='r4'" class="card">
         <div class="flex justify-between flex-wrap gap-2 items-center mb-2">
-          <h2 class="h-sec">🏃‍♂️ 4×100 公尺接力選手名單填報進度</h2>
+          <h2 class="h-sec">🏃‍♂️ 4×100 決賽選手名單填報進度</h2>
           <div class="flex flex-wrap gap-2">
             <button class="btn" @click="copy(r4RemindText)" :disabled="!r4Missing.length">📋 複製未交提醒（貼到 LINE）</button>
-            <button class="btn" @click="printReport('4×100 公尺接力選手名單總表','範圍：'+(r4ExGrade==='all'?'四～六年級':ZH[r4ExGrade]+'年級')+'（已交 '+r4ShownClasses.filter(c=>st.relay4 && st.relay4[c]).length+' 班）',r4ExportRows(r4ShownClasses),'bw',{checkCol:'核對',groupMode:'col0'})" :disabled="!r4ShownClasses.some(c=>st.relay4 && st.relay4[c])">🖨 列印黑白</button>
-            <button class="btn" @click="printReport('4×100 公尺接力選手名單總表','範圍：'+(r4ExGrade==='all'?'四～六年級':ZH[r4ExGrade]+'年級')+'（已交 '+r4ShownClasses.filter(c=>st.relay4 && st.relay4[c]).length+' 班）',r4ExportRows(r4ShownClasses),'color',{checkCol:'核對',groupMode:'col0'})" :disabled="!r4ShownClasses.some(c=>st.relay4 && st.relay4[c])">🖨 彩色</button>
-            <button class="btn" @click="printReport('4×100 公尺接力選手名單總表','範圍：'+(r4ExGrade==='all'?'四～六年級':ZH[r4ExGrade]+'年級')+'（已交 '+r4ShownClasses.filter(c=>st.relay4 && st.relay4[c]).length+' 班）',r4ExportRows(r4ShownClasses),'pdf',{checkCol:'核對',groupMode:'col0'})" :disabled="!r4ShownClasses.some(c=>st.relay4 && st.relay4[c])">📄 存成 PDF</button>
-            <button class="btn btn-primary" @click="downloadXlsx(r4ExportRows(r4ShownClasses),'4x100選手名單')" :disabled="!r4ShownClasses.some(c=>st.relay4 && st.relay4[c])">📊 下載 Excel</button>
+            <button class="btn" @click="printReport('4×100 公尺接力決賽選手名單總表','範圍：'+(r4ExGrade==='all'?'全部晉級班級':ZH[r4ExGrade]+'年級晉級班級')+'（已交 '+r4ShownClasses.filter(isR4Done).length+' 班）',r4ExportRows(r4ShownClasses),'bw',{checkCol:'核對',groupMode:'col0'})" :disabled="!r4ShownClasses.some(isR4Done)">🖨 列印黑白</button>
+            <button class="btn" @click="printReport('4×100 公尺接力決賽選手名單總表','範圍：'+(r4ExGrade==='all'?'全部晉級班級':ZH[r4ExGrade]+'年級晉級班級')+'（已交 '+r4ShownClasses.filter(isR4Done).length+' 班）',r4ExportRows(r4ShownClasses),'color',{checkCol:'核對',groupMode:'col0'})" :disabled="!r4ShownClasses.some(isR4Done)">🖨 彩色</button>
+            <button class="btn" @click="printReport('4×100 公尺接力決賽選手名單總表','範圍：'+(r4ExGrade==='all'?'全部晉級班級':ZH[r4ExGrade]+'年級晉級班級')+'（已交 '+r4ShownClasses.filter(isR4Done).length+' 班）',r4ExportRows(r4ShownClasses),'pdf',{checkCol:'核對',groupMode:'col0'})" :disabled="!r4ShownClasses.some(isR4Done)">📄 存成 PDF</button>
+            <button class="btn btn-primary" @click="downloadXlsx(r4ExportRows(r4ShownClasses),'4x100決賽選手名單')" :disabled="!r4ShownClasses.some(isR4Done)">📊 下載 Excel</button>
           </div>
         </div>
         <div class="bar mb-2"><i :style="{width:(r4Classes.length ? r4Done/r4Classes.length*100 : 0)+'%'}"></i></div>
         <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-          <div class="small muted">已交 <b>{{ r4Done }}</b> 班／共 {{ r4Classes.length }} 班（四～六年級）</div>
+          <div class="small muted">已交 <b>{{ r4Done }}</b> 班／共 {{ r4Classes.length }} 班（僅列有晉級決賽的班級）</div>
           <div class="seg" role="group" aria-label="篩選年級">
             <button v-for="g in ['all','4','5','6']" :key="g" :class="{on:r4ExGrade===g}" @click="r4ExGrade=g">{{ g==='all' ? '全部' : ZH[g]+'年級' }}</button>
           </div>
         </div>
-        <div class="flex flex-wrap gap-2">
-          <button v-for="c in r4ShownClasses" :key="c" :class="['chip', (st.relay4 && st.relay4[c])?'st-published':'tag-todo']" :style="(st.relay4 && st.relay4[c])?'cursor:pointer':'cursor:default'" @click="(st.relay4 && st.relay4[c]) && (r4Open = r4Open===c ? '' : c)" :title="(st.relay4 && st.relay4[c]) ? '點一下看名單' : '還沒送出'">{{ (st.relay4 && st.relay4[c]) ? '✔' : '○' }} {{ clsLabel(c) }}</button>
+        <div v-if="!r4Classes.length" class="muted small">目前尚未在 4×100 決賽項目匯入出賽班級；匯入決賽名單後這裡會自動列出晉級班級。</div>
+        <div class="flex flex-wrap gap-2" v-else>
+          <button v-for="c in r4ShownClasses" :key="c" :class="['chip', isR4Done(c)?'st-published':'tag-todo']" :style="isR4Done(c)?'cursor:pointer':'cursor:default'" @click="isR4Done(c) && (r4Open = r4Open===c ? '' : c)" :title="isR4Done(c) ? '點一下看名單' : '還沒送出'">{{ isR4Done(c) ? '✔' : '○' }} {{ clsLabel(c) }}（{{ r4ShortLabel(c) }}）</button>
         </div>
         <p class="small muted mt-2" v-if="r4Done">點綠色班級可快速展開該班棒次名單；得獎班級會自動帶入「獎狀名單」。</p>
       </div>
-      <div v-if="exTab==='r4' && r4ShownClasses.some(c=>st.relay4 && st.relay4[c])" class="card mt-4">
+      <div v-if="exTab==='r4' && r4ShownClasses.some(isR4Done)" class="card mt-4">
         <div class="flex justify-between flex-wrap gap-2 items-center mb-3">
-          <h2 class="h-sec">各班送出的 4×100 名單（{{ r4ShownClasses.filter(c=>st.relay4 && st.relay4[c]).length }} 班）</h2>
+          <h2 class="h-sec">各班送出的 4×100 決賽名單（{{ r4ShownClasses.filter(isR4Done).length }} 班）</h2>
           <button class="btn btn-sm btn-primary" @click="exTab='cert'; certFilter='relay'">🖨 看團體接力獎狀名單</button>
         </div>
-        <details v-for="c in r4ShownClasses.filter(x=>st.relay4 && st.relay4[x])" :key="c" :id="'r4ex_'+c" class="card-flat mb-2" :open="r4Open===c || r4ShownClasses.filter(x=>st.relay4 && st.relay4[x]).length<=6" @toggle="e=>{ if(e.target.open) r4Open=c; }">
+        <details v-for="c in r4ShownClasses.filter(isR4Done)" :key="c" :id="'r4ex_'+c" class="card-flat mb-2" :open="r4Open===c || r4ShownClasses.filter(isR4Done).length<=6" @toggle="e=>{ if(e.target.open) r4Open=c; }">
           <summary class="flex items-center gap-2 flex-wrap cursor-pointer" style="min-height:40px">
             <b style="font-size:17px">{{ clsLabel(c) }}</b>
+            <span class="chip st-none" style="font-size:13px">{{ r4GroupLabel(c) }}</span>
             <span class="small muted">{{ st.relay4[c].at }} 送出<template v-if="st.relay4[c].by">・{{ st.relay4[c].by }}</template></span>
           </summary>
           <div class="tblwrap mt-2">
             <table class="rtbl" style="width:100%">
-              <thead><tr><th style="width:4.5em">組別</th><th>第 1 棒</th><th>第 2 棒</th><th>第 3 棒</th><th>第 4 棒</th><th>候補</th></tr></thead>
+              <thead><tr><th style="width:4.5em">組別</th><th>道次／色別</th><th>第 1 棒</th><th>第 2 棒</th><th>第 3 棒</th><th>第 4 棒</th><th>候補</th></tr></thead>
               <tbody>
-                <tr><td style="white-space:nowrap;font-weight:700;color:var(--brand)">男生組</td><td v-for="(n,i) in (st.relay4[c].M||[])" :key="'m'+i">{{ n }}</td><td>{{ (st.relay4[c].Ms||[]).filter(Boolean).join('、') || '—' }}</td></tr>
-                <tr><td style="white-space:nowrap;font-weight:700;color:#B83280">女生組</td><td v-for="(n,i) in (st.relay4[c].F||[])" :key="'f'+i">{{ n }}</td><td>{{ (st.relay4[c].Fs||[]).filter(Boolean).join('、') || '—' }}</td></tr>
+                <tr v-if="r4FinalsOf(c).M"><td style="white-space:nowrap;font-weight:700;color:var(--brand)">男生組</td><td style="white-space:nowrap">{{ r4FinalsOf(c).entryM ? (laneText(r4FinalsOf(c).entryM) || '—') : '—' }}</td><td v-for="(n,i) in (st.relay4[c].M||[])" :key="'m'+i">{{ n }}</td><td>{{ (st.relay4[c].Ms||[]).filter(Boolean).join('、') || '—' }}</td></tr>
+                <tr v-if="r4FinalsOf(c).F"><td style="white-space:nowrap;font-weight:700;color:#B83280">女生組</td><td style="white-space:nowrap">{{ r4FinalsOf(c).entryF ? (laneText(r4FinalsOf(c).entryF) || '—') : '—' }}</td><td v-for="(n,i) in (st.relay4[c].F||[])" :key="'f'+i">{{ n }}</td><td>{{ (st.relay4[c].Fs||[]).filter(Boolean).join('、') || '—' }}</td></tr>
               </tbody>
             </table>
           </div>
@@ -3523,7 +3531,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261127221500'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261127222800'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -3747,7 +3755,7 @@ const HELP = {
 };
 /* 新功能公告：依組別顯示，每台裝置看過按「知道了」就不再出現（之後新增功能時，在最上面加一筆） */
 const WHATS_NEW = [
-  { id:'n20261127h', roles:['teacher','checkin','sport','record','control','doc'], page:'teacher', title:'🏃‍♂️ 4×100 接力選手名單開放四～六年級導師直接填報', text:'四～六年級導師在「導師查詢」點「🏃‍♂️ 4×100 選手名單」即可填寫男女生各 4 棒與 1～2 位候補（也支援從 Excel／LINE 一次貼上）；送出後自動同步到檢錄處、成績查詢（家長看遮名、老師看全名）、獎狀套印名單與「匯出與列印 → 4×100名單」。' },
+  { id:'n20261127h', roles:['teacher','checkin','sport','record','control','doc'], page:'teacher', title:'🏃‍♂️ 4×100 接力決賽選手名單開放晉級班級導師填報', text:'晉級 4×100 決賽的班級，導師在「導師查詢」會自動出現「🏃‍♂️ 4×100 選手名單」卡片（只顯示本班晉級的組別與道次色別，未晉級班級不顯示）；送出後自動同步到檢錄處、成績查詢（家長看遮名、老師看全名）、獎狀套印名單與「匯出與列印 → 4×100名單」。' },
   { id:'n20261127g', roles:['teacher','public','quest','control','record'], page:'stations', title:'🎯 體育社團體驗區全面公開＋互動發光地圖', text:'家長與老師不用登入也能打開「體育闖關」！點任一關卡按鈕或卡片，地圖上對應的體驗區立刻發光跳出定位圖釘，並即時顯示開放中／人多狀態。' },
   { id:'n20261127f', roles:['record','doc','award','medic','gift','control'], page:'export', title:'所有報表皆補上「🖨 列印黑白／彩色／存成 PDF」', text:'「獎狀名單」「獎品統計」「成績總表」「醫護紀錄」「捐贈芳名錄」都加上專屬 A4 列印按鈕，黑白列印採純黑格線、淡灰表頭、每頁自動重印表頭與核對打勾欄＋底部簽核欄，印出來整齊好核對。' },
   { id:'n20261127e', roles:['teacher','medic','gift','record','control'], page:'teacher', title:'已填報資料下次自動帶出，可直接修改錯誤處', text:'導師重新打開「全員賽跑名單」時，會自動帶出先前送出的全部名單，只需改錯字再送出；醫護站與收禮芳名錄每筆紀錄也加上「✏️ 修改」按鈕，點一下帶回表單即可修正。' },
@@ -5166,26 +5174,52 @@ createApp({
       return st.value.timeline.filter(t=>gradesIn([t.unit,(t.items||[]).join(' '),t.title,t.note].join(' ')).has(g) && !/全校/.test([t.unit,t.title].join(' ')) || (t.eventIds||[]).some(id=>teacherEvents.value.some(x=>x.ev.id===id)))
         .slice().sort((a,b)=>(toMin(tlTime(a))||0)-(toMin(tlTime(b))||0)); });
     const myProgNext = computed(()=>myProg.value.find(t=>t.status==='now') || myProg.value.find(t=>t.status==='todo') || null);
-    function isR4Cls(c){ return /^[456]-/.test(String(c||'')); }
-    const r4Classes = computed(()=>allrunClasses.value.filter(isR4Cls));
-    const r4Done = computed(()=>r4Classes.value.filter(c=>st.value.relay4 && st.value.relay4[c]).length);
-    const r4Missing = computed(()=>r4Classes.value.filter(c=>!(st.value.relay4 && st.value.relay4[c])));
+    const r4FinalsMap = computed(()=>{
+      const m = {};
+      (st.value.events||[]).filter(isR4Ev).forEach(ev=>{
+        const g = r4GenderOf(ev);
+        (ev.entries||[]).forEach(e=>{
+          const c = String(e && e.cls || '').trim(); if(!c) return;
+          if(!m[c]) m[c] = { M:false, F:false, entryM:null, entryF:null };
+          m[c][g] = true; m[c]['entry'+g] = e;
+        });
+      });
+      return m;
+    });
+    function r4FinalsOf(c){ return r4FinalsMap.value[c] || { M:false, F:false, entryM:null, entryF:null }; }
+    function isR4Cls(c){ const f = r4FinalsOf(c); return !!(f.M || f.F); }
+    function isR4Done(c){
+      const f = r4FinalsOf(c); if(!f.M && !f.F) return false;
+      const d = st.value.relay4 && st.value.relay4[c]; if(!d) return false;
+      const okM = !f.M || ((d.M||[]).filter(x=>String(x||'').trim()).length>=4);
+      const okF = !f.F || ((d.F||[]).filter(x=>String(x||'').trim()).length>=4);
+      return okM && okF;
+    }
+    function r4GroupLabel(c){ const f = r4FinalsOf(c); return [f.M?'男生組':'', f.F?'女生組':''].filter(Boolean).join('・'); }
+    function r4ShortLabel(c){ const f = r4FinalsOf(c); return [f.M?'男':'', f.F?'女':''].filter(Boolean).join('・'); }
+    const r4Classes = computed(()=>{
+      const base = allrunClasses.value.filter(isR4Cls);
+      const extra = Object.keys(r4FinalsMap.value).filter(c=>!base.includes(c)).sort();
+      return [...base, ...extra];
+    });
+    const r4Done = computed(()=>r4Classes.value.filter(isR4Done).length);
+    const r4Missing = computed(()=>r4Classes.value.filter(c=>!isR4Done(c)));
     const r4ExGrade = ref('all');
     const r4Open = ref('');
     watch(r4Open, c=>{ if(c) nextTick(()=>{ const el=document.getElementById('r4ex_'+c); if(el){ el.open=true; el.scrollIntoView({ behavior:'smooth', block:'center' }); } }); });
     const r4ShownClasses = computed(()=>r4Classes.value.filter(c=>r4ExGrade.value==='all' || String(c).startsWith(r4ExGrade.value+'-')));
-    const r4RemindText = computed(()=>'各位四～六年級導師您好：\n4×100 公尺接力選手名單尚未填報的班級如下，再麻煩撥冗至運動會系統「導師查詢 → 4×100 選手名單」填寫，謝謝您的協助！\n'+r4Missing.value.map(clsLabel).join('、')+'\n——體育組／紀錄組 敬上');
+    const r4RemindText = computed(()=>'各位晉級 4×100 公尺接力決賽的導師您好：\n尚未填報 4×100 選手名單的班級如下（括號為晉級組別），再麻煩撥冗至運動會系統「導師查詢 → 4×100 選手名單」填寫，謝謝您的協助！\n'+r4Missing.value.map(c=>clsLabel(c)+'（'+r4ShortLabel(c)+'）').join('、')+'\n——體育組／紀錄組 敬上');
     function r4ExportRows(classes){
-      const rows=[['年級','班級','組別','第1棒','第2棒','第3棒','第4棒','候補1','候補2','送出時間','填報人']];
-      (classes||[]).filter(c=>st.value.relay4 && st.value.relay4[c]).forEach(c=>{
-        const d=st.value.relay4[c], g=ZH[+String(c)[0]]+'年級';
+      const rows=[['年級','班級','組別','道次／色別','第1棒','第2棒','第3棒','第4棒','候補1','候補2','送出時間','填報人']];
+      (classes||[]).filter(isR4Done).forEach(c=>{
+        const f=r4FinalsOf(c), d=st.value.relay4[c], g=ZH[+String(c)[0]]+'年級';
         const M=d.M||[], Ms=d.Ms||[], F=d.F||[], Fs=d.Fs||[];
-        rows.push([g, clsLabel(c), '男生組', M[0]||'', M[1]||'', M[2]||'', M[3]||'', Ms[0]||'', Ms[1]||'', d.at||'', d.by||'']);
-        rows.push([g, clsLabel(c), '女生組', F[0]||'', F[1]||'', F[2]||'', F[3]||'', Fs[0]||'', Fs[1]||'', d.at||'', d.by||'']);
+        if(f.M) rows.push([g, clsLabel(c), '男生組', f.entryM ? (laneText(f.entryM)||'') : '', M[0]||'', M[1]||'', M[2]||'', M[3]||'', Ms[0]||'', Ms[1]||'', d.at||'', d.by||'']);
+        if(f.F) rows.push([g, clsLabel(c), '女生組', f.entryF ? (laneText(f.entryF)||'') : '', F[0]||'', F[1]||'', F[2]||'', F[3]||'', Fs[0]||'', Fs[1]||'', d.at||'', d.by||'']);
       });
       return rows;
     }
-    const tTodo = computed(()=>(tCls.value && !st.value.allrun[tCls.value] ? 1 : 0) + (isR4Cls(tCls.value) && !(st.value.relay4 && st.value.relay4[tCls.value]) ? 1 : 0) + teacherNotices.value.filter(n=>n.icon==='📋' || n.icon==='⏰').length + teacherCalls.value.filter(c=>c.b.status==='ready').length);
+    const tTodo = computed(()=>(tCls.value && !st.value.allrun[tCls.value] ? 1 : 0) + (isR4Cls(tCls.value) && !isR4Done(tCls.value) ? 1 : 0) + teacherNotices.value.filter(n=>n.icon==='📋' || n.icon==='⏰').length + teacherCalls.value.filter(c=>c.b.status==='ready').length);
     /* ▶ 接手的老師：導師「提前檢錄提醒」的時間在這裡改
        TEACHER_LEAD＝檢錄前幾分鐘開始提醒；CHECK_BEFORE＝節目單沒寫檢錄時間時，預設比賽開始前幾分鐘檢錄 */
     const TEACHER_LEAD = 30, CHECK_BEFORE = 10;
@@ -5228,12 +5262,17 @@ createApp({
       const cleanLine = l => l.replace(/^(男|女)(生|生組|子|子組)?[:：\s]*/,'').replace(/候補[:：\s]*/g,' ')
         .split(/[\t,，、;；|｜]+|\s+/).map(x=>x.trim().replace(/^[①②③④\d]+[.、．)]*/,'')).filter(Boolean)
         .filter(x=>!/^(第?[1-4一二三四]棒|候補[12一二]?|男生組?|女生組?)$/.test(x));
+      const f = r4FinalsOf(tCls.value);
       const lines = t.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
       let mArr=[], fArr=[];
       const mLine = lines.find(l=>/^男/.test(l)), fLine = lines.find(l=>/^女/.test(l));
       if(mLine || fLine){
         if(mLine) mArr = cleanLine(mLine);
         if(fLine) fArr = cleanLine(fLine);
+      } else if(f.M && !f.F){
+        mArr = lines.flatMap(cleanLine);
+      } else if(f.F && !f.M){
+        fArr = lines.flatMap(cleanLine);
       } else if(lines.length >= 2){
         mArr = cleanLine(lines[0]); fArr = cleanLine(lines[1]);
       } else {
@@ -5248,23 +5287,27 @@ createApp({
       };
     });
     function applyR4Paste(){
-      const p = r4PasteParsed.value;
-      if(!p.M.some(Boolean) && !p.F.some(Boolean)) return;
-      if(p.M.some(Boolean)){ r4Draft.M = [...p.M]; r4Draft.Ms = [...p.Ms]; }
-      if(p.F.some(Boolean)){ r4Draft.F = [...p.F]; r4Draft.Fs = [...p.Fs]; }
+      const p = r4PasteParsed.value, f = r4FinalsOf(tCls.value);
+      if(!(f.M && p.M.some(Boolean)) && !(f.F && p.F.some(Boolean))) return;
+      if(f.M && p.M.some(Boolean)){ r4Draft.M = [...p.M]; r4Draft.Ms = [...p.Ms]; }
+      if(f.F && p.F.some(Boolean)){ r4Draft.F = [...p.F]; r4Draft.Fs = [...p.Fs]; }
       r4Tried.value = false; r4Paste.value = '';
       toast('已填入 4×100 名單，請核對棒次後按送出');
     }
     const R4_ORDER = ['r4M_0','r4M_1','r4M_2','r4M_3','r4Ms_0','r4Ms_1','r4F_0','r4F_1','r4F_2','r4F_3','r4Fs_0','r4Fs_1','r4Submit'];
-    function r4Next(sec, idx){ const cur='r4'+sec+'_'+idx, pos=R4_ORDER.indexOf(cur), el=document.getElementById(R4_ORDER[pos+1]||'r4Submit'); if(el) el.focus(); }
+    function r4Next(sec, idx){
+      const cur='r4'+sec+'_'+idx, start=R4_ORDER.indexOf(cur)+1;
+      for(let i=start; i<R4_ORDER.length; i++){ const el=document.getElementById(R4_ORDER[i]); if(el){ el.focus(); return; } }
+    }
     function submitR4(){
       if(!need('allrun')) return;
-      if(!isR4Cls(tCls.value)){ toast('4×100 公尺接力為四～六年級項目',true); return; }
+      const f = r4FinalsOf(tCls.value);
+      if(!f.M && !f.F){ toast('本班未晉級 4×100 公尺接力決賽，無需填報',true); return; }
       if(FORMAL && !arHelper.value && !can('data') && ownCls.value && tCls.value!==ownCls.value){ toast('只能送自己班的名單；老師請假時請總控幫忙填',true); return; }
       r4Tried.value = true;
-      const M = r4Draft.M.map(x=>String(x||'').trim()), Ms = r4Draft.Ms.map(x=>String(x||'').trim()).filter(Boolean);
-      const F = r4Draft.F.map(x=>String(x||'').trim()), Fs = r4Draft.Fs.map(x=>String(x||'').trim()).filter(Boolean);
-      if(M.some(n=>!n) || F.some(n=>!n)){ toast('男生組 4 棒與女生組 4 棒皆為必填，請補齊空白欄位',true); return; }
+      const M = f.M ? r4Draft.M.map(x=>String(x||'').trim()) : [], Ms = f.M ? r4Draft.Ms.map(x=>String(x||'').trim()).filter(Boolean) : [];
+      const F = f.F ? r4Draft.F.map(x=>String(x||'').trim()) : [], Fs = f.F ? r4Draft.Fs.map(x=>String(x||'').trim()).filter(Boolean) : [];
+      if((f.M && M.some(n=>!n)) || (f.F && F.some(n=>!n))){ toast('晉級組別的第 1～4 棒皆為必填，請補齊空白欄位',true); return; }
       const dupOf = arr => [...new Set(arr.filter((n,i)=>arr.indexOf(n)!==i))];
       const dm = dupOf([...M,...Ms]), df = dupOf([...F,...Fs]);
       if(dm.length){ toast('男生組有重複姓名：'+dm.join('、'),true); return; }
@@ -5275,7 +5318,7 @@ createApp({
         M, Ms, F, Fs,
         by:(FORMAL && fb.user ? String(fb.user.name||fb.email) : roleObj.value.name)
       };
-      log('4×100 選手名單送出：'+clsLabel(tCls.value));
+      log('4×100 決賽選手名單送出：'+clsLabel(tCls.value)+'（'+r4GroupLabel(tCls.value)+'）');
       toast('已送出 4×100 選手名單！已自動同步檢錄處與獎狀名單');
     }
     const arDraft = reactive({ count:5, groups:[] });
@@ -5942,7 +5985,7 @@ createApp({
     onMounted(()=>{ readHash(); if(!hashGiven && isPublicView.value) page.value='board'; loadDraft(); loadR4Draft(); syncLiveDraft(); renderQR(); if(FORMAL) fbInit(); else initCloud(); });
 
     return { bt, toggleRec, recEditMode, recordList, st, role, page, helpOpen, newsOpen, tOpen, openHomeFlow, checkTimeOf, ownCls, tClsEdit, backToOwnCls, arHelper, arSheet, arSheetDone, arSheetMissing, printAr, printPage, rptData, printReport, downloadArXlsx, savePdf, pageXlsx, openT, tHelloName, myProg, myProgNext, tTodo, teacherNotices, acctMgr, isCtrlEmail, closeHelp, newsList, dismissNews, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
-      isR4Cls, isR4Ev, r4RosterOf, r4LineText, r4Classes, r4Done, r4Missing, r4ExGrade, r4Open, r4ShownClasses, r4RemindText, r4ExportRows, r4Draft, r4Tried, r4Paste, r4PasteParsed, applyR4Paste, r4Next, submitR4, loadR4Draft,
+      isR4Cls, isR4Done, r4FinalsOf, r4GroupLabel, r4ShortLabel, isR4Ev, r4RosterOf, r4LineText, r4Classes, r4Done, r4Missing, r4ExGrade, r4Open, r4ShownClasses, r4RemindText, r4ExportRows, r4Draft, r4Tried, r4Paste, r4PasteParsed, applyR4Paste, r4Next, submitR4, loadR4Draft,
       SHORT, arOpen, homeroomDraft, homeroomRows, homeroomLogins, saveHomeroom, myHomeroom, onHrInput, cd, pad, insertOpen, openInsert, promptGroup, promptNext, scriptState, jumpScripts, ringLong, toggleRing, refOk, refChanged, confirmRef, needRef, doneTab, doneShown, restoreBc, scriptLib, scriptsOf, scriptGroups, nextScriptGroup, sf, editScript, saveScript, removeScript, moveScript, queueScript, sPaste, sParsed, importScripts, canBc, pushState, registerPush, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
       drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, arFull, AR_PUB_OPTS, arPubGrades, toggleArPub, arPubGradeText, arPubShown, PG_GRADES, pgGrade, progList, progLeave, shiftHM, flashLine, reportLine, TICKER_TPL, tkOpen, tk, tickerMsgs, hhmmOf, addTicker, removeTicker, canFixName, fixName, overdueTl, overdueSnoozed, snoozeOverdue, remindControl, setAutoFlow, ADHOC_TPL, adhocOpen, adhoc, useAdhocTpl, addAdhoc, tlRange, tlNo, mcScriptOf, prepScriptOf, nextMinsLeft, scheduledTl, mcProgOpen, applyProgram, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
