@@ -1611,6 +1611,12 @@ html.ov-transparent body::before{ display:none; }
               <td data-label="成績" class="num">{{ a.mark }}</td>
             </tr></tbody>
           </table>
+          <div class="flex flex-wrap gap-2 mt-3 items-center no-print">
+            <button class="btn btn-primary" @click="printAr('bw')" :disabled="!teacherAwards.length && !st.allrun[tCls]">🖨 列印本班成績單（黑白）</button>
+            <button class="btn" @click="printAr('color')" :disabled="!teacherAwards.length && !st.allrun[tCls]">🖨 彩色</button>
+            <button class="btn" @click="savePdf" :disabled="!teacherAwards.length && !st.allrun[tCls]">📄 存成 PDF</button>
+            <button class="btn" @click="go('sheets')">📋 前往全校成績單列印</button>
+          </div>
         </div>
       </div>
       <!-- 列印用（螢幕上看不到）：按頁首「列印」只印這張本班得獎名單 A4 -->
@@ -3021,7 +3027,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261127095500'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261127100500'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -3114,7 +3120,7 @@ const ROLES = [
   { id:'award',   name:'頒獎組・獎品組',  pages:['awards','sheets','export','board'], duty:'安排各梯次主要與備援頒獎人、公布頒獎集合、準備獎品' },
   { id:'live',    name:'攝影組（直播）',  pages:['live','board'], duty:'直播網址與 QR Code、直播疊字畫面、標記精彩時刻' },
   { id:'doc',     name:'文書組',          pages:['export','guests','board'], duty:'下載獎狀名單套印、來賓名單' },
-  { id:'teacher', name:'班級導師',        pages:['teacher','watch','program','board'], duty:'查本班出賽與得獎、填報全員賽跑名單' },
+  { id:'teacher', name:'班級導師',        pages:['teacher','sheets','watch','program','board'], duty:'查本班出賽與得獎、填報全員賽跑名單、列印成績單' },
   { id:'ceremony',name:'典禮組',          pages:['awards','mc','board'], duty:'開幕、運動員進退場、協助頒獎與典禮 PO 文' },
   { id:'equip',   name:'器材組',          pages:['equip','reports','board'], duty:'依流程配送器材（接力棒、頭巾…）；開始檢錄時系統自動提醒' },
   { id:'medic',   name:'醫護組',          pages:['medical','reports','board'], duty:'醫藥準備、傷病處理與紀錄（資料只有醫護組、總控、紀錄組看得到）' },
@@ -3245,6 +3251,7 @@ const HELP = {
 };
 /* 新功能公告：依組別顯示，每台裝置看過按「知道了」就不再出現（之後新增功能時，在最上面加一筆） */
 const WHATS_NEW = [
+  { id:'n20261127d', roles:['teacher','record','control'], page:'teacher', title:'導師查詢與選單可直接列印黑白／彩色成績單', text:'班級導師在「導師查詢 → 本班得獎」下方可直接一鍵列印本班成績單（黑白／彩色／存成 PDF），左側選單也開放「成績單列印」，方便印出個人賽、團體賽與全員賽跑名單。' },
   { id:'n20261127c', roles:['teacher','record','control'], page:'teacher', title:'全員賽跑名單可以一次貼上', text:'在「全員賽跑 得獎名單填報」打開「📋 從 Excel／LINE 一次貼上」，一組一行貼上名字（或從 Excel 複製三欄），按「填入下面表格」就全部填好，核對後送出。逐格打字時按 Enter 會自動跳到下一格。組數可選 3～8 組。' },
   { id:'n20261127b', roles:['record','sport','control','mc','award'], page:'results', title:'🏆 破大會紀錄醒目標示', text:'紀錄組在「成績查詢」前六名旁按「標記破紀錄」，該筆成績就會在成績查詢、大會看板、跑馬燈、司儀播報稿、成績單、獎狀名冊與 PO 文都顯示「🏆 破大會紀錄」。標錯了再按一次「取消破紀錄」即可。' },
   { id:'n20261127a', roles:['record','sport','checkin','mc','control'], page:'review', title:'學生全名只給登入的學校人員看', text:'比賽成績在資料庫裡只存「王○明」，全名另外存在只有學校帳號登入才讀得到的地方。登入的工作人員（含司儀台講稿）照常看到全名；家長、大螢幕、沒登入的人只看到遮名。輸入或修改姓名的方式不變。' },
@@ -3693,8 +3700,18 @@ createApp({
       if(ev.better==='place'){ list.forEach(x=>{ const p=parseInt(x.e.place); x.place=(x.e.dq||!p)?null:p; }); }
       else{
         const ok=list.filter(x=>!x.e.dq && x.e.mark!=='' && !isNaN(parseFloat(x.e.mark)));
-        ok.sort((a,b)=> ev.better==='low' ? parseFloat(a.e.mark)-parseFloat(b.e.mark) : parseFloat(b.e.mark)-parseFloat(a.e.mark));
-        let prev=null, place=0; ok.forEach((x,i)=>{ const m=parseFloat(x.e.mark); if(m!==prev){ place=i+1; prev=m; } x.place=place; });
+        ok.sort((a,b)=>{
+          const d = ev.better==='low' ? parseFloat(a.e.mark)-parseFloat(b.e.mark) : parseFloat(b.e.mark)-parseFloat(a.e.mark);
+          if(d!==0) return d;
+          const pa=parseInt(a.e.place)||999, pb=parseInt(b.e.place)||999;
+          return pa-pb;
+        });
+        let prev=null, prevP=null, place=0;
+        ok.forEach((x,i)=>{
+          const m=parseFloat(x.e.mark), ep=parseInt(x.e.place)||0;
+          if(m!==prev || (ep && prevP && ep!==prevP)){ place=i+1; prev=m; prevP=ep||null; }
+          x.place=place;
+        });
       }
       return list.sort((a,b)=>(a.place||999)-(b.place||999));
     }
@@ -4378,7 +4395,7 @@ createApp({
     const sheetOpt = reactive({ kind:'all', group:'batch', grade:0, pubOnly:true, sign:true, all:false, breakEach:true, presenter:false, arMissing:true });
     /* 全員賽跑列印：依年級分組（9＝幼兒園・天使班） */
     /* 頁首「列印」：頁面裡有標 .print-target 的區塊（得獎名單）時，只印那些區塊，其他（搜尋、說明、卡片）都不印 */
-    function printPage(mode){ const main=document.querySelector('.main'); const targets=main ? [...main.querySelectorAll('.print-target')] : [];
+    function printPage(mode){ stampSheet(); const main=document.querySelector('.main'); const targets=main ? [...main.querySelectorAll('.print-target')] : [];
       if(!targets.length){ doPrint(mode); return; }
       const hidden=[], opened=[];
       const walk=el=>{ [...el.children].forEach(ch=>{ if(targets.includes(ch)) return; if(targets.some(t=>ch.contains(t))) walk(ch); else { ch.classList.add('pf-hide'); hidden.push(ch); } }); };
@@ -5202,7 +5219,7 @@ createApp({
     watch(myHomeroom, c=>{ if(c && !hrApplied){ hrApplied=true; if(c!==tCls.value){ tCls.value=c; toast('已依你的帳號切換到 '+clsLabel(c)); } } }); // 放在 fb 建立之後（避免初始化順序錯誤）
     onMounted(()=>{ readHash(); if(!hashGiven && isPublicView.value) page.value='board'; loadDraft(); syncLiveDraft(); renderQR(); if(FORMAL) fbInit(); else initCloud(); });
 
-    return { bt, toggleRec, recordList, st, role, page, helpOpen, newsOpen, tOpen, openHomeFlow, checkTimeOf, ownCls, tClsEdit, backToOwnCls, arHelper, arSheet, arSheetDone, arSheetMissing, printAr, printPage, downloadArXlsx, savePdf, pageXlsx, arSheet, arSheetDone, arSheetMissing, printAr, openT, tHelloName, myProg, myProgNext, tTodo, teacherNotices, acctMgr, isCtrlEmail, closeHelp, newsList, dismissNews, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
+    return { bt, toggleRec, recordList, st, role, page, helpOpen, newsOpen, tOpen, openHomeFlow, checkTimeOf, ownCls, tClsEdit, backToOwnCls, arHelper, arSheet, arSheetDone, arSheetMissing, printAr, printPage, downloadArXlsx, savePdf, pageXlsx, openT, tHelloName, myProg, myProgNext, tTodo, teacherNotices, acctMgr, isCtrlEmail, closeHelp, newsList, dismissNews, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
       SHORT, arOpen, homeroomDraft, homeroomRows, homeroomLogins, saveHomeroom, myHomeroom, onHrInput, cd, pad, insertOpen, openInsert, promptGroup, promptNext, scriptState, jumpScripts, ringLong, toggleRing, refOk, refChanged, confirmRef, needRef, doneTab, doneShown, restoreBc, scriptLib, scriptsOf, scriptGroups, nextScriptGroup, sf, editScript, saveScript, removeScript, moveScript, queueScript, sPaste, sParsed, importScripts, canBc, pushState, registerPush, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
       drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, arFull, AR_PUB_OPTS, arPubGrades, toggleArPub, arPubGradeText, arPubShown, PG_GRADES, pgGrade, progList, progLeave, shiftHM, flashLine, reportLine, TICKER_TPL, tkOpen, tk, tickerMsgs, hhmmOf, addTicker, removeTicker, canFixName, fixName, overdueTl, overdueSnoozed, snoozeOverdue, remindControl, setAutoFlow, ADHOC_TPL, adhocOpen, adhoc, useAdhocTpl, addAdhoc, tlRange, tlNo, mcScriptOf, prepScriptOf, nextMinsLeft, scheduledTl, mcProgOpen, applyProgram, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
