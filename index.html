@@ -1103,7 +1103,7 @@ html.ov-transparent body::before{ display:none; }
                 <td><medal-icon :p="x.place" :size="x.place===1 ? 42 : 38"></medal-icon></td>
                 <td>{{ clsLabel(x.e.cls) }}</td>
                 <td v-if="!ev.team">{{ pn(x.e.name) }}</td>
-                <td class="num r" style="font-size:19px;font-weight:700">{{ fmtMark(ev,x.e) }}<span v-if="x.e.record" class="rec-badge">🏆 破大會紀錄</span><button v-if="can('publish') && fullResults && x.place && x.place<=6" class="rec-btn no-print" @click="toggleRec(ev,x.e)" :title="x.e.record ? '取消破紀錄標記' : '標記為破大會紀錄'">{{ x.e.record ? '取消破紀錄' : '標記破紀錄' }}</button></td>
+                <td class="num r" style="font-size:19px;font-weight:700">{{ fmtMark(ev,x.e) }}<span v-if="x.tieBreak" style="display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:12px;font-weight:700;background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;vertical-align:middle">比次佳成績</span><span v-if="x.e.record" class="rec-badge">🏆 破大會紀錄</span><button v-if="can('publish') && fullResults && x.place && x.place<=6" class="rec-btn no-print" @click="toggleRec(ev,x.e)" :title="x.e.record ? '取消破紀錄標記' : '標記為破大會紀錄'">{{ x.e.record ? '取消破紀錄' : '標記破紀錄' }}</button></td>
               </tr>
             </tbody>
           </table>
@@ -2181,7 +2181,7 @@ html.ov-transparent body::before{ display:none; }
                   <td><span :class="['sh-place', r.place && r.place<=3 ? 'p'+r.place : '']">{{ r.place ? '第'+ZH[r.place]+'名' : (r.dq ? '棄權' : '—') }}</span></td>
                   <td class="sh-cls">{{ r.cls }}</td>
                   <td class="sh-name" v-if="!ev.team">{{ r.name }}</td>
-                  <td class="sh-mark">{{ r.mark }}<span v-if="r.rec" class="rec-badge">🏆 破大會紀錄</span></td>
+                  <td class="sh-mark">{{ r.mark }}<span v-if="r.tieBreak" style="font-size:12px;color:#475569;font-weight:700;margin-left:4px">（比次佳成績）</span><span v-if="r.rec" class="rec-badge">🏆 破大會紀錄</span></td>
                   <td class="sh-sign" v-if="sheetOpt.sign"><span class="sh-chk" aria-hidden="true"></span></td>
                 </tr>
               </tbody>
@@ -3037,7 +3037,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261127105500'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261127110200'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -3710,9 +3710,26 @@ createApp({
       const list=ev.entries.map(e=>({ e, place:null }));
       if(ev.better==='place'){ list.forEach(x=>{ const p=parseInt(x.e.place); x.place=(x.e.dq||!p)?null:p; }); }
       else{
+        const tryNums = e => Array.isArray(e.tries) ? e.tries.map(v=>parseFloat(v)).filter(n=>!isNaN(n) && n>0).sort((a,b)=>b-a) : [];
+        const cmpTry = (a,b) => { const ta=tryNums(a.e), tb=tryNums(b.e); for(let k=1;k<Math.max(ta.length,tb.length);k++){ const d=(tb[k]||0)-(ta[k]||0); if(d!==0) return d; } return 0; };
         const ok=list.filter(x=>!x.e.dq && x.e.mark!=='' && !isNaN(parseFloat(x.e.mark)));
-        ok.sort((a,b)=> ev.better==='low' ? parseFloat(a.e.mark)-parseFloat(b.e.mark) : parseFloat(b.e.mark)-parseFloat(a.e.mark));
-        let prev=null, place=0; ok.forEach((x,i)=>{ const m=parseFloat(x.e.mark); if(m!==prev){ place=i+1; prev=m; } x.place=place; });
+        ok.sort((a,b)=>{
+          const d = ev.better==='low' ? parseFloat(a.e.mark)-parseFloat(b.e.mark) : parseFloat(b.e.mark)-parseFloat(a.e.mark);
+          if(d!==0) return d;
+          if(ev.cat==='field'){ const td=cmpTry(a,b); if(td!==0) return td; }
+          const pa=parseInt(a.e.place)||999, pb=parseInt(b.e.place)||999;
+          return pa-pb;
+        });
+        let prev=null, prevItem=null, place=0;
+        ok.forEach((x,i)=>{
+          const m=parseFloat(x.e.mark), ep=parseInt(x.e.place)||0, pp=prevItem?(parseInt(prevItem.e.place)||0):0;
+          const diffTry = prevItem && ev.cat==='field' && cmpTry(prevItem, x)!==0;
+          const diffPlace = ep && pp && ep!==pp;
+          if(m!==prev || diffTry || diffPlace){ place=i+1; prev=m; }
+          prevItem=x; x.place=place;
+        });
+        const byMark={}; ok.forEach(x=>{ const k=parseFloat(x.e.mark).toFixed(2); (byMark[k]=byMark[k]||[]).push(x); });
+        Object.values(byMark).forEach(arr=>{ if(arr.length>1 && new Set(arr.map(x=>x.place)).size>1) arr.forEach(x=>{ x.tieBreak=true; }); });
       }
       return list.sort((a,b)=>(a.place||999)-(b.place||999));
     }
@@ -4430,7 +4447,7 @@ createApp({
       return out; });
     function sheetRows(ev){
       if(!isPub(ev) && !ev.entries.some(x=>x.mark!=='' || x.place)){ return Array.from({ length:ev.awardTop }, (_,i)=>({ key:'b'+i, place:i+1, cls:'', name:'', mark:'' })); }
-      return ranked(ev).filter(x=>sheetOpt.all || (x.place && x.place<=ev.awardTop)).map(x=>({ key:x.e.id, place:x.place, dq:x.e.dq, cls:clsLabel(x.e.cls), name:x.e.name||'', mark:fmtMark(ev,x.e), rec:!!x.e.record }));
+      return ranked(ev).filter(x=>sheetOpt.all || (x.place && x.place<=ev.awardTop)).map(x=>({ key:x.e.id, place:x.place, dq:x.e.dq, cls:clsLabel(x.e.cls), name:x.e.name||'', mark:fmtMark(ev,x.e), rec:!!x.e.record, tieBreak:!!x.tieBreak }));
     }
     const sheetChamp = computed(()=>{ if(!['champ','all'].includes(sheetOpt.kind)) return []; const sc=st.value.settings.scoring;
       return sc.grades.filter(g=>!sheetOpt.grade || g===sheetOpt.grade).map(g=>({ grade:g, rows:(standings.value[g]||[]).slice(0, sheetOpt.all ? 99 : sc.champTop).map((r,i)=>({ ...r, place:i+1 })) }))
