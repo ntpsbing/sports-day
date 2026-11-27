@@ -1774,7 +1774,7 @@ html.ov-transparent body::before{ display:none; }
       <div class="t-card hot mb-4" style="cursor:default" v-if="pendingBc.length">
         <span class="t-row"><span class="t-ic">🎤</span><b>現在唸這段</b><span class="pill pill-todo">還沒播{{ pendingBc.length>1 ? '・後面還有 '+(pendingBc.length-1)+' 則' : '' }}</span></span>
         <span class="small muted"><span class="chip" :style="bcStyle(pendingBc[0].type)">{{ BC[pendingBc[0].type] }}<span v-if="pendingBc[0].title">：{{ pendingBc[0].title }}</span></span>　{{ pendingBc[0].at }}<template v-if="pendingBc[0].by">・{{ pendingBc[0].by }}</template></span>
-        <div class="mc-card">{{ pendingBc[0].text }}</div>
+        <div class="mc-card">{{ bt(pendingBc[0].text) }}</div>
         <button class="t-btn primary" style="border:0;cursor:pointer;font-size:19px;padding:14px" v-if="can('mc')" @click="doneBc(pendingBc[0])">唸完了，按這裡</button>
       </div>
       <div class="t-card mb-4" style="cursor:default" v-else>
@@ -1848,7 +1848,7 @@ html.ov-transparent body::before{ display:none; }
       <div v-else-if="can('mc')" class="card-flat mb-4 small flex items-center gap-2 flex-wrap">📜 還沒有講稿。司儀自己有一套講稿的話，可以一次貼上，總控按流程「開始」時會自動跳出來。<button class="btn btn-sm btn-primary" @click="jumpScripts">新增／貼上講稿</button></div>
       <div v-for="u in urgentBc" :key="u.id" class="urgent mb-4" role="alert">
         <div class="flex items-center justify-between gap-2 flex-wrap"><span class="chip" style="background:#fff;color:#B42318">⚠ 緊急更正・{{ u.at }}</span><span class="flex gap-2"><button class="btn" style="background:#fff;color:#B42318;border:0" @click="doneBc(u)">已播報</button><button v-if="canWithdrawB(u)" class="btn" style="background:transparent;color:#fff;border:1.5px solid #fff" @click="withdrawBc(u)">取消這則</button></span></div>
-        <div class="mt-2" style="font-size:26px;font-weight:900;line-height:1.5">{{ u.text }}</div>
+        <div class="mt-2" style="font-size:26px;font-weight:900;line-height:1.5">{{ bt(u.text) }}</div>
       </div>
       <div class="grid gap-4" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr))">
         <div style="min-width:0">
@@ -1859,7 +1859,7 @@ html.ov-transparent body::before{ display:none; }
               <span class="chip" :style="bcStyle(b.type)">{{ BC[b.type] }}<span v-if="b.title">：{{ b.title }}</span></span>
               <span class="small muted num">{{ b.at }}</span>
             </div>
-            <div class="mc-card">{{ b.text }}</div>
+            <div class="mc-card">{{ bt(b.text) }}</div>
             <div class="flex gap-2 mt-3 flex-wrap">
               <button class="btn btn-ok" @click="doneBc(b)">已播報</button>
               <button class="btn btn-sm" @click="copy(b.text)">複製文字</button>
@@ -2997,7 +2997,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261127090000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261127100000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -3221,6 +3221,7 @@ const HELP = {
 };
 /* 新功能公告：依組別顯示，每台裝置看過按「知道了」就不再出現（之後新增功能時，在最上面加一筆） */
 const WHATS_NEW = [
+  { id:'n20261127a', roles:['record','sport','checkin','mc','control'], page:'review', title:'學生全名只給登入的學校人員看', text:'比賽成績在資料庫裡只存「王○明」，全名另外存在只有學校帳號登入才讀得到的地方。登入的工作人員（含司儀台講稿）照常看到全名；家長、大螢幕、沒登入的人只看到遮名。輸入或修改姓名的方式不變。' },
   { id:'n20261126b', roles:['sport','record','control'], page:'score', title:'田賽成績登錄新增「三次試跳／試擲」自動取最佳', text:'跳遠、壘球擲遠、樂樂棒球擲遠在「成績登錄」新增第一次、第二次、第三次三格，可填數字、X（犯規）或 O（免跳），系統自動算出最佳成績並保存原始紀錄；「審核公布」也看得到三次原始紀錄。' },
   { id:'n20261126a', roles:['checkin','sport','record','control'], page:'checkin', title:'檢錄與成績登錄支援「道次＋衣服顏色」標記', text:'有設定道次與衣服顏色的項目（例如 4×100 公尺接力決賽），檢錄頁與成績登錄頁會自動依第 1～6 道順序排列，並用紅、橙、黃、綠、藍、紫醒目標記（填 1～6 道也會自動對應 6 色），現場點名與計時一眼就看懂。' },
   { id:'n20261125l', roles:['teacher','public','control','record'], page:'results', title:'家長看得到低年級全員賽跑成績', text:'導師在「導師查詢」送出全員賽跑每組前三名後，會馬上出現在「成績查詢」頁最下方（家長看到遮名，例如王○明）。要公開哪些年級，在成績查詢頁的全員賽跑區或「積分與設定」最上方點年級切換。' },
@@ -3652,7 +3653,11 @@ createApp({
 
     function toast(text,bad){ const id=uid(); toasts.value.push({id,text,bad}); setTimeout(()=>{ toasts.value=toasts.value.filter(t=>t.id!==id); },2800); }
     function log(text){ st.value.logs.unshift({ id:'l'+Date.now()+uid(), ts:Date.now(), at:hhmm(), role:roleObj.value.name, by:FORMAL?fb.email:'', text }); if(st.value.logs.length>300) st.value.logs.length=300; }
-    function bc(type,text,extra){ st.value.broadcasts.push(Object.assign({ id:'b'+Date.now()+uid(), ts:Date.now(), type, text, at:hhmm(), done:false, by:roleObj.value.name, byEmail:FORMAL?fb.email:'', byDev:tabId }, extra||{})); }
+    /* 廣播稿存進資料庫前把學生全名換成「王○明」（廣播資料任何人都讀得到）；司儀等登入的工作人員畫面再換回全名 */
+    function stuPairs(){ const out=[]; (st.value.events||[]).forEach(e=>(e.entries||[]).forEach(x=>{ if(x && isFullName(x.name)) out.push([clsLabel(x.cls)+' '+x.name, clsLabel(x.cls)+' '+maskName(x.name)]); })); return out.sort((a,b)=>b[0].length-a[0].length); }
+    function maskStu(t){ t=String(t||''); if(!FORMAL) return t; stuPairs().forEach(([f,m])=>{ if(t.includes(f)) t=t.split(f).join(m); }); return t; }
+    function bt(t){ t=String(t||''); if(maskOn.value || !FORMAL || !fb.user) return t; stuPairs().forEach(([f,m])=>{ if(t.includes(m)) t=t.split(m).join(f); }); return t; }
+    function bc(type,text,extra){ text=maskStu(text); st.value.broadcasts.push(Object.assign({ id:'b'+Date.now()+uid(), ts:Date.now(), type, text, at:hhmm(), done:false, by:roleObj.value.name, byEmail:FORMAL?fb.email:'', byDev:tabId }, extra||{})); }
     function ask(text,fn){ modal.value={ text, onOk:fn, okText:'確定' }; }
     function modalOk(){ const m=modal.value; modal.value=null; m.onOk && m.onOk(m.input); }
 
@@ -4918,7 +4923,15 @@ createApp({
        ・權限由雲端規則（firestore.rules）再檢查一次，畫面上的限制只是第一道
        ===================================================================== */
     const ARR_COLS=['events','timeline','guests','batches','broadcasts','logs','reports','medical','equip','gifts','stations'];
-    const fb = reactive({ on:FORMAL, user:null, email:'', admin:false, role:'public', myRoles:[], ready:false, empty:false, online:true, pending:0, latency:null, lastAck:'', err:'', devices:[], roles:[], users:[], roster:'', rosterAuto:true, seen:{} });
+    /* ----- 學生全名保護：比賽項目（events）任何人都讀得到，所以資料庫裡只存「王○明」；
+       全名另存 names/{項目} = { m:{ 選手id:全名 } }，只有登入的學校人員讀得到，讀到後在這台裝置補回全名 ----- */
+    const fullNames = reactive({});
+    function isFullName(n){ n=String(n||''); return n.length>=2 && !/[O○〇Ｏ]/.test(n); }
+    function evMask(obj,id){ const map=Object.assign({}, fullNames[id]||{});
+      const pub=Object.assign({}, obj, { entries:(obj.entries||[]).map(x=>{ if(x && x.id && isFullName(x.name)){ map[x.id]=x.name; return Object.assign({}, x, { name:maskName(x.name) }); } return x; }) });
+      return { pub, map }; }
+    function evFill(item){ const m=fullNames[item.id]; if(!m || !Array.isArray(item.entries)) return item; item.entries=item.entries.map(x=>(x && m[x.id] && x.name===maskName(m[x.id])) ? Object.assign({}, x, { name:m[x.id] }) : x); return item; }
+    const fb = reactive({ on:FORMAL, namesOk:false, user:null, email:'', admin:false, role:'public', myRoles:[], ready:false, empty:false, online:true, pending:0, latency:null, lastAck:'', err:'', devices:[], roles:[], users:[], roster:'', rosterAuto:true, seen:{} });
     let fdb=null, fauth=null; const fUnsubs=[];
     const remoteSer={ events:{}, timeline:{}, guests:{}, batches:{}, broadcasts:{}, logs:{}, allrun:{}, meta:{}, reports:{}, medical:{}, equip:{}, gifts:{}, stations:{}, lunch:{} };
     const deviceId=(()=>{ try{ let d=localStorage.getItem(KEY+'-device'); if(!d){ d='d'+uid()+uid(); localStorage.setItem(KEY+'-device',d); } return d; }catch(e){ return 'd'+uid(); } })();
@@ -4942,7 +4955,7 @@ createApp({
             if(c.type==='removed'){ const i=arr.findIndex(x=>x.id===id); if(opt.onLeave && i>=0){ opt.onLeave(arr[i]); remoteSer[name][id]=canon(Object.assign({}, arr[i], { id })); touched=true; return; } if(opt.keep) return; if(i>=0){ arr.splice(i,1); touched=true; } delete remoteSer[name][id]; return; }
             const item=Object.assign({}, c.doc.data(), { id }); const ser=canon(item);
             if(remoteSer[name][id]===ser || pend[name+'/'+id]>0) return; // 自己剛送出的回音、還在送出中、或內容沒變：略過，避免打字時被蓋掉
-            remoteSer[name][id]=ser; const i=arr.findIndex(x=>x.id===id); if(i>=0) arr.splice(i,1,item); else arr.push(item); touched=true; });
+            remoteSer[name][id]=ser; if(name==='events') evFill(item); const i=arr.findIndex(x=>x.id===id); if(i>=0) arr.splice(i,1,item); else arr.push(item); touched=true; });
           if(touched) sortArr(name); });
       }, e=>{ fb.err='無法讀取「'+name+'」：'+(e.code||''); });
     }
@@ -4953,10 +4966,14 @@ createApp({
         applyRemote(()=>ch.forEach(c=>{ const id=c.doc.id; if(c.type==='removed'){ delete remoteSer[name][id]; apply(id,null); return; } const d=c.doc.data(); const ser=canon(d); if(remoteSer[name][id]===ser || pend[name+'/'+id]>0) return; remoteSer[name][id]=ser; apply(id,d); }));
       }, e=>{ fb.err='無法讀取「'+name+'」：'+(e.code||''); });
     }
-    function revertLocal(col,id,prev){ if(!prev) return; const d=JSON.parse(prev); applyRemote(()=>{ if(ARR_COLS.includes(col)){ const a=st.value[col], i=a.findIndex(x=>x.id===id); if(i>=0) a.splice(i,1,d); } else if(col==='allrun') st.value.allrun[id]=arDec(d); else if(col==='meta'){ if(id==='settings') st.value.settings=d; else if(id==='live') st.value.live=d; else if(id==='flow') st.value.delayMin=d.delayMin||0; } }); }
+    function revertLocal(col,id,prev){ if(!prev) return; const d=JSON.parse(prev); applyRemote(()=>{ if(ARR_COLS.includes(col)){ if(col==='events') evFill(d); const a=st.value[col], i=a.findIndex(x=>x.id===id); if(i>=0) a.splice(i,1,d); } else if(col==='allrun') st.value.allrun[id]=arDec(d); else if(col==='meta'){ if(id==='settings') st.value.settings=d; else if(id==='live') st.value.live=d; else if(id==='flow') st.value.delayMin=d.delayMin||0; } }); }
     function fbWrite(col,id,obj){
       if(!fdb || !fb.user) return;
-      const data = ARR_COLS.includes(col) ? Object.assign({}, obj, { id }) : (col==='allrun' ? arEnc(obj) : obj);
+      let src=obj;
+      if(col==='events' && fb.namesOk){ const r=evMask(obj,id); src=r.pub; // 全名存到 names（只有學校人員讀得到），比賽項目只存遮名
+        if(Object.keys(r.map).length && canon(r.map)!==canon(fullNames[id]||{})){ const old=fullNames[id]; fullNames[id]=r.map;
+          Promise.resolve().then(()=>fref('names',id).set({ m:r.map })).catch(e=>{ if(old) fullNames[id]=old; else delete fullNames[id]; toast('學生全名儲存失敗：'+((e&&e.code)||''),true); }); } }
+      const data = ARR_COLS.includes(col) ? Object.assign({}, src, { id }) : (col==='allrun' ? arEnc(obj) : obj);
       const ser=canon(data), prev=remoteSer[col][id]; if(prev===ser) return;
       remoteSer[col][id]=ser; const t0=performance.now(); fb.pending++; const pk=col+'/'+id; pend[pk]=(pend[pk]||0)+1;
       Promise.resolve().then(()=>fref(col,id).set(JSON.parse(JSON.stringify(data)))) // 資料格式錯誤會當場丟錯：包成 Promise，才會顯示錯誤、不會卡在「離線中」
@@ -4982,8 +4999,10 @@ createApp({
     }
     function subscribeAll(){
       fUnsubs.splice(0).forEach(f=>{ try{ f(); }catch(e){} });
-      fb.seen={}; fb.ready=false;
+      fb.seen={}; fb.ready=false; fb.namesOk=false;
       fUnsubs.push(listenArr('events', fdb.collection('events')));
+      if(fb.user) fUnsubs.push(fdb.collection('names').onSnapshot(snap=>{ fb.namesOk=true;
+        applyRemote(()=>snap.docChanges().forEach(ch=>{ const id=ch.doc.id; if(ch.type==='removed'){ delete fullNames[id]; return; } fullNames[id]=(ch.doc.data()||{}).m||{}; const ev=st.value.events.find(e=>e.id===id); if(ev) evFill(ev); })); }, ()=>{ fb.namesOk=false; }));
       fUnsubs.push(listenArr('timeline', fdb.collection('timeline')));
       fUnsubs.push(listenArr('batches', fdb.collection('batches')));
       fUnsubs.push(listenArr('guests', fdb.collection('guests')));
@@ -5144,7 +5163,7 @@ createApp({
     watch(myHomeroom, c=>{ if(c && !hrApplied){ hrApplied=true; if(c!==tCls.value){ tCls.value=c; toast('已依你的帳號切換到 '+clsLabel(c)); } } }); // 放在 fb 建立之後（避免初始化順序錯誤）
     onMounted(()=>{ readHash(); if(!hashGiven && isPublicView.value) page.value='board'; loadDraft(); syncLiveDraft(); renderQR(); if(FORMAL) fbInit(); else initCloud(); });
 
-    return { st, role, page, helpOpen, newsOpen, tOpen, openHomeFlow, checkTimeOf, ownCls, tClsEdit, backToOwnCls, arHelper, arSheet, arSheetDone, arSheetMissing, printAr, printPage, downloadArXlsx, savePdf, pageXlsx, arSheet, arSheetDone, arSheetMissing, printAr, openT, tHelloName, myProg, myProgNext, tTodo, teacherNotices, acctMgr, isCtrlEmail, closeHelp, newsList, dismissNews, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
+    return { bt, st, role, page, helpOpen, newsOpen, tOpen, openHomeFlow, checkTimeOf, ownCls, tClsEdit, backToOwnCls, arHelper, arSheet, arSheetDone, arSheetMissing, printAr, printPage, downloadArXlsx, savePdf, pageXlsx, arSheet, arSheetDone, arSheetMissing, printAr, openT, tHelloName, myProg, myProgNext, tTodo, teacherNotices, acctMgr, isCtrlEmail, closeHelp, newsList, dismissNews, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
       SHORT, arOpen, homeroomDraft, homeroomRows, homeroomLogins, saveHomeroom, myHomeroom, onHrInput, cd, pad, insertOpen, openInsert, promptGroup, promptNext, scriptState, jumpScripts, ringLong, toggleRing, refOk, refChanged, confirmRef, needRef, doneTab, doneShown, restoreBc, scriptLib, scriptsOf, scriptGroups, nextScriptGroup, sf, editScript, saveScript, removeScript, moveScript, queueScript, sPaste, sParsed, importScripts, canBc, pushState, registerPush, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
       drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, arFull, AR_PUB_OPTS, arPubGrades, toggleArPub, arPubGradeText, arPubShown, PG_GRADES, pgGrade, progList, progLeave, shiftHM, flashLine, reportLine, TICKER_TPL, tkOpen, tk, tickerMsgs, hhmmOf, addTicker, removeTicker, canFixName, fixName, overdueTl, overdueSnoozed, snoozeOverdue, remindControl, setAutoFlow, ADHOC_TPL, adhocOpen, adhoc, useAdhocTpl, addAdhoc, tlRange, tlNo, mcScriptOf, prepScriptOf, nextMinsLeft, scheduledTl, mcProgOpen, applyProgram, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,

@@ -22,6 +22,8 @@ service cloud.firestore {
     // 公開可看（大會看板、看直播）；修改需對應組別
     match /meta/{id}       { allow read: if true; allow write: if hasRole(['record','sport','control','live']); }
     match /events/{id}     { allow read: if true; allow write: if hasRole(['record','sport','checkin']); }
+    // 學生全名：只有學校人員讀得到（events 裡只存「王○明」）；能改成績的組別才能寫
+    match /names/{id}      { allow read: if isSchool(); allow write: if hasRole(['record','sport','checkin']); }
     match /timeline/{id}   { allow read: if true; allow write: if hasRole(['control','record']); }
     match /batches/{id}    { allow read: if true; allow write: if hasRole(['award','control','record','ceremony']); }
     match /guests/{id}     { allow read: if true; allow write: if hasRole(['guest','doc','control','award','record']); }
