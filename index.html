@@ -741,6 +741,24 @@ html.ov-transparent body::before{ display:none; }
   html:not(.print-color) .ar-tbl.c-tbl tbody td{ background:#fff !important; }
   html:not(.print-color) .sh-place.p1{ border-width:3.5px; }
   html:not(.print-color) .paper .sh-head{ border-bottom-color:#000; }
+  /* 共用正式報表 A4 列印（獎狀名單、獎品統計、成績總表、醫護紀錄、芳名錄）：多頁重複表頭、黑白高對比清晰好核對 */
+  .rpt-tbl{ width:100%; border-collapse:collapse; margin-top:8px; font-size:10.5pt; }
+  .rpt-tbl thead{ display:table-header-group; }
+  .rpt-tbl tr{ break-inside:avoid; page-break-inside:avoid; }
+  .rpt-tbl th{ background:#EBF3FC; color:#0F2C59; font-weight:800; text-align:left; padding:5px 7px; border:1px solid #94A3B8; border-bottom:2px solid #1E3A8A; white-space:nowrap; }
+  .rpt-tbl td{ padding:5px 7px; border:1px solid #CBD5E1; color:#0F172A; vertical-align:middle; }
+  .rpt-tbl tbody tr:nth-child(even) td{ background:#F8FAFC; }
+  .rpt-tbl .rpt-chk{ width:46px; text-align:center; }
+  .rpt-tbl .rpt-box{ display:inline-block; width:14px; height:14px; border:1.5px solid #334155; border-radius:2px; vertical-align:middle; }
+  .rpt-meta-bar{ display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; font-size:10pt; color:#334155; margin:6px 0 4px; padding:4px 8px; background:#F1F5F9; border-radius:6px; border:1px solid #CBD5E1; }
+  .rpt-sign-row{ margin-top:18px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px; font-size:10.5pt; color:#0F172A; padding-top:10px; border-top:1.5px solid #94A3B8; break-inside:avoid; }
+  .rpt-sign-row span{ display:inline-block; min-width:150px; }
+  html:not(.print-color) .rpt-meta-bar{ background:#fff !important; color:#000 !important; border:1px solid #000 !important; border-radius:0; }
+  html:not(.print-color) .rpt-tbl th{ background:#EAECEF !important; color:#000 !important; border:1px solid #000 !important; border-bottom:2.2px solid #000 !important; }
+  html:not(.print-color) .rpt-tbl td{ border:1px solid #000 !important; color:#000 !important; }
+  html:not(.print-color) .rpt-tbl tbody tr:nth-child(even) td{ background:#F5F5F5 !important; }
+  html:not(.print-color) .rpt-tbl .rpt-box{ border:1.8px solid #000 !important; }
+  html:not(.print-color) .rpt-sign-row{ border-top:1.8px solid #000 !important; color:#000 !important; }
 }
 </style>
 
@@ -2221,8 +2239,11 @@ html.ov-transparent body::before{ display:none; }
             </select>
           </div>
           <div class="flex gap-2 flex-wrap">
-            <button class="btn" @click="copyTable(certRows)">複製表格（貼到 Excel）</button>
-            <button class="btn btn-primary" @click="downloadXlsx(certRows,'獎狀名單')">下載 Excel</button>
+            <button class="btn" @click="printReport('獎狀套印名單','範圍：'+({all:'全部獎狀',ind:'個人項目（會前賽）',relay:'團體接力',allrun:'全員賽跑'}[certFilter]||certFilter),certRows,'bw',{checkCol:'核對'})" :disabled="certRows.length<2">🖨 列印黑白</button>
+            <button class="btn" @click="printReport('獎狀套印名單','範圍：'+({all:'全部獎狀',ind:'個人項目（會前賽）',relay:'團體接力',allrun:'全員賽跑'}[certFilter]||certFilter),certRows,'color',{checkCol:'核對'})" :disabled="certRows.length<2">🖨 彩色</button>
+            <button class="btn" @click="printReport('獎狀套印名單','範圍：'+({all:'全部獎狀',ind:'個人項目（會前賽）',relay:'團體接力',allrun:'全員賽跑'}[certFilter]||certFilter),certRows,'pdf',{checkCol:'核對'})" :disabled="certRows.length<2">📄 存成 PDF</button>
+            <button class="btn" @click="copyTable(certRows)">複製表格</button>
+            <button class="btn btn-primary" @click="downloadXlsx(certRows,'獎狀名單')">📊 下載 Excel</button>
           </div>
         </div>
         <div class="small muted mb-2">共 {{ certRows.length-1 }} 張；文書組可直接用 Word「合併列印」套印獎狀。</div>
@@ -2239,7 +2260,12 @@ html.ov-transparent body::before{ display:none; }
       <div v-if="exTab==='prize'" class="card">
         <div class="flex justify-between flex-wrap gap-2 mb-3">
           <h2 class="h-sec">獎品數量統計（依計畫書獎勵表）</h2>
-          <button class="btn" @click="copyTable(prizeRows)">複製表格</button>
+          <div class="flex gap-2 flex-wrap">
+            <button class="btn" @click="printReport('獎品數量統計表','依計畫書獎勵表自動統計',prizeRows,'bw',{checkCol:'備貨'})" :disabled="prizeRows.length<2">🖨 列印黑白</button>
+            <button class="btn" @click="printReport('獎品數量統計表','依計畫書獎勵表自動統計',prizeRows,'color',{checkCol:'備貨'})" :disabled="prizeRows.length<2">🖨 彩色</button>
+            <button class="btn" @click="printReport('獎品數量統計表','依計畫書獎勵表自動統計',prizeRows,'pdf',{checkCol:'備貨'})" :disabled="prizeRows.length<2">📄 存成 PDF</button>
+            <button class="btn" @click="copyTable(prizeRows)">複製表格</button>
+          </div>
         </div>
         <div class="tblwrap"><table class="tbl cards">
           <thead><tr><th v-for="h in prizeRows[0]">{{ h }}</th></tr></thead>
@@ -2251,7 +2277,13 @@ html.ov-transparent body::before{ display:none; }
       <div v-if="exTab==='total'" class="card">
         <div class="flex justify-between flex-wrap gap-2 mb-3">
           <h2 class="h-sec">成績總表</h2>
-          <div class="flex gap-2 flex-wrap"><button class="btn" @click="copyTable(totalRows)">複製表格</button><button class="btn btn-primary" @click="downloadXlsx(totalRows,'成績總表')">下載 Excel</button></div>
+          <div class="flex gap-2 flex-wrap">
+            <button class="btn" @click="printReport('運動會成績總表','目前已公布／建檔項目完整彙整',totalRows,'bw',{checkCol:'核對'})" :disabled="totalRows.length<2">🖨 列印黑白</button>
+            <button class="btn" @click="printReport('運動會成績總表','目前已公布／建檔項目完整彙整',totalRows,'color',{checkCol:'核對'})" :disabled="totalRows.length<2">🖨 彩色</button>
+            <button class="btn" @click="printReport('運動會成績總表','目前已公布／建檔項目完整彙整',totalRows,'pdf',{checkCol:'核對'})" :disabled="totalRows.length<2">📄 存成 PDF</button>
+            <button class="btn" @click="copyTable(totalRows)">複製表格</button>
+            <button class="btn btn-primary" @click="downloadXlsx(totalRows,'成績總表')">📊 下載 Excel</button>
+          </div>
         </div>
         <div class="tblwrap" style="max-height:520px;overflow:auto"><table class="tbl">
           <thead><tr><td :colspan="totalRows[0].length" style="border:0;padding:0 0 8px" v-if="totalRows.length>2"><div class="flex flex-wrap gap-2"><span class="small muted" style="align-self:center">快速跳到：</span><button v-for="b in [...new Set(totalRows.slice(1).map(r=>String(r[0]).split(' ').pop()))]" :key="b" class="tag tag-link" :style="{ borderColor:toneOf(b), color:toneOf(b) }" @click="jumpRow('total', b)">{{ b }}</button></div></td></tr><tr><th v-for="h in totalRows[0]">{{ h }}</th></tr></thead>
@@ -2664,7 +2696,7 @@ html.ov-transparent body::before{ display:none; }
           </div>
         </div>
         <div class="card" style="min-width:0">
-          <div class="flex justify-between items-center gap-2 flex-wrap mb-2"><h2 class="h-sec">今日紀錄（{{ st.medical.length }}）</h2><button class="btn btn-sm" @click="downloadXlsx(medicalRows,'醫護紀錄')" :disabled="!st.medical.length">下載 Excel</button></div>
+          <div class="flex justify-between items-center gap-2 flex-wrap mb-2"><h2 class="h-sec">今日紀錄（{{ st.medical.length }}）</h2><div class="flex gap-2 flex-wrap"><button class="btn btn-sm" @click="printReport('醫護站傷病處理紀錄表','僅供醫護組與行政內部核對存查',medicalRows,'bw',{checkCol:'核對'})" :disabled="!st.medical.length">🖨 列印黑白</button><button class="btn btn-sm" @click="printReport('醫護站傷病處理紀錄表','僅供醫護組與行政內部核對存查',medicalRows,'color',{checkCol:'核對'})" :disabled="!st.medical.length">🖨 彩色</button><button class="btn btn-sm" @click="downloadXlsx(medicalRows,'醫護紀錄')" :disabled="!st.medical.length">📊 下載 Excel</button></div></div>
           <div class="note mb-2" v-if="openMedicReports.length">有 {{ openMedicReports.length }} 則醫護通報待處理：<span v-for="r in openMedicReports" :key="r.id">{{ r.place }}（{{ r.text }}）　</span><button class="btn btn-sm ml-1" @click="rFilter='mine'; go('reports')">去處理</button></div>
           <div v-if="!st.medical.length" class="small muted">尚無紀錄。</div>
           <div v-for="m in st.medical.slice().reverse()" :key="m.id" class="card-flat mb-2">
@@ -2753,7 +2785,7 @@ html.ov-transparent body::before{ display:none; }
         </div>
         <div class="card" style="min-width:0">
           <div class="flex justify-between items-center gap-2 flex-wrap mb-2"><h2 class="h-sec">芳名錄（{{ st.gifts.length }}）</h2>
-            <div class="flex gap-2"><button class="btn btn-sm" @click="copy(giftText)" :disabled="!st.gifts.length">複製公告文字</button><button class="btn btn-sm" @click="downloadXlsx(giftRows,'捐贈芳名錄')" :disabled="!st.gifts.length">下載 Excel</button></div></div>
+            <div class="flex gap-2 flex-wrap"><button class="btn btn-sm" @click="printReport('校慶捐贈芳名錄','收禮組核對與存查用',giftRows,'bw',{checkCol:'核對'})" :disabled="!st.gifts.length">🖨 列印黑白</button><button class="btn btn-sm" @click="printReport('校慶捐贈芳名錄','收禮組核對與存查用',giftRows,'color',{checkCol:'核對'})" :disabled="!st.gifts.length">🖨 彩色</button><button class="btn btn-sm" @click="copy(giftText)" :disabled="!st.gifts.length">複製公告文字</button><button class="btn btn-sm" @click="downloadXlsx(giftRows,'捐贈芳名錄')" :disabled="!st.gifts.length">📊 下載 Excel</button></div></div>
           <div v-if="!st.gifts.length" class="small muted">尚無捐贈。</div>
           <div v-for="g in st.gifts" :key="g.id" class="card-flat mb-2 flex justify-between items-center gap-2 flex-wrap">
             <div style="min-width:0"><b>{{ g.donor }}</b>　{{ g.item }}<div class="small muted">{{ g.at }}<span v-if="g.amount && can('gift')">・金額 {{ g.amount }}</span></div></div>
@@ -2966,6 +2998,48 @@ html.ov-transparent body::before{ display:none; }
     </section>
 
     </template>
+    <!-- 共用正式報表 A4 列印版面（螢幕隱藏，按各頁「列印黑白／彩色／存成 PDF」自動產生） -->
+    <div id="rptPrint" class="print-only paper" :class="{'print-target': !!rptData}" v-if="rptData">
+      <div class="sh-head">
+        <div>
+          <div class="sh-school">高雄市楠梓區楠梓國民小學　{{ st.settings.title }}</div>
+          <div class="sh-title">{{ rptData.title }}</div>
+        </div>
+        <div class="sh-meta">
+          <div>比賽日期：{{ sheetDate }}</div>
+          <div>列印時間：{{ sheetPrintedAt }}</div>
+        </div>
+      </div>
+      <div class="rpt-meta-bar">
+        <span>{{ rptData.sub }}</span>
+        <span><b>共 {{ Math.max(0, rptData.rows.length - 1) }} 筆</b></span>
+      </div>
+      <table class="rpt-tbl">
+        <thead>
+          <tr>
+            <th style="width:38px;text-align:center">#</th>
+            <th v-for="(h,hi) in rptData.rows[0]" :key="hi">{{ h }}</th>
+            <th v-if="rptData.checkCol" class="rpt-chk">{{ rptData.checkCol }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(r,ri) in rptData.rows.slice(1)" :key="ri">
+            <td style="text-align:center">{{ ri + 1 }}</td>
+            <td v-for="(c,ci) in r" :key="ci">{{ c }}</td>
+            <td v-if="rptData.checkCol" class="rpt-chk"><span class="rpt-box" aria-hidden="true"></span></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="rpt-sign-row">
+        <span>承辦人：＿＿＿＿＿＿</span>
+        <span>組長：＿＿＿＿＿＿</span>
+        <span>主任：＿＿＿＿＿＿</span>
+      </div>
+      <div class="sh-foot">
+        <span>⚠ 本表含完整名單，僅供校內行政核對與套印使用</span>
+        <span>楠梓國小運動會即時通報系統</span>
+      </div>
+    </div>
   </main>
   </div>
 
@@ -3037,7 +3111,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261127110200'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261127112200'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -3261,6 +3335,7 @@ const HELP = {
 };
 /* 新功能公告：依組別顯示，每台裝置看過按「知道了」就不再出現（之後新增功能時，在最上面加一筆） */
 const WHATS_NEW = [
+  { id:'n20261127f', roles:['record','doc','award','medic','gift','control'], page:'export', title:'所有報表皆補上「🖨 列印黑白／彩色／存成 PDF」', text:'「獎狀名單」「獎品統計」「成績總表」「醫護紀錄」「捐贈芳名錄」都加上專屬 A4 列印按鈕，黑白列印採純黑格線、淡灰表頭、每頁自動重印表頭與核對打勾欄＋底部簽核欄，印出來整齊好核對。' },
   { id:'n20261127e', roles:['teacher','medic','gift','record','control'], page:'teacher', title:'已填報資料下次自動帶出，可直接修改錯誤處', text:'導師重新打開「全員賽跑名單」時，會自動帶出先前送出的全部名單，只需改錯字再送出；醫護站與收禮芳名錄每筆紀錄也加上「✏️ 修改」按鈕，點一下帶回表單即可修正。' },
   { id:'n20261127d', roles:['teacher','record','control'], page:'teacher', title:'導師查詢與選單可直接列印黑白／彩色成績單', text:'班級導師在「導師查詢 → 本班得獎」下方可直接一鍵列印本班成績單（黑白／彩色／存成 PDF），左側選單也開放「成績單列印」，方便印出個人賽、團體賽與全員賽跑名單。' },
   { id:'n20261127c', roles:['teacher','record','control'], page:'teacher', title:'全員賽跑名單可以一次貼上', text:'在「全員賽跑 得獎名單填報」打開「📋 從 Excel／LINE 一次貼上」，一組一行貼上名字（或從 Excel 複製三欄），按「填入下面表格」就全部填好，核對後送出。逐格打字時按 Enter 會自動跳到下一格。組數可選 3～8 組。' },
@@ -4422,6 +4497,26 @@ createApp({
       const off=()=>{ hidden.forEach(h=>h.classList.remove('pf-hide')); opened.forEach(d=>d.open=false); document.documentElement.classList.remove('print-focus'); };
       window.addEventListener('afterprint', off, { once:true }); setTimeout(off, 60000); doPrint(mode); }
     function printAr(mode){ printPage(mode); }
+    /* 共用正式報表 A4 列印（獎狀名單、獎品統計、成績總表、醫護紀錄、芳名錄） */
+    const rptData = ref(null);
+    function printReport(title, sub, rows, mode, opts){
+      if(!rows || rows.length<2){ toast('目前沒有資料可以列印',true); return; }
+      stampSheet();
+      rptData.value = { title, sub:sub||'', rows:rows.map(r=>r.slice()), checkCol:(opts&&opts.checkCol)||'' };
+      const isPdf = mode==='pdf';
+      if(isPdf) toast('列印視窗打開後，「目的地／印表機」選「另存為 PDF」再按儲存');
+      nextTick(()=>{
+        const main=document.querySelector('.main'), el=document.getElementById('rptPrint');
+        if(!main || !el){ doPrint(isPdf?'color':mode); return; }
+        const hidden=[];
+        [...main.children].forEach(ch=>{ if(ch!==el){ ch.classList.add('pf-hide'); hidden.push(ch); } });
+        document.documentElement.classList.add('print-focus');
+        const off=()=>{ hidden.forEach(h=>h.classList.remove('pf-hide')); document.documentElement.classList.remove('print-focus'); rptData.value=null; };
+        window.addEventListener('afterprint', off, { once:true });
+        setTimeout(off, 60000);
+        setTimeout(()=>doPrint(isPdf?'color':mode), isPdf ? 600 : 80);
+      });
+    }
     const arSheetGrade = c => /^\d/.test(c) ? +c[0] : 9;
     const arSheet = computed(()=>{ const out=[]; [1,2,3,4,5,6,9].filter(g=>!sheetOpt.grade || sheetOpt.grade===g).forEach(g=>{ const cs=allrunClasses.value.filter(c=>arSheetGrade(c)===g); if(!cs.length) return;
         const done=cs.filter(c=>st.value.allrun[c]), missing=cs.filter(c=>!st.value.allrun[c]); if(done.length || (sheetOpt.arMissing && sheetOpt.grade)) out.push({ key:'g'+g, title: g===9 ? '幼兒園・天使班' : ZH[g]+'年級', done, missing }); }); return out; });
@@ -5248,7 +5343,7 @@ createApp({
     watch(myHomeroom, c=>{ if(c && !hrApplied){ hrApplied=true; if(c!==tCls.value){ tCls.value=c; toast('已依你的帳號切換到 '+clsLabel(c)); } } }); // 放在 fb 建立之後（避免初始化順序錯誤）
     onMounted(()=>{ readHash(); if(!hashGiven && isPublicView.value) page.value='board'; loadDraft(); syncLiveDraft(); renderQR(); if(FORMAL) fbInit(); else initCloud(); });
 
-    return { bt, toggleRec, recordList, st, role, page, helpOpen, newsOpen, tOpen, openHomeFlow, checkTimeOf, ownCls, tClsEdit, backToOwnCls, arHelper, arSheet, arSheetDone, arSheetMissing, printAr, printPage, downloadArXlsx, savePdf, pageXlsx, openT, tHelloName, myProg, myProgNext, tTodo, teacherNotices, acctMgr, isCtrlEmail, closeHelp, newsList, dismissNews, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
+    return { bt, toggleRec, recordList, st, role, page, helpOpen, newsOpen, tOpen, openHomeFlow, checkTimeOf, ownCls, tClsEdit, backToOwnCls, arHelper, arSheet, arSheetDone, arSheetMissing, printAr, printPage, rptData, printReport, downloadArXlsx, savePdf, pageXlsx, openT, tHelloName, myProg, myProgNext, tTodo, teacherNotices, acctMgr, isCtrlEmail, closeHelp, newsList, dismissNews, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
       SHORT, arOpen, homeroomDraft, homeroomRows, homeroomLogins, saveHomeroom, myHomeroom, onHrInput, cd, pad, insertOpen, openInsert, promptGroup, promptNext, scriptState, jumpScripts, ringLong, toggleRing, refOk, refChanged, confirmRef, needRef, doneTab, doneShown, restoreBc, scriptLib, scriptsOf, scriptGroups, nextScriptGroup, sf, editScript, saveScript, removeScript, moveScript, queueScript, sPaste, sParsed, importScripts, canBc, pushState, registerPush, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
       drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, arFull, AR_PUB_OPTS, arPubGrades, toggleArPub, arPubGradeText, arPubShown, PG_GRADES, pgGrade, progList, progLeave, shiftHM, flashLine, reportLine, TICKER_TPL, tkOpen, tk, tickerMsgs, hhmmOf, addTicker, removeTicker, canFixName, fixName, overdueTl, overdueSnoozed, snoozeOverdue, remindControl, setAutoFlow, ADHOC_TPL, adhocOpen, adhoc, useAdhocTpl, addAdhoc, tlRange, tlNo, mcScriptOf, prepScriptOf, nextMinsLeft, scheduledTl, mcProgOpen, applyProgram, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
