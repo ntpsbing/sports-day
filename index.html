@@ -751,9 +751,16 @@ html.ov-transparent body::before{ display:none; }
   .rpt-tbl .rpt-chk{ width:46px; text-align:center; }
   .rpt-tbl .rpt-box{ display:inline-block; width:14px; height:14px; border:1.5px solid #334155; border-radius:2px; vertical-align:middle; }
   .rpt-meta-bar{ display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; font-size:10pt; color:#334155; margin:6px 0 4px; padding:4px 8px; background:#F1F5F9; border-radius:6px; border:1px solid #CBD5E1; }
+  .rpt-grp{ margin-top:12px; }
+  .rpt-grp-h{ display:flex; justify-content:space-between; align-items:center; padding:5px 10px; background:#DBEAFE; color:#0F2C59; font-weight:900; font-size:11.5pt; border-left:5px solid #1D4ED8; border-top:1px solid #93C5FD; border-bottom:1px solid #93C5FD; break-after:avoid; page-break-after:avoid; }
+  .rpt-grp-h .cnt{ font-size:9.5pt; font-weight:700; color:#1E40AF; }
+  .rpt-tbl tr.rpt-sub-sep td{ border-top:2px solid #475569 !important; }
   .rpt-sign-row{ margin-top:18px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px; font-size:10.5pt; color:#0F172A; padding-top:10px; border-top:1.5px solid #94A3B8; break-inside:avoid; }
   .rpt-sign-row span{ display:inline-block; min-width:150px; }
   html:not(.print-color) .rpt-meta-bar{ background:#fff !important; color:#000 !important; border:1px solid #000 !important; border-radius:0; }
+  html:not(.print-color) .rpt-grp-h{ background:#F2F2F2 !important; color:#000 !important; border-left:6px solid #000 !important; border-top:1.8px solid #000 !important; border-bottom:1.8px solid #000 !important; }
+  html:not(.print-color) .rpt-grp-h .cnt{ color:#000 !important; }
+  html:not(.print-color) .rpt-tbl tr.rpt-sub-sep td{ border-top:2.2px solid #000 !important; }
   html:not(.print-color) .rpt-tbl th{ background:#EAECEF !important; color:#000 !important; border:1px solid #000 !important; border-bottom:2.2px solid #000 !important; }
   html:not(.print-color) .rpt-tbl td{ border:1px solid #000 !important; color:#000 !important; }
   html:not(.print-color) .rpt-tbl tbody tr:nth-child(even) td{ background:#F5F5F5 !important; }
@@ -2239,9 +2246,9 @@ html.ov-transparent body::before{ display:none; }
             </select>
           </div>
           <div class="flex gap-2 flex-wrap">
-            <button class="btn" @click="printReport('獎狀套印名單','範圍：'+({all:'全部獎狀',ind:'個人項目（會前賽）',relay:'團體接力',allrun:'全員賽跑'}[certFilter]||certFilter),certRows,'bw',{checkCol:'核對'})" :disabled="certRows.length<2">🖨 列印黑白</button>
-            <button class="btn" @click="printReport('獎狀套印名單','範圍：'+({all:'全部獎狀',ind:'個人項目（會前賽）',relay:'團體接力',allrun:'全員賽跑'}[certFilter]||certFilter),certRows,'color',{checkCol:'核對'})" :disabled="certRows.length<2">🖨 彩色</button>
-            <button class="btn" @click="printReport('獎狀套印名單','範圍：'+({all:'全部獎狀',ind:'個人項目（會前賽）',relay:'團體接力',allrun:'全員賽跑'}[certFilter]||certFilter),certRows,'pdf',{checkCol:'核對'})" :disabled="certRows.length<2">📄 存成 PDF</button>
+            <button class="btn" @click="printReport('獎狀套印名單','範圍：'+({all:'全部獎狀',ind:'個人項目（會前賽）',relay:'團體接力',allrun:'全員賽跑'}[certFilter]||certFilter),certRows,'bw',{checkCol:'核對',groupMode:'cert'})" :disabled="certRows.length<2">🖨 列印黑白</button>
+            <button class="btn" @click="printReport('獎狀套印名單','範圍：'+({all:'全部獎狀',ind:'個人項目（會前賽）',relay:'團體接力',allrun:'全員賽跑'}[certFilter]||certFilter),certRows,'color',{checkCol:'核對',groupMode:'cert'})" :disabled="certRows.length<2">🖨 彩色</button>
+            <button class="btn" @click="printReport('獎狀套印名單','範圍：'+({all:'全部獎狀',ind:'個人項目（會前賽）',relay:'團體接力',allrun:'全員賽跑'}[certFilter]||certFilter),certRows,'pdf',{checkCol:'核對',groupMode:'cert'})" :disabled="certRows.length<2">📄 存成 PDF</button>
             <button class="btn" @click="copyTable(certRows)">複製表格</button>
             <button class="btn btn-primary" @click="downloadXlsx(certRows,'獎狀名單')">📊 下載 Excel</button>
           </div>
@@ -2278,9 +2285,9 @@ html.ov-transparent body::before{ display:none; }
         <div class="flex justify-between flex-wrap gap-2 mb-3">
           <h2 class="h-sec">成績總表</h2>
           <div class="flex gap-2 flex-wrap">
-            <button class="btn" @click="printReport('運動會成績總表','目前已公布／建檔項目完整彙整',totalRows,'bw',{checkCol:'核對'})" :disabled="totalRows.length<2">🖨 列印黑白</button>
-            <button class="btn" @click="printReport('運動會成績總表','目前已公布／建檔項目完整彙整',totalRows,'color',{checkCol:'核對'})" :disabled="totalRows.length<2">🖨 彩色</button>
-            <button class="btn" @click="printReport('運動會成績總表','目前已公布／建檔項目完整彙整',totalRows,'pdf',{checkCol:'核對'})" :disabled="totalRows.length<2">📄 存成 PDF</button>
+            <button class="btn" @click="printReport('運動會成績總表','目前已公布／建檔項目完整彙整',totalRows,'bw',{checkCol:'核對',groupMode:'col0'})" :disabled="totalRows.length<2">🖨 列印黑白</button>
+            <button class="btn" @click="printReport('運動會成績總表','目前已公布／建檔項目完整彙整',totalRows,'color',{checkCol:'核對',groupMode:'col0'})" :disabled="totalRows.length<2">🖨 彩色</button>
+            <button class="btn" @click="printReport('運動會成績總表','目前已公布／建檔項目完整彙整',totalRows,'pdf',{checkCol:'核對',groupMode:'col0'})" :disabled="totalRows.length<2">📄 存成 PDF</button>
             <button class="btn" @click="copyTable(totalRows)">複製表格</button>
             <button class="btn btn-primary" @click="downloadXlsx(totalRows,'成績總表')">📊 下載 Excel</button>
           </div>
@@ -3033,24 +3040,27 @@ html.ov-transparent body::before{ display:none; }
       </div>
       <div class="rpt-meta-bar">
         <span>{{ rptData.sub }}</span>
-        <span><b>共 {{ Math.max(0, rptData.rows.length - 1) }} 筆</b></span>
+        <span><b>共 {{ rptData.total }} 筆</b><span v-if="rptData.groups.length>1">（分 {{ rptData.groups.length }} 組）</span></span>
       </div>
-      <table class="rpt-tbl">
-        <thead>
-          <tr>
-            <th style="width:38px;text-align:center">#</th>
-            <th v-for="(h,hi) in rptData.rows[0]" :key="hi">{{ h }}</th>
-            <th v-if="rptData.checkCol" class="rpt-chk">{{ rptData.checkCol }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="(r,ri) in rptData.rows.slice(1)" :key="ri">
-            <td style="text-align:center">{{ ri + 1 }}</td>
-            <td v-for="(c,ci) in r" :key="ci">{{ c }}</td>
-            <td v-if="rptData.checkCol" class="rpt-chk"><span class="rpt-box" aria-hidden="true"></span></td>
-          </tr>
-        </tbody>
-      </table>
+      <div v-for="(gp,gi) in rptData.groups" :key="gi" class="rpt-grp">
+        <div v-if="gp.title" class="rpt-grp-h"><span>{{ gp.title }}</span><span class="cnt">共 {{ gp.rows.length }} 筆</span></div>
+        <table class="rpt-tbl" :style="gp.title ? 'margin-top:0' : ''">
+          <thead>
+            <tr>
+              <th style="width:36px;text-align:center">#</th>
+              <th v-for="(h,hi) in rptData.headers" :key="hi">{{ h }}</th>
+              <th v-if="rptData.checkCol" class="rpt-chk">{{ rptData.checkCol }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(r,ri) in gp.rows" :key="ri" :class="{'rpt-sub-sep': r.sep}">
+              <td style="text-align:center">{{ ri + 1 }}</td>
+              <td v-for="(c,ci) in r.cells" :key="ci">{{ c }}</td>
+              <td v-if="rptData.checkCol" class="rpt-chk"><span class="rpt-box" aria-hidden="true"></span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
       <div class="rpt-sign-row">
         <span>承辦人：＿＿＿＿＿＿</span>
         <span>組長：＿＿＿＿＿＿</span>
@@ -3132,7 +3142,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261127113200'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261127113500'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -4523,7 +4533,37 @@ createApp({
     function printReport(title, sub, rows, mode, opts){
       if(!rows || rows.length<2){ toast('目前沒有資料可以列印',true); return; }
       stampSheet();
-      rptData.value = { title, sub:sub||'', rows:rows.map(r=>r.slice()), checkCol:(opts&&opts.checkCol)||'' };
+      const rawHdr = rows[0].slice(), body = rows.slice(1);
+      const gm = (opts && opts.groupMode) || '';
+      /* 自動隱藏整批全空白的欄位（例如全員賽跑沒有成績時，不留空白「成績」欄） */
+      const keepIdx = rawHdr.map((h,i)=>{
+        if(gm==='col0' && i===0) return false;
+        if(gm==='cert' && i===0) return false;
+        return body.some(r=>String(r[i]==null?'':r[i]).trim()!=='');
+      });
+      const colIdxs = rawHdr.map((_,i)=>i).filter(i=>keepIdx[i]);
+      const headers = colIdxs.map(i=>rawHdr[i]);
+      const grpMap = new Map();
+      body.forEach(r=>{
+        let gKey = '';
+        if(gm==='cert'){ gKey = String(r[0])==='全員賽跑' ? ('全員賽跑｜'+r[3]) : (r[0]+'｜'+r[1]); }
+        else if(gm==='col0'){ gKey = String(r[0]||''); }
+        if(!grpMap.has(gKey)) grpMap.set(gKey, []);
+        grpMap.get(gKey).push(r);
+      });
+      const groups = [...grpMap.entries()].map(([gTitle, list])=>{
+        let prevSub = null;
+        return {
+          title: gTitle,
+          rows: list.map((r, idx)=>{
+            const subKey = gm==='cert' ? String(r[1]||'') : '';
+            const sep = idx>0 && subKey && prevSub!==null && subKey!==prevSub;
+            prevSub = subKey;
+            return { cells: colIdxs.map(i=>r[i]), sep };
+          })
+        };
+      });
+      rptData.value = { title, sub:sub||'', headers, groups, total:body.length, checkCol:(opts&&opts.checkCol)||'' };
       const isPdf = mode==='pdf';
       if(isPdf) toast('列印視窗打開後，「目的地／印表機」選「另存為 PDF」再按儲存');
       nextTick(()=>{
