@@ -1322,7 +1322,10 @@ body{ min-height:100%; min-height:100dvh; max-width:100%; }
               <tbody>
                 <tr v-for="x in resRows(ev)" :key="x.e.id" :class="[{win:x.place && x.place<=ev.awardTop, hit:resHit(x.e), out:!x.place}, x.place && x.place<=3 ? 'r'+x.place : '']">
                   <td><medal-icon :p="x.place" :size="x.place===1 ? 38 : 34"></medal-icon></td>
-                  <td class="res-cls">{{ clsLabel(x.e.cls) }}</td>
+                  <td class="res-cls">
+                    <div>{{ clsLabel(x.e.cls) }}</div>
+                    <div v-if="isR4Ev(ev) && r4LineText(ev, x.e.cls)" class="small muted" style="font-size:13px;line-height:1.45;margin-top:2px;font-weight:500">{{ r4LineText(ev, x.e.cls) }}</div>
+                  </td>
                   <td v-if="!ev.team" class="res-name">{{ pn(x.e.name) }}</td>
                   <td class="res-mark-cell r">
                     <div class="res-mark-val num">{{ ev.better==='place' ? (x.place ? '第 '+x.place+' 名' : '—') : (fmtMark(ev,x.e) || '—') }}</div>
@@ -1398,7 +1401,7 @@ body{ min-height:100%; min-height:100dvh; max-width:100%; }
       </div>
       <!-- 數字卡：「待處理」排前面，紅框＝有事要處理（總控平常收起） -->
       <details class="mb-4 home-kpis" :open="!can('flow')">
-      <summary class="more-sum">📊 各組進度（審核 {{ kpi.review }}・司儀待播 {{ kpi.mc }}・全員賽跑 {{ allrunDone }}/{{ allrunClasses.length }}）</summary>
+      <summary class="more-sum">📊 各組進度（審核 {{ kpi.review }}・司儀待播 {{ kpi.mc }}・全員賽跑 {{ allrunDone }}/{{ allrunClasses.length }}・4×100 {{ r4Done }}/{{ r4Classes.length }}）</summary>
       <div class="kpis mb-5 stagger mt-3">
         <button :class="['card kpi text-left',{hot:openReports.length}]" @click="rFilter='open'; go('reports')"><div class="v num" :style="openReports.length?'color:var(--bad)':''">{{ openReports.length }}</div><div class="l">🚨 現場通報待處理</div></button>
         <button :class="['card kpi text-left',{hot:kpi.review}]" @click="go('review')"><div class="v num" :style="kpi.review?'color:#6B21A8':''">{{ kpi.review }}</div><div class="l">✅ 成績等待審核</div></button>
@@ -1407,6 +1410,7 @@ body{ min-height:100%; min-height:100dvh; max-width:100%; }
         <button class="card kpi text-left" @click="go('score')"><div class="v num">{{ kpi.pub }}<span class="muted" style="font-size:24px">/{{ kpi.preTotal }}</span></div><div class="l">🏆 會前賽已公布</div></button>
         <button class="card kpi text-left" @click="go('guests')"><div class="v num">{{ kpi.guestIn }}<span class="muted" style="font-size:24px">/{{ st.guests.length }}</span></div><div class="l">🤝 來賓已報到</div></button>
         <button class="card kpi text-left" @click="exTab='allrun'; go('export')"><div class="v num">{{ allrunDone }}<span class="muted" style="font-size:24px">/{{ allrunClasses.length }}</span></div><div class="l">🏃 全員賽跑已填報</div></button>
+        <button class="card kpi text-left" @click="exTab='r4'; go('export')"><div class="v num">{{ r4Done }}<span class="muted" style="font-size:24px">/{{ r4Classes.length }}</span></div><div class="l">🏃‍♂️ 4×100 名單已填</div></button>
         <button class="card kpi text-left" @click="go('live')"><div class="v" style="font-size:28px;font-weight:900;line-height:1.3" :style="st.live.on?'color:#C8102E':''">{{ st.live.on ? '● 直播中' : '○ 未開播' }}</div><div class="l">📡 網路直播</div></button>
       </div>
       </details>
@@ -1768,6 +1772,12 @@ body{ min-height:100%; min-height:100dvh; max-width:100%; }
           <span class="t-desc">每組填前三名，送出後家長也看得到（名字會遮一個字）。</span>
           <span class="t-btn primary">{{ tOpen==='allrun' ? '收起' : (st.allrun[tCls] ? '查看或修改' : '開始填寫') }}</span>
         </button>
+        <button v-if="isR4Cls(tCls)" :class="['t-card', {on:tOpen==='r4', hot:!(st.relay4 && st.relay4[tCls])}]" @click="openT('r4')" :aria-expanded="tOpen==='r4'">
+          <span class="t-row"><span class="t-ic">🏃‍♂️</span><b>4×100 選手名單</b><span :class="['pill', (st.relay4 && st.relay4[tCls]) ? 'pill-ok' : 'pill-todo']">{{ (st.relay4 && st.relay4[tCls]) ? '✓ 已送出' : '○ 還沒送出' }}</span></span>
+          <span class="t-desc" v-if="st.relay4 && st.relay4[tCls] && st.relay4[tCls].by" style="font-size:14px">{{ st.relay4[tCls].at }}・{{ st.relay4[tCls].by }} 送出</span>
+          <span class="t-desc">四～六年級填男、女生各 4 棒（可選填 1～2 位候補），自動連動檢錄與獎狀。</span>
+          <span class="t-btn primary">{{ tOpen==='r4' ? '收起' : ((st.relay4 && st.relay4[tCls]) ? '查看或修改' : '開始填寫') }}</span>
+        </button>
         <button :class="['t-card', {on:tOpen==='prog'}]" @click="openT('prog')" :aria-expanded="tOpen==='prog'">
           <span class="t-row"><span class="t-ic">🗓️</span><b>我們班的節目</b><span class="pill pill-ok">{{ myProg.length }} 項</span></span>
           <span class="t-desc">{{ myProgNext ? '下一個 '+tlTime(myProgNext)+'　'+myProgNext.title+(myProgNext.status==='todo' ? '（'+checkTimeOf(myProgNext)+' 檢錄）' : '') : (myProg.length ? '本班的節目都結束了' : '節目單還沒排入本班') }}</span>
@@ -1813,6 +1823,60 @@ body{ min-height:100%; min-height:100dvh; max-width:100%; }
             <button class="btn" @click="printAr('color')">🖨 彩色</button>
             <button class="btn" @click="savePdf">📄 存成 PDF</button>
             <button class="btn" @click="downloadArXlsx([tCls], clsLabel(tCls))">📊 下載 Excel</button>
+          </div>
+        </div>
+        <div class="card" v-if="tOpen==='r4' && isR4Cls(tCls)">
+          <div class="flex items-center justify-between gap-2 flex-wrap mb-2">
+            <h2 class="h-sec">🏃‍♂️ 4×100 公尺接力 選手名單填報（{{ clsLabel(tCls) }}）</h2>
+            <span :class="['chip', (st.relay4 && st.relay4[tCls]) ? 'st-published' : 'tag-todo']">{{ (st.relay4 && st.relay4[tCls]) ? '✔ 已送出 '+st.relay4[tCls].at : '○ 尚未送出' }}</span>
+          </div>
+          <p class="small muted mb-3">請依棒次填寫男生組 4 位、女生組 4 位選手（可另選填 1～2 位候補）。送出後會自動同步到檢錄處、成績查詢（家長端自動遮名）與獎狀套印名單。</p>
+          <details class="card-flat mb-3" style="padding:10px 14px">
+            <summary class="font-bold" style="cursor:pointer;min-height:44px;display:flex;align-items:center;gap:6px">📋 從 Excel／LINE 一次貼上（比較快）</summary>
+            <p class="small muted mt-2 mb-2">第一行貼男生組（依序第 1～4 棒，後面可接候補 1、2）、第二行貼女生組，中間用空白、逗號或「、」隔開即可。</p>
+            <textarea id="r4Paste" class="inp" rows="4" v-model="r4Paste" aria-label="貼上4×100選手名單" placeholder="男生：王小明 李大華 陳一心 林大同 候補張三&#10;女生：陳美美 林小芬 吳佳佳 黃琪琪"></textarea>
+            <div class="small mt-1" v-if="r4PasteParsed.M.some(Boolean) || r4PasteParsed.F.some(Boolean)">
+              <b>讀到男生 {{ r4PasteParsed.M.filter(Boolean).length }} 位（候補 {{ r4PasteParsed.Ms.filter(Boolean).length }}）、女生 {{ r4PasteParsed.F.filter(Boolean).length }} 位（候補 {{ r4PasteParsed.Fs.filter(Boolean).length }}）</b>
+            </div>
+            <button class="btn btn-primary mt-2" :disabled="!r4PasteParsed.M.some(Boolean) && !r4PasteParsed.F.some(Boolean)" @click="applyR4Paste">填入下面表格</button>
+          </details>
+          <div class="card-flat mb-3">
+            <div class="font-bold mb-2" style="font-size:18px;color:var(--brand)">👦 男生組（4×100 公尺）</div>
+            <div class="grid gap-2 mb-2" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr))">
+              <div v-for="(n,i) in r4Draft.M" :key="'m'+i">
+                <label class="lbl" :for="'r4M_'+i">第 {{ i+1 }} 棒（必填）</label>
+                <input class="inp" :id="'r4M_'+i" v-model.trim="r4Draft.M[i]" :placeholder="'第'+(i+1)+'棒姓名'" maxlength="10" enterkeyhint="next" @keydown.enter.prevent="r4Next('M',i)" :class="{err: r4Tried && !r4Draft.M[i]}">
+              </div>
+            </div>
+            <div class="grid gap-2" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr))">
+              <div v-for="(n,i) in r4Draft.Ms" :key="'ms'+i">
+                <label class="lbl" :for="'r4Ms_'+i">男生候補 {{ i+1 }}（選填）</label>
+                <input class="inp" :id="'r4Ms_'+i" v-model.trim="r4Draft.Ms[i]" :placeholder="'候補 '+(i+1)+'（可留空）'" maxlength="10" enterkeyhint="next" @keydown.enter.prevent="r4Next('Ms',i)">
+              </div>
+            </div>
+          </div>
+          <div class="card-flat mb-3">
+            <div class="font-bold mb-2" style="font-size:18px;color:#B83280">👧 女生組（4×100 公尺）</div>
+            <div class="grid gap-2 mb-2" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr))">
+              <div v-for="(n,i) in r4Draft.F" :key="'f'+i">
+                <label class="lbl" :for="'r4F_'+i">第 {{ i+1 }} 棒（必填）</label>
+                <input class="inp" :id="'r4F_'+i" v-model.trim="r4Draft.F[i]" :placeholder="'第'+(i+1)+'棒姓名'" maxlength="10" enterkeyhint="next" @keydown.enter.prevent="r4Next('F',i)" :class="{err: r4Tried && !r4Draft.F[i]}">
+              </div>
+            </div>
+            <div class="grid gap-2" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr))">
+              <div v-for="(n,i) in r4Draft.Fs" :key="'fs'+i">
+                <label class="lbl" :for="'r4Fs_'+i">女生候補 {{ i+1 }}（選填）</label>
+                <input class="inp" :id="'r4Fs_'+i" v-model.trim="r4Draft.Fs[i]" :placeholder="'候補 '+(i+1)+'（可留空）'" maxlength="10" enterkeyhint="next" @keydown.enter.prevent="r4Next('Fs',i)">
+              </div>
+            </div>
+          </div>
+          <button id="r4Submit" class="btn btn-primary btn-big w-full" @click="submitR4">{{ (st.relay4 && st.relay4[tCls]) ? '修改後重新送出 4×100 名單' : '送出 4×100 選手名單' }}</button>
+          <div v-if="st.relay4 && st.relay4[tCls]" class="flex flex-wrap gap-2 mt-3 items-center">
+            <span class="small muted">已送出的名單：</span>
+            <button class="btn" @click="printReport('4×100 公尺接力選手名單', clsLabel(tCls), r4ExportRows([tCls]), 'bw', {checkCol:'核對'})">🖨 列印本班名單（黑白）</button>
+            <button class="btn" @click="printReport('4×100 公尺接力選手名單', clsLabel(tCls), r4ExportRows([tCls]), 'color', {checkCol:'核對'})">🖨 彩色</button>
+            <button class="btn" @click="printReport('4×100 公尺接力選手名單', clsLabel(tCls), r4ExportRows([tCls]), 'pdf', {checkCol:'核對'})">📄 存成 PDF</button>
+            <button class="btn" @click="downloadXlsx(r4ExportRows([tCls]), '4x100名單_'+clsLabel(tCls))">📊 下載 Excel</button>
           </div>
         </div>
         <div class="card" v-if="tOpen==='prog'">
@@ -1911,6 +1975,12 @@ body{ min-height:100%; min-height:100dvh; max-width:100%; }
               </div>
               <div class="font-bold" style="font-size:20px">{{ clsLabel(e.cls) }}</div>
               <div class="small muted" v-if="!ckEv.team">{{ e.name }}</div>
+              <div class="small" v-if="isR4Ev(ckEv)" style="margin-top:4px;line-height:1.45">
+                <template v-if="r4LineText(ckEv, e.cls, true)">
+                  <span style="color:var(--ink)">{{ r4LineText(ckEv, e.cls, true, true) }}</span>
+                </template>
+                <span v-else class="muted">（導師尚未填報選手名單）</span>
+              </div>
             </div>
             <div class="flex gap-2">
               <button class="btn btn-sm toggle-present" :class="e.present===true?'btn-ok':''" @click="setPresent(e,true)">{{ e.present===true ? '✔ 到' : '到' }}</button>
@@ -2563,6 +2633,52 @@ body{ min-height:100%; min-height:100dvh; max-width:100%; }
             <thead><tr><th style="width:4.5em">組別</th><th>第一名</th><th>第二名</th><th>第三名</th></tr></thead>
             <tbody><tr v-for="(g,gi) in st.allrun[c].groups" :key="gi"><td style="white-space:nowrap">第 {{ gi+1 }} 組</td><td v-for="(n,ni) in g" :key="ni">{{ n }}</td></tr></tbody>
           </table>
+        </details>
+      </div>
+
+      <!-- 🏃‍♂️ 4×100 公尺接力選手名單彙整（四～六年級導師填報後即時彙整） -->
+      <div v-if="exTab==='r4'" class="card">
+        <div class="flex justify-between flex-wrap gap-2 items-center mb-2">
+          <h2 class="h-sec">🏃‍♂️ 4×100 公尺接力選手名單填報進度</h2>
+          <div class="flex flex-wrap gap-2">
+            <button class="btn" @click="copy(r4RemindText)" :disabled="!r4Missing.length">📋 複製未交提醒（貼到 LINE）</button>
+            <button class="btn" @click="printReport('4×100 公尺接力選手名單總表','範圍：'+(r4ExGrade==='all'?'四～六年級':ZH[r4ExGrade]+'年級')+'（已交 '+r4ShownClasses.filter(c=>st.relay4 && st.relay4[c]).length+' 班）',r4ExportRows(r4ShownClasses),'bw',{checkCol:'核對',groupMode:'col0'})" :disabled="!r4ShownClasses.some(c=>st.relay4 && st.relay4[c])">🖨 列印黑白</button>
+            <button class="btn" @click="printReport('4×100 公尺接力選手名單總表','範圍：'+(r4ExGrade==='all'?'四～六年級':ZH[r4ExGrade]+'年級')+'（已交 '+r4ShownClasses.filter(c=>st.relay4 && st.relay4[c]).length+' 班）',r4ExportRows(r4ShownClasses),'color',{checkCol:'核對',groupMode:'col0'})" :disabled="!r4ShownClasses.some(c=>st.relay4 && st.relay4[c])">🖨 彩色</button>
+            <button class="btn" @click="printReport('4×100 公尺接力選手名單總表','範圍：'+(r4ExGrade==='all'?'四～六年級':ZH[r4ExGrade]+'年級')+'（已交 '+r4ShownClasses.filter(c=>st.relay4 && st.relay4[c]).length+' 班）',r4ExportRows(r4ShownClasses),'pdf',{checkCol:'核對',groupMode:'col0'})" :disabled="!r4ShownClasses.some(c=>st.relay4 && st.relay4[c])">📄 存成 PDF</button>
+            <button class="btn btn-primary" @click="downloadXlsx(r4ExportRows(r4ShownClasses),'4x100選手名單')" :disabled="!r4ShownClasses.some(c=>st.relay4 && st.relay4[c])">📊 下載 Excel</button>
+          </div>
+        </div>
+        <div class="bar mb-2"><i :style="{width:(r4Classes.length ? r4Done/r4Classes.length*100 : 0)+'%'}"></i></div>
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div class="small muted">已交 <b>{{ r4Done }}</b> 班／共 {{ r4Classes.length }} 班（四～六年級）</div>
+          <div class="seg" role="group" aria-label="篩選年級">
+            <button v-for="g in ['all','4','5','6']" :key="g" :class="{on:r4ExGrade===g}" @click="r4ExGrade=g">{{ g==='all' ? '全部' : ZH[g]+'年級' }}</button>
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button v-for="c in r4ShownClasses" :key="c" :class="['chip', (st.relay4 && st.relay4[c])?'st-published':'tag-todo']" :style="(st.relay4 && st.relay4[c])?'cursor:pointer':'cursor:default'" @click="(st.relay4 && st.relay4[c]) && (r4Open = r4Open===c ? '' : c)" :title="(st.relay4 && st.relay4[c]) ? '點一下看名單' : '還沒送出'">{{ (st.relay4 && st.relay4[c]) ? '✔' : '○' }} {{ clsLabel(c) }}</button>
+        </div>
+        <p class="small muted mt-2" v-if="r4Done">點綠色班級可快速展開該班棒次名單；得獎班級會自動帶入「獎狀名單」。</p>
+      </div>
+      <div v-if="exTab==='r4' && r4ShownClasses.some(c=>st.relay4 && st.relay4[c])" class="card mt-4">
+        <div class="flex justify-between flex-wrap gap-2 items-center mb-3">
+          <h2 class="h-sec">各班送出的 4×100 名單（{{ r4ShownClasses.filter(c=>st.relay4 && st.relay4[c]).length }} 班）</h2>
+          <button class="btn btn-sm btn-primary" @click="exTab='cert'; certFilter='relay'">🖨 看團體接力獎狀名單</button>
+        </div>
+        <details v-for="c in r4ShownClasses.filter(x=>st.relay4 && st.relay4[x])" :key="c" :id="'r4ex_'+c" class="card-flat mb-2" :open="r4Open===c || r4ShownClasses.filter(x=>st.relay4 && st.relay4[x]).length<=6" @toggle="e=>{ if(e.target.open) r4Open=c; }">
+          <summary class="flex items-center gap-2 flex-wrap cursor-pointer" style="min-height:40px">
+            <b style="font-size:17px">{{ clsLabel(c) }}</b>
+            <span class="small muted">{{ st.relay4[c].at }} 送出<template v-if="st.relay4[c].by">・{{ st.relay4[c].by }}</template></span>
+          </summary>
+          <div class="tblwrap mt-2">
+            <table class="rtbl" style="width:100%">
+              <thead><tr><th style="width:4.5em">組別</th><th>第 1 棒</th><th>第 2 棒</th><th>第 3 棒</th><th>第 4 棒</th><th>候補</th></tr></thead>
+              <tbody>
+                <tr><td style="white-space:nowrap;font-weight:700;color:var(--brand)">男生組</td><td v-for="(n,i) in (st.relay4[c].M||[])" :key="'m'+i">{{ n }}</td><td>{{ (st.relay4[c].Ms||[]).filter(Boolean).join('、') || '—' }}</td></tr>
+                <tr><td style="white-space:nowrap;font-weight:700;color:#B83280">女生組</td><td v-for="(n,i) in (st.relay4[c].F||[])" :key="'f'+i">{{ n }}</td><td>{{ (st.relay4[c].Fs||[]).filter(Boolean).join('、') || '—' }}</td></tr>
+              </tbody>
+            </table>
+          </div>
         </details>
       </div>
     </section>
@@ -3407,7 +3523,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261127141200'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261127221500'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -3616,21 +3732,22 @@ const HELP = {
   stations:['每一站可改名稱與地點。','按「開放」「人多」「暫停」「結束」，導師頁與看板馬上看到。','建議每站關主用手機開這頁更新。'],
   home:['要讓家長馬上看到的話（下雨、停車、失物招領），按「📢 跑馬燈公告」輸入後送出，大會看板最上方立刻出現。','突發狀況（下雨、醫護、場地整理）按「＋ 臨時插入流程」，點範本再按送出，司儀和相關組別同時收到。','忘記按「開始」時，畫面上方會跳出橘色提醒，可以一鍵開始或順延。','整場由「總控」在這頁按流程的「開始」「完成」，看板、司儀台、直播字卡都會同步，並自動產生大會報告稿。','上方數字卡片點一下就能前往對應的頁面。','流程延誤時按「流程延誤 +5 分」，未開始項目的時間會自動往後調。','右邊「各組分工」說明每一組負責什麼，藍底是你目前的身分。'],
   board:['每一組都能從左側選單（手機在底部列）點「大會看板」看到即時畫面；在自己的工作頁也可以按右下角「即時動態」看重點。','這頁是投影到司令台大螢幕或電視用的，按「投影模式」可隱藏選單。','成績一公布就會出現在「最新成績公布」，每 8 秒輪播。','積分排行依「積分與設定」的規則即時計算。'],
-  teacher:['先選「我的班級」，系統會記住。','可以查看本班當天出賽與檢錄狀態、本班得獎名單。','全員賽跑結束後，填每組前三名並送出，就不用再交紙本。'],
-  checkin:['選擇比賽項目，按「開始檢錄」，司儀台會自動出現檢錄廣播稿。','有道次與衣服顏色的項目（例如 4×100 公尺接力），會自動依第 1～6 道排序並用色條標記。','每班（每位選手）按「到」或「缺」；有人沒到按「呼叫第二次檢錄」，人齊了按「檢錄完成」。'],
+  teacher:['先選「我的班級」，系統會記住。','四～六年級導師可點「🏃‍♂️ 4×100 選手名單」填寫男女各 4 棒（與 1～2 位候補），自動連動檢錄處、成績查詢與獎狀套印。','可以查看本班當天出賽與檢錄狀態、本班得獎名單。','全員賽跑結束後，填每組前三名並送出，就不用再交紙本。'],
+  checkin:['選擇比賽項目，按「開始檢錄」，司儀台會自動出現檢錄廣播稿。','有道次與衣服顏色的項目（例如 4×100 公尺接力），會自動依第 1～6 道排序並用色條標記，並直接顯示導師填報的各班棒次與候補選手。','每班（每位選手）按「到」或「缺」；有人沒到按「呼叫第二次檢錄」，人齊了按「檢錄完成」。'],
   score:['選擇項目，在成績欄輸入秒數或公尺，右邊「即時名次」會自動排好。','跳遠、擲遠等田賽項目多了「第一次／第二次／第三次」三格，填數字、X（犯規）或 O（免跳），系統會自動帶出最佳成績，審核頁也會顯示三次原始紀錄。','沒跑完或犯規的勾「棄權/犯規」；輸入完按「送出審核」，紀錄組確認後才會公布。'],
   review:['只是學生姓名打錯：到「成績登錄」選該項目，按姓名旁「✏️ 改姓名」即可，不用退回。','檢查前幾名是否正確，沒問題按「公布成績」。','有疑問就寫原因按「退回修改」，裁判會看到原因。','已公布的成績會鎖定，要改必須按「申請修改」並寫原因，系統會留下紀錄。'],
   mc:['最上面「節目單提示」：左邊是現在要唸的稿子，右邊是下一個節目的預告；變成橘色代表快到了。','總控忘記按開始時，畫面上方會跳出橘色條，按「通知總控」就好。','各組的消息會自動變成播報稿，最上面藍框是下一則。','唸完按「已播報」，就不會重唸或漏唸。','臨時有事可用「臨時插播」，常用句子按一下就帶入。'],
   guests:['來賓、家長會、校內頒獎人都在這裡報到；來賓報到後司儀台會自動出現介紹稿。','有人臨時不能來就按「無法出席」，他負責的頒獎梯次會自動改由備援頒獎人。','臨時來的來賓或代表頒獎的老師，可在下方新增。'],
   watch:['開播後所有人都能從右上角紅色「看直播」進來。','手機掃 QR Code 或按「開始觀看」。','旁邊會同步顯示進行中項目、頒獎與最新成績。'],
   awards:['每梯次設定「主要」與「備援」頒獎人，以及集合地點。','有人無法出席時系統自動遞補；現場臨時變動可用「臨時換人」。','按「公布頒獎並通知集合」：看板、導師頁、直播字卡會公布得獎名單與地點，司儀台出現頒獎稿。','頒完按「完成頒獎」。'],
-  export:['「獎狀名單」可下載 Excel，給文書組用 Word 合併列印。','「獎品統計」給獎品組備貨用。','「公告與 PO 文」自動寫好文字，複製貼上即可。'],
+  export:['「獎狀名單」可下載 Excel，給文書組用 Word 合併列印（4×100 得獎班級會自動帶出 4 位選手姓名）。','「4×100名單」可查看四～六年級各班填報進度、複製 LINE 提醒、列印黑白/彩色總表或下載 Excel。','「獎品統計」給獎品組備貨用。','「公告與 PO 文」自動寫好文字，複製貼上即可。'],
   import:['先下載或複製範本，把資料整理成同樣欄位（接力可額外加「道次」「衣服顏色」兩欄）。','從 Excel 複製整個表格貼上，或直接選擇檔案。','系統會逐列檢查，有問題的列會標紅色並寫出原因，不會匯入。'],
   live:['開播前把 YouTube 或 Facebook 的直播網址貼上，按「開始直播」。','系統自動產生 QR Code，大會看板與導師頁會顯示「看直播」，司儀也會收到播報稿。','「直播疊字畫面」可以把成績即時疊在直播畫面下方。','比賽精彩時按「標記精彩時刻」，賽後剪精華就知道去哪裡找。'],
   config:['積分辦法改了立刻生效。','班級數、每項取前幾名也可以在這裡改。','試用完可以按「還原範例資料」。'],
 };
 /* 新功能公告：依組別顯示，每台裝置看過按「知道了」就不再出現（之後新增功能時，在最上面加一筆） */
 const WHATS_NEW = [
+  { id:'n20261127h', roles:['teacher','checkin','sport','record','control','doc'], page:'teacher', title:'🏃‍♂️ 4×100 接力選手名單開放四～六年級導師直接填報', text:'四～六年級導師在「導師查詢」點「🏃‍♂️ 4×100 選手名單」即可填寫男女生各 4 棒與 1～2 位候補（也支援從 Excel／LINE 一次貼上）；送出後自動同步到檢錄處、成績查詢（家長看遮名、老師看全名）、獎狀套印名單與「匯出與列印 → 4×100名單」。' },
   { id:'n20261127g', roles:['teacher','public','quest','control','record'], page:'stations', title:'🎯 體育社團體驗區全面公開＋互動發光地圖', text:'家長與老師不用登入也能打開「體育闖關」！點任一關卡按鈕或卡片，地圖上對應的體驗區立刻發光跳出定位圖釘，並即時顯示開放中／人多狀態。' },
   { id:'n20261127f', roles:['record','doc','award','medic','gift','control'], page:'export', title:'所有報表皆補上「🖨 列印黑白／彩色／存成 PDF」', text:'「獎狀名單」「獎品統計」「成績總表」「醫護紀錄」「捐贈芳名錄」都加上專屬 A4 列印按鈕，黑白列印採純黑格線、淡灰表頭、每頁自動重印表頭與核對打勾欄＋底部簽核欄，印出來整齊好核對。' },
   { id:'n20261127e', roles:['teacher','medic','gift','record','control'], page:'teacher', title:'已填報資料下次自動帶出，可直接修改錯誤處', text:'導師重新打開「全員賽跑名單」時，會自動帶出先前送出的全部名單，只需改錯字再送出；醫護站與收禮芳名錄每筆紀錄也加上「✏️ 修改」按鈕，點一下帶回表單即可修正。' },
@@ -3654,7 +3771,7 @@ const WHATS_NEW = [
   { id:'n20261125d', roles:['mc','control','record'], page:'sheets', title:'節目單（司儀版）可以列印', text:'在「成績單列印」選「節目單」，每一項都附司儀稿，A4 黑白或彩色。' },
   { id:'n20261124a', roles:['award','ceremony','record'], page:'sheets', title:'成績單可以直接列印', text:'「成績單列印」依頒獎梯次排好得獎名單，有「領獎」打勾欄，A4 黑白或彩色。' },
 ];
-const EX_TABS = [ {id:'cert',name:'獎狀名單'}, {id:'prize',name:'獎品統計'}, {id:'total',name:'成績總表'}, {id:'post',name:'公告與 PO 文'}, {id:'allrun',name:'全員賽跑進度'} ];
+const EX_TABS = [ {id:'cert',name:'獎狀名單'}, {id:'prize',name:'獎品統計'}, {id:'total',name:'成績總表'}, {id:'post',name:'公告與 PO 文'}, {id:'allrun',name:'全員賽跑進度'}, {id:'r4',name:'4×100名單'} ];
 
 /* ---------- 工具函式 ---------- */
 function rng(seed){ return function(){ seed|=0; seed=seed+0x6D2B79F5|0; let t=Math.imul(seed^seed>>>15,1|seed); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
@@ -3819,7 +3936,7 @@ function supportDefaults(){
   const stations=[['1　跆拳道','光電球場 乙場地'],['2　舞蹈社','光電球場 乙場地'],['3　匹克球','光電球場 丙場地'],['4　直排輪','光電球場 丙場地'],['5　飛盤社','光電球場 丙場地']].map(([n,p],i)=>({ id:'s'+(i+1), name:n, place:p, status:'open', at:'' }));
   return { equip, stations, lunch:{ _info:{ time:'11:50', place:'各班至午餐室領取' } } };
 }
-function emptyState(){ return { v:1, settings:seed().settings, events:[], timeline:[], guests:[], batches:[], allrun:{}, broadcasts:[], live:liveDefault(), logs:[], delayMin:0, reports:[], medical:[], equip:[], lunch:{}, gifts:[], stations:[] }; }
+function emptyState(){ return { v:1, settings:seed().settings, events:[], timeline:[], guests:[], batches:[], allrun:{}, relay4:{}, broadcasts:[], live:liveDefault(), logs:[], delayMin:0, reports:[], medical:[], equip:[], lunch:{}, gifts:[], stations:[] }; }
 /* 正式資料：依計畫書建項目與流程，不含範例學生 */
 function blankFormal(){
   const o=seed();
@@ -3828,7 +3945,7 @@ function blankFormal(){
   o.guests=[['p0','','○○○','校長'],['p1','教務處','○○○','主任'],['p2','學務處','○○○','主任'],['p3','總務處','○○○','主任'],['p4','輔導處','○○○','主任'],['g0','家長會','○○○','會長']].map((x,i)=>({ id:x[0], kind:x[0]==='g0'?'家長會':'校內', org:x[1], name:x[2], title:x[3], arrived:false, arrivedAt:'', introduced:x[0]!=='g0', absent:false, ord:i }));
   const tl={ b1:'n06', b2:'n11', b4:'n18', b5:'n18' };
   o.batches.forEach(b=>{ b.status='todo'; b.presenter='p0'; b.backup='g0'; b.override=''; b.place='司令台前頒獎台'; b.tl=tl[b.id]||''; });
-  o.allrun={}; o.broadcasts=[]; o.logs=[]; o.delayMin=0; o.live=liveDefault();
+  o.allrun={}; o.relay4={}; o.broadcasts=[]; o.logs=[]; o.delayMin=0; o.live=liveDefault();
   const sd=supportDefaults(); o.equip=sd.equip; o.stations=sd.stations; o.lunch=sd.lunch; o.reports=[]; o.medical=[]; o.gifts=[];
   return o;
 }
@@ -3836,7 +3953,7 @@ function migrate(o){
   if(!o.live) o.live={ on:false, platform:'YouTube', url:'', title:'楠梓國小創校127週年校慶運動會 網路直播', startedAt:'', startTs:0, marks:[], overlayBg:'green', overlayModes:['award','result','flow','stand'] };
   o.events.forEach(e=>{ if(!e.scoreMode){ e.scoreMode='default'; e.customPoints=[]; } });
   // 後勤支援（新增欄位）：正式版由雲端載入，體驗版補範例
-  ['reports','medical','equip','gifts','stations'].forEach(k=>{ if(!Array.isArray(o[k])) o[k]=[]; }); if(!o.lunch || typeof o.lunch!=='object') o.lunch={};
+  ['reports','medical','equip','gifts','stations'].forEach(k=>{ if(!Array.isArray(o[k])) o[k]=[]; }); if(!o.lunch || typeof o.lunch!=='object') o.lunch={}; if(!o.relay4 || typeof o.relay4!=='object') o.relay4={};
   if(!FORMAL && !o.stations.length){ const sd=supportDefaults(); o.equip=sd.equip; o.stations=sd.stations; o.lunch=sd.lunch;
     o.gifts=[{ id:'gf1', ts:Date.now()-3600000, at:'08:20', donor:'家長會', item:'運動飲料 200 瓶', amount:'', note:'範例', announced:true },{ id:'gf2', ts:Date.now()-1800000, at:'08:45', donor:'（範例）○○商行', item:'加油毛巾 100 條', amount:'', note:'範例', announced:false }];
     o.reports=[{ id:'rp1', ts:Date.now()-900000, at:'09:10', type:'env', place:'東側廁所', text:'衛生紙用完了（範例）', urgent:false, status:'open', by:'班級導師', handledBy:'', doneAt:'' }];
@@ -3885,7 +4002,7 @@ createApp({
     setInterval(()=>{ if(FORMAL || sync.on) return; try{ const s=localStorage.getItem(KEY); if(s && s!==lastLocal){ lastLocal=s; const o=migrate(JSON.parse(s)); if(JSON.stringify(o)!==JSON.stringify(st.value)){ applying=true; st.value=o; nextTick(()=>{ applying=false; }); } } }catch(e){} },500);
 
     /* 雲端多裝置同步：資料分成幾份文件，各裝置只寫有改動的那份；別台一改就即時推送過來 */
-    const SYNC_PARTS=['settings','events','timeline','guests','batches','allrun','broadcasts','live','logs','delayMin'];
+    const SYNC_PARTS=['settings','events','timeline','guests','batches','allrun','relay4','broadcasts','live','logs','delayMin'];
     const sync = reactive({ available:false, on:false, ok:false, canWrite:true, status:'', last:'' });
     const clientId=uid(); let db=null; const unsubs=[]; const lastSer={}; const busy={}; const again={};
     function hhmmss(){ const d=new Date(); return hhmm(d)+':'+pad(d.getSeconds()); }
@@ -4353,21 +4470,42 @@ createApp({
     function toggleArPub(id){ if(!need('config')) return; const a=[...arPubGrades.value]; const i=a.indexOf(id); if(i>=0) a.splice(i,1); else a.push(id); st.value.settings.allrunPub=a; log('全員賽跑公開年級：'+(a.map(x=>(AR_PUB_OPTS.find(o=>o.id===x)||{}).name).join('、')||'不公開')); }
     const arPubGradeText = computed(()=>{ const n=arPubGrades.value.map(x=>(AR_PUB_OPTS.find(o=>o.id===x)||{}).name).filter(Boolean); return n.length ? n.join('、') : '目前不公開'; });
     const pubAllrun = reactive({});
+    const pubRelay4 = reactive({});
     const maskGroups = d => ({ at:d.at||'', groups:(d.groups||[]).map(g=>g.map(n=>maskName(n))) });
-    /* Firestore 不能存「陣列裡的陣列」：全員賽跑每組名單在資料庫存成 { n:[第一名,第二名,第三名] }，讀回來再轉回陣列 */
-    function arEnc(d){ if(!d) return d; return Object.assign({}, d, { groups:(d.groups||[]).map(g=>({ n: Array.isArray(g) ? g.slice() : ((g&&g.n)||[]) })) }); }
-    function arDec(d){ if(!d) return d; return Object.assign({}, d, { groups:(d.groups||[]).map(g=> Array.isArray(g) ? g : ((g&&g.n)||[])) }); }
+    const maskR4 = d => d ? ({ at:d.at||'', M:(d.M||[]).map(n=>n?maskName(n):''), Ms:(d.Ms||[]).map(n=>n?maskName(n):''), F:(d.F||[]).map(n=>n?maskName(n):''), Fs:(d.Fs||[]).map(n=>n?maskName(n):'') }) : null;
+    /* Firestore 不能存「陣列裡的陣列」：全員賽跑每組名單在資料庫存成 { n:[第一名,第二名,第三名] }，讀回來再轉回陣列；4×100 名單不含 groups 直接原樣存取 */
+    function arEnc(d){ if(!d || !Array.isArray(d.groups)) return d; return Object.assign({}, d, { groups:d.groups.map(g=>({ n: Array.isArray(g) ? g.slice() : ((g&&g.n)||[]) })) }); }
+    function arDec(d){ if(!d || !Array.isArray(d.groups)) return d; return Object.assign({}, d, { groups:d.groups.map(g=> Array.isArray(g) ? g : ((g&&g.n)||[])) }); }
     /* 登入的老師（工作人員畫面）看全名；家長、大螢幕只拿得到遮名版（allrunPub），全名資料不會傳到家長手機 */
     const arFull = computed(()=> !maskOn.value && (!FORMAL || !!fb.user));
     const arPubData = computed(()=> arFull.value ? (st.value.allrun||{}) : (FORMAL ? pubAllrun : Object.fromEntries(Object.entries(st.value.allrun||{}).map(([k,v])=>[k, maskGroups(v)]))));
+    const r4PubData = computed(()=> arFull.value ? (st.value.relay4||{}) : (FORMAL ? pubRelay4 : Object.fromEntries(Object.entries(st.value.relay4||{}).map(([k,v])=>[k, maskR4(v)]))));
+    function isR4Ev(ev){ return !!(ev && (String(ev.id||'').startsWith('r4-') || /4[×xX]100/.test(String(ev.base||ev.name||'')))); }
+    function r4GenderOf(ev){ return (ev && (ev.gender==='女' || /-F$/.test(String(ev.id||'')) || /女/.test(String(ev.name||'')))) ? 'F' : 'M'; }
+    function r4RosterOf(ev, cls, forceFull){
+      const src = forceFull ? (st.value.relay4||{}) : r4PubData.value;
+      const d = src && src[cls]; if(!d) return { main:[], subs:[] };
+      const g = r4GenderOf(ev);
+      const main = (d[g]||[]).map(x=>String(x||'').trim()).filter(Boolean);
+      const subs = (d[g+'s']||[]).map(x=>String(x||'').trim()).filter(Boolean);
+      return { main, subs };
+    }
+    const R4_CIR = ['①','②','③','④'];
+    function r4LineText(ev, cls, forceFull, showSubs){
+      const r = r4RosterOf(ev, cls, forceFull);
+      if(!r.main.length) return '';
+      const base = r.main.map((n,i)=>(R4_CIR[i]||((i+1)+'.'))+n).join(' ');
+      return (showSubs && r.subs.length) ? base+'（候補：'+r.subs.join('、')+'）' : base;
+    }
     const arGradeOf = c => /^[KA]/.test(c) ? 'kg' : String(c)[0];
     const arPubShown = computed(()=>{ const q=String(resQ.value||'').trim();
       return allrunClasses.value.filter(c=>arPubData.value[c] && arPubGrades.value.includes(arGradeOf(c)) && (resGrade.value==='all' || String(resGrade.value)===arGradeOf(c)) && (!q || clsLabel(c).includes(q) || c.replace('-','').includes(q.replace(/^0/,''))))
         .map(c=>({ cls:c, d:arPubData.value[c] })); });
-    /* 有填報權限的人登入時，把完整名單同步一份遮名版（補上以前送出的班級） */
+    /* 有填報權限的人登入時，把完整名單同步一份遮名版（補上以前送出的班級；包含全員賽跑與 4×100） */
     /* 用到 fb（在後面才宣告）的監看，等畫面掛上後才開始，避免「fb 尚未初始化」錯誤 */
-    onMounted(()=>{ watch(()=>[JSON.stringify(st.value.allrun||{}), fb.user && fb.user.email, Object.keys(pubAllrun).length], ()=>{ if(!FORMAL || !fb.user || !(fb.admin || can('allrun'))) return;
-      Object.entries(st.value.allrun||{}).forEach(([c,d])=>{ const m=maskGroups(d); if(JSON.stringify(m)!==JSON.stringify(pubAllrun[c]||null)){ try{ fref('allrunPub',c).set(arEnc(m)).catch(()=>{}); }catch(e){} } }); }, { immediate:true }); });
+    onMounted(()=>{ watch(()=>[JSON.stringify(st.value.allrun||{}), JSON.stringify(st.value.relay4||{}), fb.user && fb.user.email, Object.keys(pubAllrun).length, Object.keys(pubRelay4).length], ()=>{ if(!FORMAL || !fb.user || !(fb.admin || can('allrun'))) return;
+      Object.entries(st.value.allrun||{}).forEach(([c,d])=>{ const m=maskGroups(d); if(JSON.stringify(m)!==JSON.stringify(pubAllrun[c]||null)){ try{ fref('allrunPub',c).set(arEnc(m)).catch(()=>{}); }catch(e){} } });
+      Object.entries(st.value.relay4||{}).forEach(([c,d])=>{ const m=maskR4(d); if(m && JSON.stringify(m)!==JSON.stringify(pubRelay4[c]||null)){ try{ fref('allrunPub','r4_'+c).set(m).catch(()=>{}); }catch(e){} } }); }, { immediate:true }); });
     /* ----- 臨時插入流程（突發狀況） ----- */
     const ADHOC_TPL = [
       { k:'雨天備案', title:'雨天暫停，移至室內', unit:'全校師生', place:'風雨操場、各班教室', notify:['site','equip'], mc:'大會報告：因為下雨，比賽暫停，請各班依照導師指示移到風雨操場或回教室休息，器材組、場地組請協助收器材，恢復時間請聽廣播。' },
@@ -4988,7 +5126,7 @@ createApp({
     /* ----- 導師 ----- */
     /* 我的班級：不預設班級（避免老師以為自己是五年三班）；選過會記在這台裝置，登入的老師也記在帳號上，換手機一樣記得 */
     const tCls = ref((()=>{ try{ return localStorage.getItem(KEY+'-tcls')||(FORMAL?'':'5-03'); }catch(e){ return FORMAL?'':'5-03'; } })());
-    watch(tCls, v=>{ try{ localStorage.setItem(KEY+'-tcls',v); }catch(e){} loadDraft();
+    watch(tCls, v=>{ try{ localStorage.setItem(KEY+'-tcls',v); }catch(e){} loadDraft(); loadR4Draft();
       if(FORMAL && fb.user && v){ try{ fref('users',fb.email.toLowerCase()).set({ cls:v }, { merge:true }); }catch(e){} } });
     /* 🏫 導師帶班名單：管理員貼「班級＋姓名（或帳號）」，老師登入後用 Google 帳號姓名自動帶入自己的班級，不用再選
        存在 meta/homeroom（學校網站本來就公告各班導師，不含學生個資） */
@@ -5022,13 +5160,32 @@ createApp({
     /* 導師首頁卡片：打招呼、臨時通知、本班節目、展開哪一張 */
     const tOpen = ref('');
     function openHomeFlow(){ nextTick(()=>{ const el=document.getElementById('homeFlow'); if(!el) return; const d=el.tagName==='DETAILS' ? el : el.querySelector('details'); if(d) d.open=true; el.scrollIntoView({behavior:'smooth', block:'start'}); }); }
-    function openT(k){ tOpen.value = tOpen.value===k ? '' : k; if(tOpen.value==='allrun' && st.value.allrun[tCls.value] && (!arDraft.groups.length || arDraft.groups.every(g=>g.every(n=>!n)))) loadDraft(); if(tOpen.value) nextTick(()=>{ const el=document.getElementById('tDetail'); if(el) el.scrollIntoView({behavior:'smooth', block:'start'}); }); }
+    function openT(k){ tOpen.value = tOpen.value===k ? '' : k; if(tOpen.value==='allrun' && st.value.allrun[tCls.value] && (!arDraft.groups.length || arDraft.groups.every(g=>g.every(n=>!n)))) loadDraft(); if(tOpen.value==='r4' && st.value.relay4 && st.value.relay4[tCls.value] && r4Draft.M.every(n=>!n) && r4Draft.F.every(n=>!n)) loadR4Draft(); if(tOpen.value) nextTick(()=>{ const el=document.getElementById('tDetail'); if(el) el.scrollIntoView({behavior:'smooth', block:'start'}); }); }
     const tHelloName = computed(()=>{ const h=new Date(nowTick.value).getHours(); const hi=h<11?'早安':h<14?'午安':'您好'; const n=FORMAL && fb.user ? String(fb.user.name||'').replace(/[（(].*$/,'').trim() : ''; return (n ? n+'老師 ' : '老師 ')+hi; });
     const myProg = computed(()=>{ const c=tCls.value; if(!c) return []; const g=/^[KA]/.test(c) ? 'kg' : +c[0];
       return st.value.timeline.filter(t=>gradesIn([t.unit,(t.items||[]).join(' '),t.title,t.note].join(' ')).has(g) && !/全校/.test([t.unit,t.title].join(' ')) || (t.eventIds||[]).some(id=>teacherEvents.value.some(x=>x.ev.id===id)))
         .slice().sort((a,b)=>(toMin(tlTime(a))||0)-(toMin(tlTime(b))||0)); });
     const myProgNext = computed(()=>myProg.value.find(t=>t.status==='now') || myProg.value.find(t=>t.status==='todo') || null);
-    const tTodo = computed(()=>(tCls.value && !st.value.allrun[tCls.value] ? 1 : 0) + teacherNotices.value.filter(n=>n.icon==='📋' || n.icon==='⏰').length + teacherCalls.value.filter(c=>c.b.status==='ready').length);
+    function isR4Cls(c){ return /^[456]-/.test(String(c||'')); }
+    const r4Classes = computed(()=>allrunClasses.value.filter(isR4Cls));
+    const r4Done = computed(()=>r4Classes.value.filter(c=>st.value.relay4 && st.value.relay4[c]).length);
+    const r4Missing = computed(()=>r4Classes.value.filter(c=>!(st.value.relay4 && st.value.relay4[c])));
+    const r4ExGrade = ref('all');
+    const r4Open = ref('');
+    watch(r4Open, c=>{ if(c) nextTick(()=>{ const el=document.getElementById('r4ex_'+c); if(el){ el.open=true; el.scrollIntoView({ behavior:'smooth', block:'center' }); } }); });
+    const r4ShownClasses = computed(()=>r4Classes.value.filter(c=>r4ExGrade.value==='all' || String(c).startsWith(r4ExGrade.value+'-')));
+    const r4RemindText = computed(()=>'各位四～六年級導師您好：\n4×100 公尺接力選手名單尚未填報的班級如下，再麻煩撥冗至運動會系統「導師查詢 → 4×100 選手名單」填寫，謝謝您的協助！\n'+r4Missing.value.map(clsLabel).join('、')+'\n——體育組／紀錄組 敬上');
+    function r4ExportRows(classes){
+      const rows=[['年級','班級','組別','第1棒','第2棒','第3棒','第4棒','候補1','候補2','送出時間','填報人']];
+      (classes||[]).filter(c=>st.value.relay4 && st.value.relay4[c]).forEach(c=>{
+        const d=st.value.relay4[c], g=ZH[+String(c)[0]]+'年級';
+        const M=d.M||[], Ms=d.Ms||[], F=d.F||[], Fs=d.Fs||[];
+        rows.push([g, clsLabel(c), '男生組', M[0]||'', M[1]||'', M[2]||'', M[3]||'', Ms[0]||'', Ms[1]||'', d.at||'', d.by||'']);
+        rows.push([g, clsLabel(c), '女生組', F[0]||'', F[1]||'', F[2]||'', F[3]||'', Fs[0]||'', Fs[1]||'', d.at||'', d.by||'']);
+      });
+      return rows;
+    }
+    const tTodo = computed(()=>(tCls.value && !st.value.allrun[tCls.value] ? 1 : 0) + (isR4Cls(tCls.value) && !(st.value.relay4 && st.value.relay4[tCls.value]) ? 1 : 0) + teacherNotices.value.filter(n=>n.icon==='📋' || n.icon==='⏰').length + teacherCalls.value.filter(c=>c.b.status==='ready').length);
     /* ▶ 接手的老師：導師「提前檢錄提醒」的時間在這裡改
        TEACHER_LEAD＝檢錄前幾分鐘開始提醒；CHECK_BEFORE＝節目單沒寫檢錄時間時，預設比賽開始前幾分鐘檢錄 */
     const TEACHER_LEAD = 30, CHECK_BEFORE = 10;
@@ -5046,7 +5203,81 @@ createApp({
       st.value.broadcasts.filter(b=>!b.cancelled && ['urgent','insert'].includes(b.type) && (b.ts||0)>=lim).sort((a,b)=>(b.ts||0)-(a.ts||0)).slice(0,2)
         .forEach(b=>out.push({ key:'b'+(b.id||b.ts), urgent:b.type==='urgent', icon:b.type==='urgent'?'⚠️':'📣', label:b.type==='urgent'?'緊急更正':'臨時通知', text:String(b.text||'').replace(/^大會報告：/,''), at:b.at||'' }));
       return out; });
-    const teacherAwards = computed(()=>{ const out=[]; st.value.events.filter(isPub).forEach(ev=>ranked(ev).forEach(x=>{ if(x.e.cls===tCls.value && x.place && x.place<=ev.awardTop) out.push({ key:ev.id+x.e.id, ev:ev.name, place:x.place, name:x.e.name, mark:fmtMark(ev,x.e)+(x.e.record?'　🏆 破大會紀錄':'') }); })); return out.sort((a,b)=>a.place-b.place); });
+    const teacherAwards = computed(()=>{ const out=[]; st.value.events.filter(isPub).forEach(ev=>ranked(ev).forEach(x=>{ if(x.e.cls===tCls.value && x.place && x.place<=ev.awardTop){ const r4=isR4Ev(ev) ? r4LineText(ev, x.e.cls, true) : ''; out.push({ key:ev.id+x.e.id, ev:ev.name, place:x.place, name:x.e.name || r4, mark:fmtMark(ev,x.e)+(x.e.record?'　🏆 破大會紀錄':'') }); } })); return out.sort((a,b)=>a.place-b.place); });
+    const r4Draft = reactive({ M:['','','',''], Ms:['',''], F:['','','',''], Fs:['',''] });
+    const r4Tried = ref(false);
+    const r4Paste = ref('');
+    function loadR4Draft(){
+      const s = st.value.relay4 && st.value.relay4[tCls.value];
+      r4Tried.value = false;
+      if(s){
+        r4Draft.M = [0,1,2,3].map(i=>(s.M&&s.M[i])||'');
+        r4Draft.Ms = [0,1].map(i=>(s.Ms&&s.Ms[i])||'');
+        r4Draft.F = [0,1,2,3].map(i=>(s.F&&s.F[i])||'');
+        r4Draft.Fs = [0,1].map(i=>(s.Fs&&s.Fs[i])||'');
+      } else {
+        r4Draft.M = ['','','','']; r4Draft.Ms = ['',''];
+        r4Draft.F = ['','','','']; r4Draft.Fs = ['',''];
+      }
+    }
+    watch(()=>st.value.relay4 && st.value.relay4[tCls.value], (val)=>{ if(val && r4Draft.M.every(n=>!n) && r4Draft.F.every(n=>!n)) loadR4Draft(); }, { deep:true });
+    const r4PasteParsed = computed(()=>{
+      const t = r4Paste.value.trim();
+      const empty = { M:['','','',''], Ms:['',''], F:['','','',''], Fs:['',''] };
+      if(!t) return empty;
+      const cleanLine = l => l.replace(/^(男|女)(生|生組|子|子組)?[:：\s]*/,'').replace(/候補[:：\s]*/g,' ')
+        .split(/[\t,，、;；|｜]+|\s+/).map(x=>x.trim().replace(/^[①②③④\d]+[.、．)]*/,'')).filter(Boolean)
+        .filter(x=>!/^(第?[1-4一二三四]棒|候補[12一二]?|男生組?|女生組?)$/.test(x));
+      const lines = t.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+      let mArr=[], fArr=[];
+      const mLine = lines.find(l=>/^男/.test(l)), fLine = lines.find(l=>/^女/.test(l));
+      if(mLine || fLine){
+        if(mLine) mArr = cleanLine(mLine);
+        if(fLine) fArr = cleanLine(fLine);
+      } else if(lines.length >= 2){
+        mArr = cleanLine(lines[0]); fArr = cleanLine(lines[1]);
+      } else {
+        const all = cleanLine(lines[0]);
+        mArr = all.slice(0, 4); fArr = all.slice(4, 8);
+      }
+      return {
+        M: [0,1,2,3].map(i=>(mArr[i]||'').slice(0,10)),
+        Ms: [4,5].map(i=>(mArr[i]||'').slice(0,10)),
+        F: [0,1,2,3].map(i=>(fArr[i]||'').slice(0,10)),
+        Fs: [4,5].map(i=>(fArr[i]||'').slice(0,10)),
+      };
+    });
+    function applyR4Paste(){
+      const p = r4PasteParsed.value;
+      if(!p.M.some(Boolean) && !p.F.some(Boolean)) return;
+      if(p.M.some(Boolean)){ r4Draft.M = [...p.M]; r4Draft.Ms = [...p.Ms]; }
+      if(p.F.some(Boolean)){ r4Draft.F = [...p.F]; r4Draft.Fs = [...p.Fs]; }
+      r4Tried.value = false; r4Paste.value = '';
+      toast('已填入 4×100 名單，請核對棒次後按送出');
+    }
+    const R4_ORDER = ['r4M_0','r4M_1','r4M_2','r4M_3','r4Ms_0','r4Ms_1','r4F_0','r4F_1','r4F_2','r4F_3','r4Fs_0','r4Fs_1','r4Submit'];
+    function r4Next(sec, idx){ const cur='r4'+sec+'_'+idx, pos=R4_ORDER.indexOf(cur), el=document.getElementById(R4_ORDER[pos+1]||'r4Submit'); if(el) el.focus(); }
+    function submitR4(){
+      if(!need('allrun')) return;
+      if(!isR4Cls(tCls.value)){ toast('4×100 公尺接力為四～六年級項目',true); return; }
+      if(FORMAL && !arHelper.value && !can('data') && ownCls.value && tCls.value!==ownCls.value){ toast('只能送自己班的名單；老師請假時請總控幫忙填',true); return; }
+      r4Tried.value = true;
+      const M = r4Draft.M.map(x=>String(x||'').trim()), Ms = r4Draft.Ms.map(x=>String(x||'').trim()).filter(Boolean);
+      const F = r4Draft.F.map(x=>String(x||'').trim()), Fs = r4Draft.Fs.map(x=>String(x||'').trim()).filter(Boolean);
+      if(M.some(n=>!n) || F.some(n=>!n)){ toast('男生組 4 棒與女生組 4 棒皆為必填，請補齊空白欄位',true); return; }
+      const dupOf = arr => [...new Set(arr.filter((n,i)=>arr.indexOf(n)!==i))];
+      const dm = dupOf([...M,...Ms]), df = dupOf([...F,...Fs]);
+      if(dm.length){ toast('男生組有重複姓名：'+dm.join('、'),true); return; }
+      if(df.length){ toast('女生組有重複姓名：'+df.join('、'),true); return; }
+      if(!st.value.relay4 || typeof st.value.relay4!=='object') st.value.relay4={};
+      st.value.relay4[tCls.value] = {
+        at:(new Date().getMonth()+1)+'/'+pad(new Date().getDate())+' '+hhmm(),
+        M, Ms, F, Fs,
+        by:(FORMAL && fb.user ? String(fb.user.name||fb.email) : roleObj.value.name)
+      };
+      log('4×100 選手名單送出：'+clsLabel(tCls.value));
+      toast('已送出 4×100 選手名單！已自動同步檢錄處與獎狀名單');
+    }
     const arDraft = reactive({ count:5, groups:[] });
     const arTried = ref(false);
     function blankGroups(n){ return Array.from({length:n},()=>['','','']); }
@@ -5073,7 +5304,16 @@ createApp({
     const certRows = computed(()=>{
       const rows=[['獎項','組別','名次','班級','姓名','成績']];
       if(certFilter.value!=='allrun') st.value.events.filter(isPub).filter(e=>certFilter.value==='all' || (certFilter.value==='relay')===(e.cat==='relay')).sort((a,b)=>a.order-b.order).forEach(ev=>{
-        ranked(ev).forEach(x=>{ if(x.place && x.place<=ev.awardTop) rows.push([ev.base, ev.name.split(' ')[0], '第'+ZH[x.place]+'名', clsLabel(x.e.cls), x.e.name||'（班級隊伍）', fmtMark(ev,x.e).replace('″',' 秒').replace(' m',' 公尺')+(x.e.record?'（破大會紀錄）':'')]); });
+        ranked(ev).forEach(x=>{
+          if(!x.place || x.place>ev.awardTop) return;
+          const markTxt = fmtMark(ev,x.e).replace('″',' 秒').replace(' m',' 公尺')+(x.e.record?'（破大會紀錄）':'');
+          const r4 = isR4Ev(ev) ? r4RosterOf(ev, x.e.cls, true) : null;
+          if(r4 && r4.main.length){
+            r4.main.forEach(name=>rows.push([ev.base, ev.name.split(' ')[0], '第'+ZH[x.place]+'名', clsLabel(x.e.cls), name, markTxt]));
+          } else {
+            rows.push([ev.base, ev.name.split(' ')[0], '第'+ZH[x.place]+'名', clsLabel(x.e.cls), x.e.name||(isR4Ev(ev)?'（班級隊伍，待導師填名單）':'（班級隊伍）'), markTxt]);
+          }
+        });
       });
       if(certFilter.value==='all' || certFilter.value==='allrun') allrunClasses.value.forEach(c=>{ const s=st.value.allrun[c]; if(s) s.groups.forEach((g,gi)=>g.forEach((n,ni)=>rows.push(['全員賽跑','第'+(gi+1)+'組','第'+ZH[ni+1]+'名',clsLabel(c),n,'']))); });
       return rows;
@@ -5503,7 +5743,7 @@ createApp({
         applyRemote(()=>ch.forEach(c=>{ const id=c.doc.id; if(c.type==='removed'){ delete remoteSer[name][id]; apply(id,null); return; } const d=c.doc.data(); const ser=canon(d); if(remoteSer[name][id]===ser || pend[name+'/'+id]>0) return; remoteSer[name][id]=ser; apply(id,d); }));
       }, e=>{ fb.err='無法讀取「'+name+'」：'+(e.code||''); });
     }
-    function revertLocal(col,id,prev){ if(!prev) return; const d=JSON.parse(prev); applyRemote(()=>{ if(ARR_COLS.includes(col)){ if(col==='events') evFill(d); const a=st.value[col], i=a.findIndex(x=>x.id===id); if(i>=0) a.splice(i,1,d); } else if(col==='allrun') st.value.allrun[id]=arDec(d); else if(col==='meta'){ if(id==='settings') st.value.settings=d; else if(id==='live') st.value.live=d; else if(id==='flow') st.value.delayMin=d.delayMin||0; } }); }
+    function revertLocal(col,id,prev){ if(!prev) return; const d=JSON.parse(prev); applyRemote(()=>{ if(ARR_COLS.includes(col)){ if(col==='events') evFill(d); const a=st.value[col], i=a.findIndex(x=>x.id===id); if(i>=0) a.splice(i,1,d); } else if(col==='allrun'){ if(String(id).startsWith('r4_')) st.value.relay4[String(id).slice(3)]=d; else st.value.allrun[id]=arDec(d); } else if(col==='meta'){ if(id==='settings') st.value.settings=d; else if(id==='live') st.value.live=d; else if(id==='flow') st.value.delayMin=d.delayMin||0; } }); }
     function fbWrite(col,id,obj){
       if(!fdb || !fb.user) return;
       let src=obj;
@@ -5530,6 +5770,7 @@ createApp({
       if(!FORMAL || !fb.ready || !fb.user) return;
       ARR_COLS.forEach(c=>(st.value[c]||[]).forEach(it=>{ if(it && it.id) fbWrite(c,it.id,it); }));
       Object.keys(st.value.allrun||{}).forEach(k=>fbWrite('allrun',k,st.value.allrun[k]));
+      Object.keys(st.value.relay4||{}).forEach(k=>fbWrite('allrun','r4_'+k,st.value.relay4[k]));
       Object.keys(st.value.lunch||{}).forEach(k=>fbWrite('lunch',k,st.value.lunch[k]));
       Object.keys(remoteSer.lunch).forEach(k=>{ if(!(k in st.value.lunch)) fbDelete('lunch',k); });
       fbWrite('meta','settings',st.value.settings); fbWrite('meta','live',st.value.live); fbWrite('meta','flow',{ delayMin:st.value.delayMin||0 });
@@ -5551,8 +5792,8 @@ createApp({
       fUnsubs.push(listenArr('broadcasts', fdb.collection('broadcasts').orderBy('ts','desc').limit(200), { keep:true }));
       fUnsubs.push(listenArr('broadcasts', fdb.collection('broadcasts').where('done','==',false), { onLeave:b=>{ if(!b.done){ b.done=true; } } }));
       fUnsubs.push(listenMap('meta', fdb.collection('meta'), (id,d)=>{ if(!d) return; if(id==='settings') st.value.settings=d; else if(id==='live') st.value.live=Object.assign(liveDefault(), d); else if(id==='flow') st.value.delayMin=d.delayMin||0; else if(id==='homeroom') homeroomText.value=d.text||''; }));
-      if(fb.user) fUnsubs.push(listenMap('allrun', fdb.collection('allrun'), (id,d)=>{ if(d) st.value.allrun[id]=arDec(d); else delete st.value.allrun[id]; }));
-      fUnsubs.push(fdb.collection('allrunPub').onSnapshot(snap=>{ snap.docChanges().forEach(ch=>{ if(ch.type==='removed') delete pubAllrun[ch.doc.id]; else pubAllrun[ch.doc.id]=arDec(ch.doc.data()); }); }, ()=>{}));
+      if(fb.user) fUnsubs.push(listenMap('allrun', fdb.collection('allrun'), (id,d)=>{ if(String(id).startsWith('r4_')){ const c=String(id).slice(3); if(d) st.value.relay4[c]=d; else delete st.value.relay4[c]; } else { if(d) st.value.allrun[id]=arDec(d); else delete st.value.allrun[id]; } }));
+      fUnsubs.push(fdb.collection('allrunPub').onSnapshot(snap=>{ snap.docChanges().forEach(ch=>{ const id=ch.doc.id; if(id.startsWith('r4_')){ const c=id.slice(3); if(ch.type==='removed') delete pubRelay4[c]; else pubRelay4[c]=ch.doc.data(); } else { if(ch.type==='removed') delete pubAllrun[id]; else pubAllrun[id]=arDec(ch.doc.data()); } }); }, ()=>{}));
       if(fb.user && (fb.admin || fb.myRoles.some(r=>['record','control'].includes(r)))){
         fUnsubs.push(listenArr('logs', fdb.collection('logs').orderBy('ts','desc').limit(300)));
         fUnsubs.push(fdb.collection('devices').onSnapshot(s=>{ fb.devices=s.docs.map(d=>{ const x=d.data(); return Object.assign({ id:d.id }, x, { tsMs: x.ts && x.ts.toMillis ? x.ts.toMillis() : 0 }); }); }, ()=>{}));
@@ -5698,9 +5939,10 @@ createApp({
       reportNotices.value = openReports.value.filter(r=>canHandle(r) && !sentByMe(r)).map(r=>({ id:'rp_'+r.id, kind:'report', urgent:!!r.urgent, ts:r.ts||0, at:r.at, by:r.by,
         text:(r.urgent?'🚨 緊急通報':'🚨 現場通報')+'【'+(RTYPES[r.type]?RTYPES[r.type].name:'其他')+'】'+(r.place?r.place+'：':'')+r.text })); }, { immediate:true });
     watch(myHomeroom, c=>{ if(c && !hrApplied){ hrApplied=true; if(c!==tCls.value){ tCls.value=c; toast('已依你的帳號切換到 '+clsLabel(c)); } } }); // 放在 fb 建立之後（避免初始化順序錯誤）
-    onMounted(()=>{ readHash(); if(!hashGiven && isPublicView.value) page.value='board'; loadDraft(); syncLiveDraft(); renderQR(); if(FORMAL) fbInit(); else initCloud(); });
+    onMounted(()=>{ readHash(); if(!hashGiven && isPublicView.value) page.value='board'; loadDraft(); loadR4Draft(); syncLiveDraft(); renderQR(); if(FORMAL) fbInit(); else initCloud(); });
 
     return { bt, toggleRec, recEditMode, recordList, st, role, page, helpOpen, newsOpen, tOpen, openHomeFlow, checkTimeOf, ownCls, tClsEdit, backToOwnCls, arHelper, arSheet, arSheetDone, arSheetMissing, printAr, printPage, rptData, printReport, downloadArXlsx, savePdf, pageXlsx, openT, tHelloName, myProg, myProgNext, tTodo, teacherNotices, acctMgr, isCtrlEmail, closeHelp, newsList, dismissNews, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
+      isR4Cls, isR4Ev, r4RosterOf, r4LineText, r4Classes, r4Done, r4Missing, r4ExGrade, r4Open, r4ShownClasses, r4RemindText, r4ExportRows, r4Draft, r4Tried, r4Paste, r4PasteParsed, applyR4Paste, r4Next, submitR4, loadR4Draft,
       SHORT, arOpen, homeroomDraft, homeroomRows, homeroomLogins, saveHomeroom, myHomeroom, onHrInput, cd, pad, insertOpen, openInsert, promptGroup, promptNext, scriptState, jumpScripts, ringLong, toggleRing, refOk, refChanged, confirmRef, needRef, doneTab, doneShown, restoreBc, scriptLib, scriptsOf, scriptGroups, nextScriptGroup, sf, editScript, saveScript, removeScript, moveScript, queueScript, sPaste, sParsed, importScripts, canBc, pushState, registerPush, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
       drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, arFull, AR_PUB_OPTS, arPubGrades, toggleArPub, arPubGradeText, arPubShown, PG_GRADES, pgGrade, progList, progLeave, shiftHM, flashLine, reportLine, TICKER_TPL, tkOpen, tk, tickerMsgs, hhmmOf, addTicker, removeTicker, canFixName, fixName, overdueTl, overdueSnoozed, snoozeOverdue, remindControl, setAutoFlow, ADHOC_TPL, adhocOpen, adhoc, useAdhocTpl, addAdhoc, tlRange, tlNo, mcScriptOf, prepScriptOf, nextMinsLeft, scheduledTl, mcProgOpen, applyProgram, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
