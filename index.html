@@ -2801,9 +2801,16 @@ html.ov-transparent body::before{ display:none; }
 
     <!-- ===================== 體育闖關 ===================== -->
     <section v-if="page==='stations'" class="fade-up">
+      <div v-if="can('quest')" class="flex justify-between items-center gap-2 flex-wrap mb-3">
+        <span class="small muted">目前共 <b>{{ st.stations.length }}</b> 個體驗區，可直接改名稱、地點或切換開放狀態。</span>
+        <button class="btn btn-sm btn-primary" @click="addStation">＋ 新增體驗區</button>
+      </div>
       <div class="grid gap-3" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr))">
         <div v-for="x in st.stations" :key="x.id" class="card flex flex-col gap-2">
-          <input class="inp" style="font-weight:900" :id="'sn_'+x.id" v-model="x.name" maxlength="20" :disabled="!can('quest')">
+          <div class="flex gap-2 items-center">
+            <input class="inp" style="font-weight:900;flex:1" :id="'sn_'+x.id" v-model="x.name" maxlength="20" :disabled="!can('quest')">
+            <button v-if="can('quest')" class="btn btn-sm" style="min-height:38px;padding:4px 10px" @click="removeStation(x)" :title="'刪除 '+x.name">🗑</button>
+          </div>
           <input class="inp small" :id="'sp_'+x.id" v-model="x.place" maxlength="20" placeholder="地點" :disabled="!can('quest')">
           <div class="flex items-center justify-between gap-2"><span :class="['chip', STA[x.status].cls]">{{ STA[x.status].label }}</span><span class="small muted">{{ x.at ? '更新 '+x.at : '' }}</span></div>
           <div class="grid gap-2" style="grid-template-columns:repeat(4,1fr)">
@@ -3111,7 +3118,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261127112200'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261127112800'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -3519,7 +3526,7 @@ function supportDefaults(){
     E('n17','接力棒',12,'起跑區'), E('n17','頭巾（各班顏色）',12,'檢錄處'),
     E('n18','頒獎台、獎盤、錦旗',1,'司令台前頒獎台'),
   ];
-  const stations=['投籃高手','跳繩挑戰','呼拉圈','平衡木','擲準大師','敏捷梯'].map((n,i)=>({ id:'s'+(i+1), name:'第'+(i+1)+'關　'+n, place:'操場周邊', status:'open', at:'' }));
+  const stations=[['1　跆拳道','光電球場 乙場地'],['2　舞蹈社','光電球場 乙場地'],['3　匹克球','光電球場 丙場地'],['4　直排輪','光電球場 丙場地'],['5　飛盤社','光電球場 丙場地']].map(([n,p],i)=>({ id:'s'+(i+1), name:n, place:p, status:'open', at:'' }));
   return { equip, stations, lunch:{ _info:{ time:'11:50', place:'各班至午餐室領取' } } };
 }
 function emptyState(){ return { v:1, settings:seed().settings, events:[], timeline:[], guests:[], batches:[], allrun:{}, broadcasts:[], live:liveDefault(), logs:[], delayMin:0, reports:[], medical:[], equip:[], lunch:{}, gifts:[], stations:[] }; }
@@ -5071,6 +5078,8 @@ createApp({
     const giftRows = computed(()=>[['時間','捐贈單位／姓名','禮品','金額']].concat(st.value.gifts.map(g=>[g.at,g.donor,g.item,g.amount||''])));
     const giftText = computed(()=>'【感謝芳名錄】楠梓國小'+st.value.settings.title+'\n感謝以下單位與個人熱心捐贈：\n'+st.value.gifts.map(g=>'・'+g.donor+'　'+g.item).join('\n')+'\n謹致謝忱！');
     function setStation(x,k){ if(!need('quest')) return; x.status=k; x.at=hhmm(); }
+    function addStation(){ if(!need('quest')) return; const n=st.value.stations.length+1; st.value.stations.push({ id:'s'+Date.now()+uid(), name:n+'　新體驗區', place:'光電球場', status:'open', at:hhmm() }); log('體育闖關：新增體驗區'); toast('已新增體驗區，可直接修改名稱與地點'); }
+    function removeStation(x){ if(!need('quest')) return; ask('確定刪除「'+(x.name||'這個體驗區')+'」嗎？', ()=>{ const i=st.value.stations.indexOf(x); if(i>=0) st.value.stations.splice(i,1); if(FORMAL) fbDelete('stations', x.id); log('體育闖關：刪除 '+x.name); toast('已刪除「'+x.name+'」'); }); }
 
     const ovIdx = ref(0);
     const ovSlide = computed(()=>{
@@ -5356,7 +5365,7 @@ createApp({
       rvTab, rvNote, publish, sendBack, askReopen,
       mcText, doneBc, addInsert, bcStyle,
       FORMAL, fb, roleTab, roleGroups, roleRowsTab, signIn, signOut, initFormal, roleForm, setRole, editRole, removeRole, roleBulk, roleBulkRows, applyRoleBulk, roleQ, roleRowsShown, rosterDraft, onRosterInput, rosterMap, loginMatches, pendingMatches, saveRoster, setRosterAuto, applyMatches, isOnline, devicesSorted, devicesOnline, devicesRecent, addTl, removeTl, removeGuest,
-      RTYPES, STA, rf, rFilter, canHandle, openReports, myOpenReports, reportList, openMedicReports, submitReport, setReport, md, mdEditId, editMedical, cancelMedical, addMedical, medicalRows, eqFilter, ne, tlLabel, equipGroups, nextEquip, setEquip, addEquip, removeEquip, blockAccount, lunchInfo, lunchMissing, setLunchInfo, toggleLunch, callLunch, gf, gfEditId, editGift, cancelGift, addGift, announceGift, giftRows, giftText, setStation, supportMissing, initSupport,
+      RTYPES, STA, rf, rFilter, canHandle, openReports, myOpenReports, reportList, openMedicReports, submitReport, setReport, md, mdEditId, editMedical, cancelMedical, addMedical, medicalRows, eqFilter, ne, tlLabel, equipGroups, nextEquip, setEquip, addEquip, removeEquip, blockAccount, lunchInfo, lunchMissing, setLunchInfo, toggleLunch, callLunch, gf, gfEditId, editGift, cancelGift, addGift, announceGift, giftRows, giftText, setStation, addStation, removeStation, supportMissing, initSupport,
       dockOpen, setDock, qa, quickAssign, person, useBackup, restorePrimary, eventPoints, setCustomPts, baseNames, bulk, applyBulk,
       gFilter, gKind, guestList, ng, arrive, addGuest, personText, personMark, shortTitle, batchesOf, presenterOf, toggleAbsent, readyBatchObj, batchTime, winnersOf, winnerGroups, awardIssues, teacherCalls, sync, toggleCloud, canEmbed, embedUrl,
       batchInfo, readyBatch, doneBatch,
