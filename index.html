@@ -2801,6 +2801,20 @@ html.ov-transparent body::before{ display:none; }
 
     <!-- ===================== 體育闖關 ===================== -->
     <section v-if="page==='stations'" class="fade-up">
+      <details class="card mb-4" open>
+        <summary class="flex justify-between items-center gap-2 flex-wrap" style="cursor:pointer;list-style:none">
+          <div>
+            <h2 class="h-sec" style="margin:0">🗺️ 體育社團體驗區 場地配置圖</h2>
+            <div class="small muted mt-1">乙場地：① 跆拳道、② 舞蹈社　｜　丙場地：③ 匹克球、④ 直排輪、⑤ 飛盤社　｜　甲場地：檢錄區</div>
+          </div>
+          <a href="stations-map.jpg" target="_blank" rel="noopener" class="btn btn-sm no-print" @click.stop>🔍 放大看原圖</a>
+        </summary>
+        <div class="mt-3" style="text-align:center">
+          <a href="stations-map.jpg" target="_blank" rel="noopener" title="點擊開啟原圖放大檢視">
+            <img src="stations-map.jpg" alt="運動會體育社團體驗暨秩序維護場地配置圖" style="max-width:100%;height:auto;border-radius:12px;border:1px solid var(--line);box-shadow:0 2px 10px rgba(15,23,42,.06)" loading="lazy">
+          </a>
+        </div>
+      </details>
       <div v-if="can('quest')" class="flex justify-between items-center gap-2 flex-wrap mb-3">
         <span class="small muted">目前共 <b>{{ st.stations.length }}</b> 個體驗區，可直接改名稱、地點或切換開放狀態。</span>
         <button class="btn btn-sm btn-primary" @click="addStation">＋ 新增體驗區</button>
@@ -3118,7 +3132,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261127112800'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261127113200'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
