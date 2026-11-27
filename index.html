@@ -687,6 +687,13 @@ html.ov-transparent body::before{ display:none; }
 .sh-sign{ width:22%; } .sh-sign .box{ display:block; height:28px; border-bottom:1.5px dashed #9AAABB; }
 .sh-chk{ display:inline-block; width:20px; height:20px; border:2px solid #46596B; border-radius:4px; vertical-align:middle; }
 .sh-empty{ color:#8A9BAC; font-style:italic; }
+/* 本班得獎名單（彩色版）：標題列分色、名次金銀銅、表格交錯底色；黑白版由下方 print 規則改成黑框白底 */
+.sh-group-h.c-award{ background:linear-gradient(90deg,#C8102E,#F08C00); }
+.sh-group-h.c-run{ background:linear-gradient(90deg,#0B7A3E,#2BA84A); }
+.c-tbl thead th{ background:#0B3B6B; color:#fff; }
+.c-tbl tbody tr:nth-child(even) td{ background:#F3F8FD; }
+.ar-tbl.c-tbl thead th:nth-child(2){ background:#F5B700; color:#3D2A00; } .ar-tbl.c-tbl thead th:nth-child(3){ background:#9AA8B6; color:#fff; } .ar-tbl.c-tbl thead th:nth-child(4){ background:#C77B3A; color:#fff; }
+.ar-tbl.c-tbl tbody td:nth-child(2){ background:#FFF6D6 !important; } .ar-tbl.c-tbl tbody td:nth-child(3){ background:#F1F4F7 !important; } .ar-tbl.c-tbl tbody td:nth-child(4){ background:#FBEBDD !important; }
 .prog-tbl td{ vertical-align:top; font-size:15px; } .prog-script{ margin-top:6px; background:#F4F7FA; border-left:4px solid #0B62A4; padding:6px 10px; border-radius:6px; font-size:15px; line-height:1.6; }
 .ar-tbl td.sh-name{ font-size:18px; } .ar-tbl th:first-child{ width:76px; }
 .ar-sign{ display:flex; align-items:flex-end; gap:8px; justify-content:flex-end; padding:6px 14px 10px; font-weight:700; color:#46596B; } .ar-sign .box{ display:inline-block; width:140px; border-bottom:1.5px dashed #9AAABB; height:24px; }
@@ -725,6 +732,8 @@ html.ov-transparent body::before{ display:none; }
   .sh-tbl th:first-child{ width:74px !important; } .sh-tbl th:nth-child(2){ width:76px !important; } .sh-sign{ width:14%; }
   .paper .sh-title{ font-size:20pt; } .paper .sh-head{ margin-bottom:6px; padding-bottom:6px; }
   html:not(.print-color) .sh-group-h{ background:#fff !important; color:#000 !important; border:2.5px solid #000; }
+  html:not(.print-color) .c-tbl thead th{ background:#fff !important; color:#000 !important; border-bottom:2px solid #000; }
+  html:not(.print-color) .c-tbl tbody td{ background:#fff !important; }
   html:not(.print-color) .sh-group-h .s{ background:#fff; border:1px solid #000; }
   html:not(.print-color) .sh-ev{ border-color:#000; }
   html:not(.print-color) .sh-ev-h{ background:#fff; border-bottom:2px solid #000; }
@@ -1603,14 +1612,14 @@ html.ov-transparent body::before{ display:none; }
             <div class="sh-title">{{ clsLabel(tCls) }}　得獎名單</div></div>
           <div class="sh-meta"><div>比賽日期：{{ sheetDate }}</div><div>列印時間：{{ sheetPrintedAt }}</div></div>
         </div>
-        <div class="sh-group-h mt-2"><span class="t">本班得獎（會前賽與當天）</span><span class="s">{{ teacherAwards.length }} 筆・本班積分 {{ classPts(tCls) }} 分</span></div>
-        <table class="sh-tbl aw-tbl mt-2" v-if="teacherAwards.length">
+        <div class="sh-group-h c-award mt-2"><span class="t">🏅 本班得獎（會前賽與當天）</span><span class="s">{{ teacherAwards.length }} 筆・本班積分 {{ classPts(tCls) }} 分</span></div>
+        <table class="sh-tbl aw-tbl c-tbl mt-2" v-if="teacherAwards.length">
           <thead><tr><th>項目</th><th>名次</th><th>姓名</th><th>成績</th></tr></thead>
-          <tbody><tr v-for="a in teacherAwards" :key="a.key"><td>{{ a.ev }}</td><td class="sh-mark">第 {{ ZH[a.place] }} 名</td><td class="sh-name">{{ a.name || '班隊' }}</td><td class="sh-mark">{{ a.mark }}</td></tr></tbody>
+          <tbody><tr v-for="a in teacherAwards" :key="a.key"><td>{{ a.ev }}</td><td><span :class="['sh-place','p'+a.place]">第 {{ ZH[a.place] }} 名</span></td><td class="sh-name">{{ a.name || '班隊' }}</td><td class="sh-mark">{{ a.mark }}</td></tr></tbody>
         </table>
         <div v-else class="sh-empty" style="padding:10px 4px">目前還沒有公布的得獎名單。</div>
-        <div class="sh-group-h mt-4"><span class="t">全員賽跑各組前三名</span><span class="s" v-if="st.allrun[tCls]">{{ st.allrun[tCls].at }} 送出<template v-if="st.allrun[tCls].by">・{{ st.allrun[tCls].by }}</template></span></div>
-        <table class="sh-tbl ar-tbl ar-big mt-2" v-if="st.allrun[tCls]">
+        <div class="sh-group-h c-run mt-4"><span class="t">🏃 全員賽跑各組前三名</span><span class="s" v-if="st.allrun[tCls]">{{ st.allrun[tCls].at }} 送出<template v-if="st.allrun[tCls].by">・{{ st.allrun[tCls].by }}</template></span></div>
+        <table class="sh-tbl ar-tbl ar-big c-tbl mt-2" v-if="st.allrun[tCls]">
           <thead><tr><th>組別</th><th>第一名</th><th>第二名</th><th>第三名</th></tr></thead>
           <tbody><tr v-for="(g,i) in st.allrun[tCls].groups" :key="i"><td class="sh-mark">第 {{ i+1 }} 組</td><td v-for="(n,ni) in g" :key="ni" class="sh-name">{{ n }}</td></tr></tbody>
         </table>
@@ -3004,7 +3013,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261127093000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261127094000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
