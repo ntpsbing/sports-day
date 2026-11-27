@@ -2650,7 +2650,7 @@ html.ov-transparent body::before{ display:none; }
       <div v-if="!can('medic')" class="card"><h2 class="h-sec">醫護資料受保護</h2><p class="small muted mt-1">學生傷病資料只有醫護組、總控、紀錄組看得到。發現學生受傷，請到「現場通報」選「醫護」通知醫護組。</p><button class="btn btn-primary mt-3" @click="rf.type='medic'; go('reports')">前往現場通報</button></div>
       <div v-else class="grid gap-4" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr))">
         <div class="card flex flex-col gap-3">
-          <h2 class="h-sec">登記傷病</h2>
+          <h2 class="h-sec">{{ mdEditId ? '✏️ 修改傷病紀錄' : '登記傷病' }}</h2>
           <div class="grid gap-2" style="grid-template-columns:1fr 1fr">
             <div><label class="lbl" for="mdCls">班級</label><select id="mdCls" class="inp" v-model="md.cls"><option value="">（不是學生）</option><option v-for="c in allrunClasses" :key="c" :value="c">{{ clsLabel(c) }}</option></select></div>
             <div><label class="lbl" for="mdName">姓名</label><input id="mdName" class="inp" v-model.trim="md.name" maxlength="12"></div>
@@ -2658,7 +2658,10 @@ html.ov-transparent body::before{ display:none; }
           <div><label class="lbl" for="mdIssue">狀況</label><input id="mdIssue" class="inp" v-model.trim="md.issue" maxlength="60" placeholder="例：跑步跌倒膝蓋擦傷"></div>
           <div><label class="lbl" for="mdCare">處理</label><input id="mdCare" class="inp" v-model.trim="md.care" maxlength="60" placeholder="例：清洗傷口、貼紗布、冰敷"></div>
           <label class="flex items-center gap-2"><input type="checkbox" id="mdParent" v-model="md.parent" style="width:22px;height:22px"> 需要通知家長</label>
-          <button class="btn btn-primary btn-big" @click="addMedical" :disabled="!md.issue">登記</button>
+          <div class="flex gap-2">
+            <button class="btn btn-primary btn-big" style="flex:1" @click="addMedical" :disabled="!md.issue">{{ mdEditId ? '儲存修改' : '登記' }}</button>
+            <button v-if="mdEditId" class="btn btn-big" @click="cancelMedical">取消</button>
+          </div>
         </div>
         <div class="card" style="min-width:0">
           <div class="flex justify-between items-center gap-2 flex-wrap mb-2"><h2 class="h-sec">今日紀錄（{{ st.medical.length }}）</h2><button class="btn btn-sm" @click="downloadXlsx(medicalRows,'醫護紀錄')" :disabled="!st.medical.length">下載 Excel</button></div>
@@ -2668,9 +2671,10 @@ html.ov-transparent body::before{ display:none; }
             <div class="flex justify-between gap-2 flex-wrap"><b>{{ m.at }}　{{ m.cls ? clsLabel(m.cls) : '' }} {{ m.name }}</b><span :class="['chip', m.status==='closed'?'st-published':'tag-todo']">{{ m.status==='closed' ? '✔ 結案' : '○ 處理中' }}</span></div>
             <div class="small">狀況：{{ m.issue }}<span v-if="m.care">｜處理：{{ m.care }}</span></div>
             <div class="small" v-if="m.parent" :style="m.notified?'color:var(--ok)':'color:var(--bad)'">{{ m.notified ? '✔ 已通知家長' : '！需要通知家長' }}</div>
-            <div class="flex gap-2 mt-2" v-if="m.status!=='closed'">
-              <button class="btn btn-sm" v-if="m.parent && !m.notified" @click="m.notified=true; log('醫護：已通知家長')">已通知家長</button>
-              <button class="btn btn-sm btn-ok" @click="m.status='closed'; log('醫護：結案一筆')">結案</button>
+            <div class="flex gap-2 mt-2 flex-wrap">
+              <button class="btn btn-sm" @click="editMedical(m)">✏️ 修改</button>
+              <button class="btn btn-sm" v-if="m.status!=='closed' && m.parent && !m.notified" @click="m.notified=true; log('醫護：已通知家長')">已通知家長</button>
+              <button class="btn btn-sm btn-ok" v-if="m.status!=='closed'" @click="m.status='closed'; log('醫護：結案一筆')">結案</button>
             </div>
           </div>
         </div>
@@ -2738,11 +2742,14 @@ html.ov-transparent body::before{ display:none; }
     <section v-if="page==='gifts'" class="fade-up">
       <div class="grid gap-4" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr))">
         <div class="card flex flex-col gap-3">
-          <h2 class="h-sec">登記捐贈</h2>
+          <h2 class="h-sec">{{ gfEditId ? '✏️ 修改捐贈紀錄' : '登記捐贈' }}</h2>
           <div><label class="lbl" for="gfDonor">捐贈單位／姓名</label><input id="gfDonor" class="inp" v-model.trim="gf.donor" maxlength="30" placeholder="例：家長會、○○商行"></div>
           <div><label class="lbl" for="gfItem">禮品</label><input id="gfItem" class="inp" v-model.trim="gf.item" maxlength="40" placeholder="例：運動飲料 200 瓶"></div>
           <div><label class="lbl" for="gfAmt">金額（可不填，不會公布）</label><input id="gfAmt" class="inp" v-model.trim="gf.amount" maxlength="12" inputmode="numeric"></div>
-          <button class="btn btn-primary btn-big" @click="addGift" :disabled="!gf.donor || !gf.item">登記</button>
+          <div class="flex gap-2">
+            <button class="btn btn-primary btn-big" style="flex:1" @click="addGift" :disabled="!gf.donor || !gf.item">{{ gfEditId ? '儲存修改' : '登記' }}</button>
+            <button v-if="gfEditId" class="btn btn-big" @click="cancelGift">取消</button>
+          </div>
         </div>
         <div class="card" style="min-width:0">
           <div class="flex justify-between items-center gap-2 flex-wrap mb-2"><h2 class="h-sec">芳名錄（{{ st.gifts.length }}）</h2>
@@ -2750,8 +2757,11 @@ html.ov-transparent body::before{ display:none; }
           <div v-if="!st.gifts.length" class="small muted">尚無捐贈。</div>
           <div v-for="g in st.gifts" :key="g.id" class="card-flat mb-2 flex justify-between items-center gap-2 flex-wrap">
             <div style="min-width:0"><b>{{ g.donor }}</b>　{{ g.item }}<div class="small muted">{{ g.at }}<span v-if="g.amount && can('gift')">・金額 {{ g.amount }}</span></div></div>
-            <span v-if="g.announced" class="chip st-published">✔ 已公布感謝</span>
-            <button v-else class="btn btn-sm btn-primary" @click="announceGift(g)">公布感謝</button>
+            <div class="flex gap-2 items-center">
+              <button class="btn btn-sm" v-if="can('gift')" @click="editGift(g)">✏️ 修改</button>
+              <span v-if="g.announced" class="chip st-published">✔ 已公布感謝</span>
+              <button v-else class="btn btn-sm btn-primary" @click="announceGift(g)">公布感謝</button>
+            </div>
           </div>
         </div>
       </div>
@@ -3027,7 +3037,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261127104000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261127105500'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -3251,6 +3261,7 @@ const HELP = {
 };
 /* 新功能公告：依組別顯示，每台裝置看過按「知道了」就不再出現（之後新增功能時，在最上面加一筆） */
 const WHATS_NEW = [
+  { id:'n20261127e', roles:['teacher','medic','gift','record','control'], page:'teacher', title:'已填報資料下次自動帶出，可直接修改錯誤處', text:'導師重新打開「全員賽跑名單」時，會自動帶出先前送出的全部名單，只需改錯字再送出；醫護站與收禮芳名錄每筆紀錄也加上「✏️ 修改」按鈕，點一下帶回表單即可修正。' },
   { id:'n20261127d', roles:['teacher','record','control'], page:'teacher', title:'導師查詢與選單可直接列印黑白／彩色成績單', text:'班級導師在「導師查詢 → 本班得獎」下方可直接一鍵列印本班成績單（黑白／彩色／存成 PDF），左側選單也開放「成績單列印」，方便印出個人賽、團體賽與全員賽跑名單。' },
   { id:'n20261127c', roles:['teacher','record','control'], page:'teacher', title:'全員賽跑名單可以一次貼上', text:'在「全員賽跑 得獎名單填報」打開「📋 從 Excel／LINE 一次貼上」，一組一行貼上名字（或從 Excel 複製三欄），按「填入下面表格」就全部填好，核對後送出。逐格打字時按 Enter 會自動跳到下一格。組數可選 3～8 組。' },
   { id:'n20261127b', roles:['record','sport','control','mc','award'], page:'results', title:'🏆 破大會紀錄醒目標示', text:'紀錄組在「成績查詢」前六名旁按「標記破紀錄」，該筆成績就會在成績查詢、大會看板、跑馬燈、司儀播報稿、成績單、獎狀名冊與 PO 文都顯示「🏆 破大會紀錄」。標錯了再按一次「取消破紀錄」即可。' },
@@ -4571,7 +4582,7 @@ createApp({
     /* 導師首頁卡片：打招呼、臨時通知、本班節目、展開哪一張 */
     const tOpen = ref('');
     function openHomeFlow(){ nextTick(()=>{ const el=document.getElementById('homeFlow'); if(!el) return; const d=el.tagName==='DETAILS' ? el : el.querySelector('details'); if(d) d.open=true; el.scrollIntoView({behavior:'smooth', block:'start'}); }); }
-    function openT(k){ tOpen.value = tOpen.value===k ? '' : k; if(tOpen.value) nextTick(()=>{ const el=document.getElementById('tDetail'); if(el) el.scrollIntoView({behavior:'smooth', block:'start'}); }); }
+    function openT(k){ tOpen.value = tOpen.value===k ? '' : k; if(tOpen.value==='allrun' && st.value.allrun[tCls.value] && (!arDraft.groups.length || arDraft.groups.every(g=>g.every(n=>!n)))) loadDraft(); if(tOpen.value) nextTick(()=>{ const el=document.getElementById('tDetail'); if(el) el.scrollIntoView({behavior:'smooth', block:'start'}); }); }
     const tHelloName = computed(()=>{ const h=new Date(nowTick.value).getHours(); const hi=h<11?'早安':h<14?'午安':'您好'; const n=FORMAL && fb.user ? String(fb.user.name||'').replace(/[（(].*$/,'').trim() : ''; return (n ? n+'老師 ' : '老師 ')+hi; });
     const myProg = computed(()=>{ const c=tCls.value; if(!c) return []; const g=/^[KA]/.test(c) ? 'kg' : +c[0];
       return st.value.timeline.filter(t=>gradesIn([t.unit,(t.items||[]).join(' '),t.title,t.note].join(' ')).has(g) && !/全校/.test([t.unit,t.title].join(' ')) || (t.eventIds||[]).some(id=>teacherEvents.value.some(x=>x.ev.id===id)))
@@ -4600,6 +4611,7 @@ createApp({
     const arTried = ref(false);
     function blankGroups(n){ return Array.from({length:n},()=>['','','']); }
     function loadDraft(){ const s=st.value.allrun[tCls.value]; arTried.value=false; if(s){ arDraft.count=s.groups.length; arDraft.groups=s.groups.map(g=>[...g]); } else { arDraft.count=5; arDraft.groups=blankGroups(5); } }
+    watch(()=>st.value.allrun[tCls.value], (val)=>{ if(val && (!arDraft.groups.length || arDraft.groups.every(g=>g.every(n=>!n)))) loadDraft(); }, { deep:true });
     /* 全員賽跑：一次貼上（Excel 三欄或 LINE 文字），按 Enter 跳下一格 */
     const arPaste = ref('');
     const arPasteParsed = computed(()=>{ const t=arPaste.value.trim(); if(!t) return [];
@@ -4914,7 +4926,12 @@ createApp({
     function doSubmitReport(){ newReport({ type:rf.type, place:rf.place, text:rf.text, urgent:rf.urgent }); if(rf.mc && canBc.value) bc('insert','大會報告：'+(rf.place?rf.place+'，':'')+rf.text+'，請相關人員協助處理。',{ reportId:st.value.reports[st.value.reports.length-1].id }); log('現場通報：'+RTYPES[rf.type].name+' '+rf.place+' '+rf.text); toast('已送出，'+RTYPES[rf.type].name+'負責組別會即時收到'); rf.place=''; rf.text=''; rf.urgent=false; rf.mc=false; }
     function setReport(r,stt){ if(!canHandle(r)){ need(RTYPES[r.type]?RTYPES[r.type].perm:'flow'); return; } r.status=stt; r.handledBy=roleObj.value.name; if(stt==='done') r.doneAt=hhmm(); log('通報'+(stt==='done'?'完成':'處理中')+'：'+r.place+' '+r.text); }
     const md = reactive({ cls:'', name:'', issue:'', care:'', parent:false });
-    function addMedical(){ if(!need('medic')) return; st.value.medical.push({ id:'m'+Date.now()+uid(), ts:Date.now(), at:hhmm(), cls:md.cls, name:md.name, issue:md.issue, care:md.care, parent:md.parent, notified:false, status:'open', by:roleObj.value.name }); log('醫護：登記一筆'); toast('已登記'); md.name=''; md.issue=''; md.care=''; md.parent=false; }
+    const mdEditId = ref('');
+    function editMedical(m){ if(!need('medic')) return; mdEditId.value=m.id; md.cls=m.cls||''; md.name=m.name||''; md.issue=m.issue||''; md.care=m.care||''; md.parent=!!m.parent; const el=document.getElementById('mdIssue'); if(el) el.scrollIntoView({behavior:'smooth', block:'center'}); }
+    function cancelMedical(){ mdEditId.value=''; md.cls=''; md.name=''; md.issue=''; md.care=''; md.parent=false; }
+    function addMedical(){ if(!need('medic')) return;
+      if(mdEditId.value){ const m=st.value.medical.find(x=>x.id===mdEditId.value); if(m){ m.cls=md.cls; m.name=md.name; m.issue=md.issue; m.care=md.care; m.parent=md.parent; log('醫護：修改一筆'); toast('已儲存修改'); } cancelMedical(); return; }
+      st.value.medical.push({ id:'m'+Date.now()+uid(), ts:Date.now(), at:hhmm(), cls:md.cls, name:md.name, issue:md.issue, care:md.care, parent:md.parent, notified:false, status:'open', by:roleObj.value.name }); log('醫護：登記一筆'); toast('已登記'); md.name=''; md.issue=''; md.care=''; md.parent=false; }
     const medicalRows = computed(()=>[['時間','班級','姓名','狀況','處理','通知家長','狀態']].concat(st.value.medical.map(m=>[m.at, m.cls?clsLabel(m.cls):'', m.name, m.issue, m.care, m.parent?(m.notified?'已通知':'需通知'):'', m.status==='closed'?'結案':'處理中'])));
     const eqFilter = ref('todo'); const ne = reactive({ tl:'n05', item:'', qty:1, place:'' });
     function tlLabel(id){ const t=st.value.timeline.find(x=>x.id===id); return t ? tlTime(t)+' '+t.title : ''; }
@@ -4932,7 +4949,12 @@ createApp({
     function toggleLunch(c){ if(!need('lunchH')) return; if(st.value.lunch[c]) delete st.value.lunch[c]; else st.value.lunch[c]={ at:hhmm() }; }
     function callLunch(onlyMissing){ if(!need('lunchH')) return; const i=lunchInfo.value; bc('insert', onlyMissing ? '大會報告：請 '+lunchMissing.value.slice(0,15).map(clsLabel).join('、')+(lunchMissing.value.length>15?' 等班級':'')+' 的午餐值日生，到'+i.place+'領取午餐。' : '大會報告：現在開始領取午餐，請各班午餐值日生到'+i.place+'領取。'); toast('已送到司儀台'); }
     const gf = reactive({ donor:'', item:'', amount:'' });
-    function addGift(){ if(!need('gift')) return; st.value.gifts.push({ id:'gf'+Date.now()+uid(), ts:Date.now(), at:hhmm(), donor:gf.donor, item:gf.item, amount:gf.amount, note:'', announced:false }); log('收禮登記：'+gf.donor); toast('已登記'); gf.donor=''; gf.item=''; gf.amount=''; }
+    const gfEditId = ref('');
+    function editGift(g){ if(!need('gift')) return; gfEditId.value=g.id; gf.donor=g.donor||''; gf.item=g.item||''; gf.amount=g.amount||''; const el=document.getElementById('gfDonor'); if(el) el.scrollIntoView({behavior:'smooth', block:'center'}); }
+    function cancelGift(){ gfEditId.value=''; gf.donor=''; gf.item=''; gf.amount=''; }
+    function addGift(){ if(!need('gift')) return;
+      if(gfEditId.value){ const g=st.value.gifts.find(x=>x.id===gfEditId.value); if(g){ g.donor=gf.donor; g.item=gf.item; g.amount=gf.amount; log('收禮修改：'+gf.donor); toast('已儲存修改'); } cancelGift(); return; }
+      st.value.gifts.push({ id:'gf'+Date.now()+uid(), ts:Date.now(), at:hhmm(), donor:gf.donor, item:gf.item, amount:gf.amount, note:'', announced:false }); log('收禮登記：'+gf.donor); toast('已登記'); gf.donor=''; gf.item=''; gf.amount=''; }
     function announceGift(g){ if(!need('gift')) return; g.announced=true; bc('thanks','大會報告：感謝 '+g.donor+' 熱心捐贈 '+g.item+'，讓我們以熱烈的掌聲表達感謝！'); log('公布感謝：'+g.donor); toast('已上看板跑馬燈，司儀台收到感謝稿'); }
     const giftRows = computed(()=>[['時間','捐贈單位／姓名','禮品','金額']].concat(st.value.gifts.map(g=>[g.at,g.donor,g.item,g.amount||''])));
     const giftText = computed(()=>'【感謝芳名錄】楠梓國小'+st.value.settings.title+'\n感謝以下單位與個人熱心捐贈：\n'+st.value.gifts.map(g=>'・'+g.donor+'　'+g.item).join('\n')+'\n謹致謝忱！');
@@ -5222,7 +5244,7 @@ createApp({
       rvTab, rvNote, publish, sendBack, askReopen,
       mcText, doneBc, addInsert, bcStyle,
       FORMAL, fb, roleTab, roleGroups, roleRowsTab, signIn, signOut, initFormal, roleForm, setRole, editRole, removeRole, roleBulk, roleBulkRows, applyRoleBulk, roleQ, roleRowsShown, rosterDraft, onRosterInput, rosterMap, loginMatches, pendingMatches, saveRoster, setRosterAuto, applyMatches, isOnline, devicesSorted, devicesOnline, devicesRecent, addTl, removeTl, removeGuest,
-      RTYPES, STA, rf, rFilter, canHandle, openReports, myOpenReports, reportList, openMedicReports, submitReport, setReport, md, addMedical, medicalRows, eqFilter, ne, tlLabel, equipGroups, nextEquip, setEquip, addEquip, removeEquip, blockAccount, lunchInfo, lunchMissing, setLunchInfo, toggleLunch, callLunch, gf, addGift, announceGift, giftRows, giftText, setStation, supportMissing, initSupport,
+      RTYPES, STA, rf, rFilter, canHandle, openReports, myOpenReports, reportList, openMedicReports, submitReport, setReport, md, mdEditId, editMedical, cancelMedical, addMedical, medicalRows, eqFilter, ne, tlLabel, equipGroups, nextEquip, setEquip, addEquip, removeEquip, blockAccount, lunchInfo, lunchMissing, setLunchInfo, toggleLunch, callLunch, gf, gfEditId, editGift, cancelGift, addGift, announceGift, giftRows, giftText, setStation, supportMissing, initSupport,
       dockOpen, setDock, qa, quickAssign, person, useBackup, restorePrimary, eventPoints, setCustomPts, baseNames, bulk, applyBulk,
       gFilter, gKind, guestList, ng, arrive, addGuest, personText, personMark, shortTitle, batchesOf, presenterOf, toggleAbsent, readyBatchObj, batchTime, winnersOf, winnerGroups, awardIssues, teacherCalls, sync, toggleCloud, canEmbed, embedUrl,
       batchInfo, readyBatch, doneBatch,
