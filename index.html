@@ -442,6 +442,13 @@ tr:hover .medal-svg, .pod:hover .medal-svg{ transform:translateY(-2px) rotate(-6
   .tbl.cards td::before{ content:attr(data-label); flex:0 0 5.5em; font-size:15px; color:var(--ink2); font-weight:700; }
 }
 .place{ font-family:var(--f-num); font-weight:800; font-size:22px; width:2.2em; display:inline-block; }
+/* 破大會紀錄：要非常明顯 */
+.rec-badge{ display:inline-flex; align-items:center; gap:4px; margin-left:8px; padding:3px 12px; border-radius:999px; background:linear-gradient(135deg,#C8102E,#F59E0B); color:#fff; font-weight:900; font-size:15px; letter-spacing:1px; white-space:nowrap; box-shadow:0 0 0 3px rgba(245,158,11,.35); animation:recPulse 1.6s ease-in-out infinite; vertical-align:middle; }
+.rec-badge.big{ font-size:20px; padding:6px 16px; margin:6px auto 0; }
+@keyframes recPulse{ 0%,100%{ transform:scale(1); box-shadow:0 0 0 3px rgba(245,158,11,.35); } 50%{ transform:scale(1.07); box-shadow:0 0 0 7px rgba(245,158,11,.15); } }
+.rec-row td{ background:#FFF4D6 !important; }
+.rec-btn{ margin-left:8px; font-size:13px; padding:2px 8px; border-radius:8px; border:1px dashed #C8102E; color:#C8102E; background:#fff; cursor:pointer; min-height:28px; }
+@media print{ .rec-badge{ animation:none; box-shadow:none; } html:not(.print-color) .rec-badge{ background:#fff !important; color:#000 !important; border:2px solid #000; } .rec-btn{ display:none !important; } }
 .p1{ color:var(--gold); } .p2{ color:var(--silver); } .p3{ color:var(--bronze); }
 
 /* 流程時間軸 */
@@ -1086,7 +1093,7 @@ html.ov-transparent body::before{ display:none; }
                 <td><medal-icon :p="x.place" :size="x.place===1 ? 42 : 38"></medal-icon></td>
                 <td>{{ clsLabel(x.e.cls) }}</td>
                 <td v-if="!ev.team">{{ pn(x.e.name) }}</td>
-                <td class="num r" style="font-size:19px;font-weight:700">{{ fmtMark(ev,x.e) }}</td>
+                <td class="num r" style="font-size:19px;font-weight:700">{{ fmtMark(ev,x.e) }}<span v-if="x.e.record" class="rec-badge">🏆 破大會紀錄</span><button v-if="can('publish') && fullResults && x.place && x.place<=6" class="rec-btn no-print" @click="toggleRec(ev,x.e)" :title="x.e.record ? '取消破紀錄標記' : '標記為破大會紀錄'">{{ x.e.record ? '取消破紀錄' : '標記破紀錄' }}</button></td>
               </tr>
             </tbody>
           </table>
@@ -1419,13 +1426,13 @@ html.ov-transparent body::before{ display:none; }
             </div>
             <div style="font-size:clamp(22px,2.4vw,32px);font-weight:900" class="mt-1">{{ boardEvent.name }}</div>
             <div class="podium" :key="boardEvent.id">
-              <div class="pod s" v-if="top(boardEvent,2)"><medal-icon :p="2" :size="46"></medal-icon><div class="nm">{{ pn(top(boardEvent,2).e.name) || clsLabel(top(boardEvent,2).e.cls) }}</div><div class="cl" v-if="top(boardEvent,2).e.name">{{ clsLabel(top(boardEvent,2).e.cls) }}</div><div class="mk">{{ fmtMark(boardEvent, top(boardEvent,2).e) }}</div><div class="blk">2</div></div><div v-else></div>
-              <div class="pod g" v-if="top(boardEvent,1)"><medal-icon :p="1" :size="56"></medal-icon><div class="nm">{{ pn(top(boardEvent,1).e.name) || clsLabel(top(boardEvent,1).e.cls) }}</div><div class="cl" v-if="top(boardEvent,1).e.name">{{ clsLabel(top(boardEvent,1).e.cls) }}</div><div class="mk">{{ fmtMark(boardEvent, top(boardEvent,1).e) }}</div><div class="blk">1</div></div><div v-else></div>
-              <div class="pod b" v-if="top(boardEvent,3)"><medal-icon :p="3" :size="46"></medal-icon><div class="nm">{{ pn(top(boardEvent,3).e.name) || clsLabel(top(boardEvent,3).e.cls) }}</div><div class="cl" v-if="top(boardEvent,3).e.name">{{ clsLabel(top(boardEvent,3).e.cls) }}</div><div class="mk">{{ fmtMark(boardEvent, top(boardEvent,3).e) }}</div><div class="blk">3</div></div><div v-else></div>
+              <div class="pod s" v-if="top(boardEvent,2)"><medal-icon :p="2" :size="46"></medal-icon><div class="nm">{{ pn(top(boardEvent,2).e.name) || clsLabel(top(boardEvent,2).e.cls) }}</div><div class="cl" v-if="top(boardEvent,2).e.name">{{ clsLabel(top(boardEvent,2).e.cls) }}</div><div class="mk">{{ fmtMark(boardEvent, top(boardEvent,2).e) }}</div><div v-if="top(boardEvent,2).e.record" class="rec-badge big">🏆 破大會紀錄</div><div class="blk">2</div></div><div v-else></div>
+              <div class="pod g" v-if="top(boardEvent,1)"><medal-icon :p="1" :size="56"></medal-icon><div class="nm">{{ pn(top(boardEvent,1).e.name) || clsLabel(top(boardEvent,1).e.cls) }}</div><div class="cl" v-if="top(boardEvent,1).e.name">{{ clsLabel(top(boardEvent,1).e.cls) }}</div><div class="mk">{{ fmtMark(boardEvent, top(boardEvent,1).e) }}</div><div v-if="top(boardEvent,1).e.record" class="rec-badge big">🏆 破大會紀錄</div><div class="blk">1</div></div><div v-else></div>
+              <div class="pod b" v-if="top(boardEvent,3)"><medal-icon :p="3" :size="46"></medal-icon><div class="nm">{{ pn(top(boardEvent,3).e.name) || clsLabel(top(boardEvent,3).e.cls) }}</div><div class="cl" v-if="top(boardEvent,3).e.name">{{ clsLabel(top(boardEvent,3).e.cls) }}</div><div class="mk">{{ fmtMark(boardEvent, top(boardEvent,3).e) }}</div><div v-if="top(boardEvent,3).e.record" class="rec-badge big">🏆 破大會紀錄</div><div class="blk">3</div></div><div v-else></div>
             </div>
             <div class="grid gap-2 mt-3" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
               <div v-for="x in ranked(boardEvent).filter(x=>x.place>=4 && x.place<=boardEvent.awardTop)" :key="x.e.id" style="background:#EEF4FA;border-radius:10px;padding:6px 10px;font-size:16px">
-                <b class="num" style="font-size:20px">{{ x.place }}</b>　{{ clsLabel(x.e.cls) }} {{ pn(x.e.name) }} <span class="num" style="color:#0B62A4">{{ fmtMark(boardEvent,x.e) }}</span>
+                <b class="num" style="font-size:20px">{{ x.place }}</b>　{{ clsLabel(x.e.cls) }} {{ pn(x.e.name) }} <span class="num" style="color:#0B62A4">{{ fmtMark(boardEvent,x.e) }}</span><span v-if="x.e.record" class="rec-badge">🏆 破大會紀錄</span>
               </div>
             </div>
           </div>
@@ -1740,7 +1747,7 @@ html.ov-transparent body::before{ display:none; }
                     <span v-for="(tv,ti) in x.e.tries" :key="ti" :style="tryBadgeStyle(tv)">{{ ['一','二','三'][ti] }} {{ tv || '—' }}</span>
                   </div>
                 </td>
-                <td class="num" style="text-align:right;white-space:nowrap">{{ fmtMark(e,x.e) }}</td>
+                <td class="num" style="text-align:right;white-space:nowrap">{{ fmtMark(e,x.e) }}<span v-if="x.e.record" class="rec-badge">🏆 破大會紀錄</span></td>
               </tr></tbody>
             </table>
             <div class="small muted mt-1" v-if="ranked(e).some(x=>!x.place)">另有 {{ ranked(e).filter(x=>!x.place).length }} 筆無成績或棄權</div>
@@ -2151,7 +2158,7 @@ html.ov-transparent body::before{ display:none; }
                   <td><span :class="['sh-place', r.place && r.place<=3 ? 'p'+r.place : '']">{{ r.place ? '第'+ZH[r.place]+'名' : (r.dq ? '棄權' : '—') }}</span></td>
                   <td class="sh-cls">{{ r.cls }}</td>
                   <td class="sh-name" v-if="!ev.team">{{ r.name }}</td>
-                  <td class="sh-mark">{{ r.mark }}</td>
+                  <td class="sh-mark">{{ r.mark }}<span v-if="r.rec" class="rec-badge">🏆 破大會紀錄</span></td>
                   <td class="sh-sign" v-if="sheetOpt.sign"><span class="sh-chk" aria-hidden="true"></span></td>
                 </tr>
               </tbody>
@@ -2944,7 +2951,7 @@ html.ov-transparent body::before{ display:none; }
     <div class="dock-sec" v-if="checkinEvents.length"><div class="eyebrow">檢錄呼叫中</div><div class="small" v-for="e in checkinEvents" :key="e.id">● {{ e.name }}</div></div>
     <div class="dock-sec" v-if="readyBatchObj"><div class="eyebrow">頒獎進行中</div><b>{{ shortTitle(readyBatchObj.title) }}</b><div class="small">頒獎人 {{ personText(presenterOf(readyBatchObj).p) }}・{{ readyBatchObj.place }}</div></div>
     <div class="dock-sec" v-if="publishedEvents[0]"><div class="eyebrow">最新成績</div><b>{{ publishedEvents[0].name }}</b>
-      <div class="small flex items-center gap-2" v-for="x in ranked(publishedEvents[0]).filter(x=>x.place && x.place<=3)" :key="x.e.id"><medal-icon :p="x.place" :size="26"></medal-icon> {{ clsLabel(x.e.cls) }} {{ pn(x.e.name) }} <span class="num">{{ fmtMark(publishedEvents[0],x.e) }}</span></div></div>
+      <div class="small flex items-center gap-2" v-for="x in ranked(publishedEvents[0]).filter(x=>x.place && x.place<=3)" :key="x.e.id"><medal-icon :p="x.place" :size="26"></medal-icon> {{ clsLabel(x.e.cls) }} {{ pn(x.e.name) }} <span class="num">{{ fmtMark(publishedEvents[0],x.e) }}</span><span v-if="x.e.record" class="rec-badge">🏆 破大會紀錄</span></div></div>
     <div class="dock-sec"><div class="eyebrow">總錦標前三名</div>
       <div class="small" v-for="g in st.settings.scoring.grades" :key="g">{{ ZH[g] }}年級：<span v-for="(r,i) in (standings[g]||[]).slice(0,3)" :key="r.cls">{{ i+1 }}.{{ clsLabel(r.cls) }} {{ r.pts }}　</span></div></div>
     <button class="btn btn-primary w-full mt-1" @click="go('board')">開啟完整大會看板</button>
@@ -2997,7 +3004,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261127100000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261127093000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -3221,6 +3228,7 @@ const HELP = {
 };
 /* 新功能公告：依組別顯示，每台裝置看過按「知道了」就不再出現（之後新增功能時，在最上面加一筆） */
 const WHATS_NEW = [
+  { id:'n20261127b', roles:['record','sport','control','mc','award'], page:'results', title:'🏆 破大會紀錄醒目標示', text:'紀錄組在「成績查詢」前六名旁按「標記破紀錄」，該筆成績就會在成績查詢、大會看板、跑馬燈、司儀播報稿、成績單、獎狀名冊與 PO 文都顯示「🏆 破大會紀錄」。標錯了再按一次「取消破紀錄」即可。' },
   { id:'n20261127a', roles:['record','sport','checkin','mc','control'], page:'review', title:'學生全名只給登入的學校人員看', text:'比賽成績在資料庫裡只存「王○明」，全名另外存在只有學校帳號登入才讀得到的地方。登入的工作人員（含司儀台講稿）照常看到全名；家長、大螢幕、沒登入的人只看到遮名。輸入或修改姓名的方式不變。' },
   { id:'n20261126b', roles:['sport','record','control'], page:'score', title:'田賽成績登錄新增「三次試跳／試擲」自動取最佳', text:'跳遠、壘球擲遠、樂樂棒球擲遠在「成績登錄」新增第一次、第二次、第三次三格，可填數字、X（犯規）或 O（免跳），系統自動算出最佳成績並保存原始紀錄；「審核公布」也看得到三次原始紀錄。' },
   { id:'n20261126a', roles:['checkin','sport','record','control'], page:'checkin', title:'檢錄與成績登錄支援「道次＋衣服顏色」標記', text:'有設定道次與衣服顏色的項目（例如 4×100 公尺接力決賽），檢錄頁與成績登錄頁會自動依第 1～6 道順序排列，並用紅、橙、黃、綠、藍、紫醒目標記（填 1～6 道也會自動對應 6 色），現場點名與計時一眼就看懂。' },
@@ -4110,7 +4118,7 @@ createApp({
     const rvNote = reactive({});
     function annText(ev){
       const tops=ranked(ev).filter(x=>x.place && x.place<=Math.min(ev.awardTop,6));
-      return '現在宣布 '+ev.name+' 成績：'+tops.map(x=>'第'+ZH[x.place]+'名，'+clsLabel(x.e.cls)+(x.e.name?' '+x.e.name:'')+(fmtMark(ev,x.e)?'，成績 '+fmtMark(ev,x.e).replace('″',' 秒').replace(' m',' 公尺'):'')).join('；')+'。恭喜以上得獎同學！';
+      return '現在宣布 '+ev.name+' 成績：'+tops.map(x=>'第'+ZH[x.place]+'名，'+clsLabel(x.e.cls)+(x.e.name?' '+x.e.name:'')+(fmtMark(ev,x.e)?'，成績 '+fmtMark(ev,x.e).replace('″',' 秒').replace(' m',' 公尺'):'')+(x.e.record?'，打破大會紀錄！':'')).join('；')+'。恭喜以上得獎同學！';
     }
     function publish(ev){ if(!need('publish')) return; if(!refOk(ev)){ toast(refChanged(ev) ? '「'+ev.name+'」在裁判確認後有改動，請裁判重新確認' : '「'+ev.name+'」還沒經過裁判確認，不能公布', true); return; } ev.status='published'; ev.ts=Date.now(); ev.publishedAt=(new Date().getMonth()+1)+'/'+pad(new Date().getDate())+' '+hhmm(); bc('result', annText(ev)); log('公布成績：'+ev.name); toast('已公布！看板、司儀台、導師頁同步更新'); boardIdx.value=0; }
     function sendBack(ev){ if(!need('publish')) return; const n=(rvNote[ev.id]||'').trim(); if(!n){ toast('請先寫退回原因，裁判才知道要改哪裡',true); return; } ev.status='running'; ev.returnNote=n; rvNote[ev.id]=''; log('退回修改：'+ev.name+'（'+n+'）'); toast('已退回給裁判組'); }
@@ -4386,7 +4394,7 @@ createApp({
       return out; });
     function sheetRows(ev){
       if(!isPub(ev) && !ev.entries.some(x=>x.mark!=='' || x.place)){ return Array.from({ length:ev.awardTop }, (_,i)=>({ key:'b'+i, place:i+1, cls:'', name:'', mark:'' })); }
-      return ranked(ev).filter(x=>sheetOpt.all || (x.place && x.place<=ev.awardTop)).map(x=>({ key:x.e.id, place:x.place, dq:x.e.dq, cls:clsLabel(x.e.cls), name:x.e.name||'', mark:fmtMark(ev,x.e) }));
+      return ranked(ev).filter(x=>sheetOpt.all || (x.place && x.place<=ev.awardTop)).map(x=>({ key:x.e.id, place:x.place, dq:x.e.dq, cls:clsLabel(x.e.cls), name:x.e.name||'', mark:fmtMark(ev,x.e), rec:!!x.e.record }));
     }
     const sheetChamp = computed(()=>{ if(!['champ','all'].includes(sheetOpt.kind)) return []; const sc=st.value.settings.scoring;
       return sc.grades.filter(g=>!sheetOpt.grade || g===sheetOpt.grade).map(g=>({ grade:g, rows:(standings.value[g]||[]).slice(0, sheetOpt.all ? 99 : sc.champTop).map((r,i)=>({ ...r, place:i+1 })) }))
@@ -4562,7 +4570,7 @@ createApp({
       st.value.broadcasts.filter(b=>!b.cancelled && ['urgent','insert'].includes(b.type) && (b.ts||0)>=lim).sort((a,b)=>(b.ts||0)-(a.ts||0)).slice(0,2)
         .forEach(b=>out.push({ key:'b'+(b.id||b.ts), urgent:b.type==='urgent', icon:b.type==='urgent'?'⚠️':'📣', label:b.type==='urgent'?'緊急更正':'臨時通知', text:String(b.text||'').replace(/^大會報告：/,''), at:b.at||'' }));
       return out; });
-    const teacherAwards = computed(()=>{ const out=[]; st.value.events.filter(isPub).forEach(ev=>ranked(ev).forEach(x=>{ if(x.e.cls===tCls.value && x.place && x.place<=ev.awardTop) out.push({ key:ev.id+x.e.id, ev:ev.name, place:x.place, name:x.e.name, mark:fmtMark(ev,x.e) }); })); return out.sort((a,b)=>a.place-b.place); });
+    const teacherAwards = computed(()=>{ const out=[]; st.value.events.filter(isPub).forEach(ev=>ranked(ev).forEach(x=>{ if(x.e.cls===tCls.value && x.place && x.place<=ev.awardTop) out.push({ key:ev.id+x.e.id, ev:ev.name, place:x.place, name:x.e.name, mark:fmtMark(ev,x.e)+(x.e.record?'　🏆 破大會紀錄':'') }); })); return out.sort((a,b)=>a.place-b.place); });
     const arDraft = reactive({ count:5, groups:[] });
     const arTried = ref(false);
     function blankGroups(n){ return Array.from({length:n},()=>['','','']); }
@@ -4578,7 +4586,7 @@ createApp({
     const certRows = computed(()=>{
       const rows=[['獎項','組別','名次','班級','姓名','成績']];
       if(certFilter.value!=='allrun') st.value.events.filter(isPub).filter(e=>certFilter.value==='all' || (certFilter.value==='relay')===(e.cat==='relay')).sort((a,b)=>a.order-b.order).forEach(ev=>{
-        ranked(ev).forEach(x=>{ if(x.place && x.place<=ev.awardTop) rows.push([ev.base, ev.name.split(' ')[0], '第'+ZH[x.place]+'名', clsLabel(x.e.cls), x.e.name||'（班級隊伍）', fmtMark(ev,x.e).replace('″',' 秒').replace(' m',' 公尺')]); });
+        ranked(ev).forEach(x=>{ if(x.place && x.place<=ev.awardTop) rows.push([ev.base, ev.name.split(' ')[0], '第'+ZH[x.place]+'名', clsLabel(x.e.cls), x.e.name||'（班級隊伍）', fmtMark(ev,x.e).replace('″',' 秒').replace(' m',' 公尺')+(x.e.record?'（破大會紀錄）':'')]); });
       });
       if(certFilter.value==='all' || certFilter.value==='allrun') allrunClasses.value.forEach(c=>{ const s=st.value.allrun[c]; if(s) s.groups.forEach((g,gi)=>g.forEach((n,ni)=>rows.push(['全員賽跑','第'+(gi+1)+'組','第'+ZH[ni+1]+'名',clsLabel(c),n,'']))); });
       return rows;
@@ -4600,7 +4608,9 @@ createApp({
     const postScope = ref('champ');
     function postEvents(){ if(postScope.value==='latest') return publishedEvents.value.slice(0,5); if(postScope.value==='champ') return []; const e=st.value.events.find(x=>x.id===postScope.value); return e?[e]:[]; }
     function champLines(medal){ const sc=st.value.settings.scoring; return sc.grades.map(g=>ZH[g]+'年級：'+(standings.value[g]||[]).slice(0,sc.champTop).map((r,i)=>(medal?['🥇','🥈','🥉'][i]||'':'第'+ZH[i+1]+'名 ')+clsLabel(r.cls)+'（'+r.pts+'分）').join(medal?' ':'、')).join('\n'); }
-    function evLines(ev,medal){ return ev.name+'\n'+ranked(ev).filter(x=>x.place && x.place<=ev.awardTop).map(x=>(medal?(['🥇','🥈','🥉'][x.place-1]||'🏅'):'第'+ZH[x.place]+'名 ')+clsLabel(x.e.cls)+' '+pnAlways(x.e.name||'')+(fmtMark(ev,x.e)?'　'+fmtMark(ev,x.e).replace('″',' 秒').replace(' m',' 公尺'):'')).join('\n'); }
+    const recordList = computed(()=>{ const out=[]; st.value.events.filter(isPub).forEach(ev=>(ev.entries||[]).forEach(e=>{ if(e.record) out.push({ ev, e }); })); return out.sort((a,b)=>(b.ev.ts||0)-(a.ev.ts||0)); });
+    function toggleRec(ev,e){ if(!need('publish')) return; const on=!e.record; ask((on?'確定把':'確定取消')+'「'+ev.name+' '+clsLabel(e.cls)+' '+(e.name||'')+' '+fmtMark(ev,e)+'」'+(on?'標記為「破大會紀錄」嗎？看板、跑馬燈、成績單都會醒目顯示。':'的破大會紀錄標記嗎？'), ()=>{ if(on) e.record=true; else delete e.record; log((on?'標記破大會紀錄：':'取消破大會紀錄：')+ev.name+' '+clsLabel(e.cls)+' '+(e.name||'')); toast(on?'已標記破大會紀錄 🏆':'已取消破紀錄標記'); }); }
+    function evLines(ev,medal){ return ev.name+'\n'+ranked(ev).filter(x=>x.place && x.place<=ev.awardTop).map(x=>(medal?(['🥇','🥈','🥉'][x.place-1]||'🏅'):'第'+ZH[x.place]+'名 ')+clsLabel(x.e.cls)+' '+pnAlways(x.e.name||'')+(fmtMark(ev,x.e)?'　'+fmtMark(ev,x.e).replace('″',' 秒').replace(' m',' 公尺'):'')+(x.e.record?'　🏆破大會紀錄':'')).join('\n'); }
     const postWeb = computed(()=>{ const s=st.value.settings; const head='【成績公告】楠梓國小'+s.title+'\n'; if(postScope.value==='champ') return head+'總錦標積分（統計至 '+hhmm()+'）如下：\n'+champLines(false)+'\n\n感謝全體師生、家長與社區的參與，恭喜以上班級！\n學務處體育組・教務處紀錄組 敬啟'; return head+postEvents().map(e=>evLines(e,false)).join('\n\n')+'\n\n恭喜以上得獎同學！完整成績請見學校網站。\n學務處體育組・教務處紀錄組 敬啟'; });
     const postSocial = computed(()=>{ const s=st.value.settings; const head='🏃‍♀️🏃 楠梓國小 '+s.title+'｜活力躍動 魅力楠梓\n\n'; const tail='\n\n為所有努力奔跑的孩子們喝采👏\n#楠梓國小 #校慶運動會 #活力躍動魅力楠梓'; if(postScope.value==='champ') return head+'🏆 總錦標積分排行\n'+champLines(true)+tail; return head+postEvents().map(e=>'🏅 '+evLines(e,true)).join('\n\n')+tail; });
     const remindText = computed(()=>'各位導師好：\n全員賽跑得獎名單尚未填報的班級如下，請於今日內至運動會系統「導師查詢」填報，謝謝！\n'+allrunMissing.value.map(clsLabel).join('、')+'\n——紀錄組');
@@ -4797,6 +4807,7 @@ createApp({
     const tickerText = computed(()=>{ const items=[], tl=st.value.timeline;
       const where = t => [t.unit, t.place].filter(Boolean).join('・');
       items.push('楠梓國小'+st.value.settings.title+'　活力躍動　魅力楠梓');
+      recordList.value.slice(0,3).forEach(r=>items.push('【🏆 破大會紀錄】賀！'+r.ev.name+' '+clsLabel(r.e.cls)+' '+pn(r.e.name)+' '+fmtMark(r.ev,r.e).replace('″',' 秒').replace(' m',' 公尺')+' 打破大會紀錄！'));
       tickerMsgs.value.slice(0,2).forEach(m=>items.push('【公告】'+m.text));
       if(nowTl.value) items.push('【現在進行】'+(nowTl.value.no?'第'+nowTl.value.no+'項 ':'')+nowTl.value.title+(where(nowTl.value)?'（'+where(nowTl.value)+'）':''));
       tl.filter(t=>t.status==='todo').slice(0,2).forEach((t,i)=>items.push('【節目預告】'+tlTime(t)+' '+t.title+(i===0 && where(t)?'（'+where(t)+'）':'')+(t.check?'，檢錄 '+t.check:'')));
@@ -5163,7 +5174,7 @@ createApp({
     watch(myHomeroom, c=>{ if(c && !hrApplied){ hrApplied=true; if(c!==tCls.value){ tCls.value=c; toast('已依你的帳號切換到 '+clsLabel(c)); } } }); // 放在 fb 建立之後（避免初始化順序錯誤）
     onMounted(()=>{ readHash(); if(!hashGiven && isPublicView.value) page.value='board'; loadDraft(); syncLiveDraft(); renderQR(); if(FORMAL) fbInit(); else initCloud(); });
 
-    return { bt, st, role, page, helpOpen, newsOpen, tOpen, openHomeFlow, checkTimeOf, ownCls, tClsEdit, backToOwnCls, arHelper, arSheet, arSheetDone, arSheetMissing, printAr, printPage, downloadArXlsx, savePdf, pageXlsx, arSheet, arSheetDone, arSheetMissing, printAr, openT, tHelloName, myProg, myProgNext, tTodo, teacherNotices, acctMgr, isCtrlEmail, closeHelp, newsList, dismissNews, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
+    return { bt, toggleRec, recordList, st, role, page, helpOpen, newsOpen, tOpen, openHomeFlow, checkTimeOf, ownCls, tClsEdit, backToOwnCls, arHelper, arSheet, arSheetDone, arSheetMissing, printAr, printPage, downloadArXlsx, savePdf, pageXlsx, arSheet, arSheetDone, arSheetMissing, printAr, openT, tHelloName, myProg, myProgNext, tTodo, teacherNotices, acctMgr, isCtrlEmail, closeHelp, newsList, dismissNews, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
       SHORT, arOpen, homeroomDraft, homeroomRows, homeroomLogins, saveHomeroom, myHomeroom, onHrInput, cd, pad, insertOpen, openInsert, promptGroup, promptNext, scriptState, jumpScripts, ringLong, toggleRing, refOk, refChanged, confirmRef, needRef, doneTab, doneShown, restoreBc, scriptLib, scriptsOf, scriptGroups, nextScriptGroup, sf, editScript, saveScript, removeScript, moveScript, queueScript, sPaste, sParsed, importScripts, canBc, pushState, registerPush, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
       drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, arFull, AR_PUB_OPTS, arPubGrades, toggleArPub, arPubGradeText, arPubShown, PG_GRADES, pgGrade, progList, progLeave, shiftHM, flashLine, reportLine, TICKER_TPL, tkOpen, tk, tickerMsgs, hhmmOf, addTicker, removeTicker, canFixName, fixName, overdueTl, overdueSnoozed, snoozeOverdue, remindControl, setAutoFlow, ADHOC_TPL, adhocOpen, adhoc, useAdhocTpl, addAdhoc, tlRange, tlNo, mcScriptOf, prepScriptOf, nextMinsLeft, scheduledTl, mcProgOpen, applyProgram, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
