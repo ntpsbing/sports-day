@@ -1550,16 +1550,23 @@ html.ov-transparent body::before{ display:none; }
           <div class="flex items-center gap-2 mb-3">
             <label class="lbl" for="gcount" style="margin:0">本班分成</label>
             <select id="gcount" class="inp" style="width:auto" v-model.number="arDraft.count" @change="fitDraft">
-              <option :value="5">5 組</option><option :value="6">6 組</option>
+              <option v-for="k in [3,4,5,6,7,8]" :key="k" :value="k">{{ k }} 組</option>
             </select>
           </div>
+          <details class="card-flat mb-3" style="padding:10px 14px">
+            <summary class="font-bold" style="cursor:pointer;min-height:44px;display:flex;align-items:center;gap:6px">📋 從 Excel／LINE 一次貼上（比較快）</summary>
+            <p class="small muted mt-2 mb-2">一組一行，每行依序寫第一、二、三名，中間用空白、逗號或「、」隔開；也可以從 Excel 選取三欄直接複製貼上。</p>
+            <textarea id="arPaste" class="inp" rows="6" v-model="arPaste" aria-label="貼上全員賽跑名單" placeholder="王小明 李大華 陳一心&#10;林美美 張小芬 吳家豪&#10;（一組一行）"></textarea>
+            <div class="small mt-1" v-if="arPasteParsed.length"><b>讀到 {{ arPasteParsed.length }} 組</b><span v-if="arPasteBad" style="color:var(--bad);font-weight:700">　⚠ {{ arPasteBad }}</span></div>
+            <button class="btn btn-primary mt-2" :disabled="!arPasteParsed.length" @click="applyArPaste">填入下面表格</button>
+          </details>
           <div v-for="(g,gi) in arDraft.groups" :key="gi" class="mb-3">
             <div class="font-bold small mb-1">第 {{ gi+1 }} 組</div>
             <div class="grid gap-2" style="grid-template-columns:repeat(3,minmax(0,1fr))">
-              <input v-for="(n,ni) in g" :key="ni" class="inp" :id="'ar'+gi+'_'+ni" v-model.trim="arDraft.groups[gi][ni]" :placeholder="['第一名','第二名','第三名'][ni]" maxlength="10" :class="{err: arTried && !arDraft.groups[gi][ni]}">
+              <input v-for="(n,ni) in g" :key="ni" class="inp" :id="'ar'+gi+'_'+ni" v-model.trim="arDraft.groups[gi][ni]" :placeholder="['第一名','第二名','第三名'][ni]" maxlength="10" enterkeyhint="next" @keydown.enter.prevent="arNext(gi,ni)" :class="{err: arTried && !arDraft.groups[gi][ni]}">
             </div>
           </div>
-          <button class="btn btn-primary btn-big w-full" @click="submitAllrun">{{ st.allrun[tCls] ? '修改後重新送出' : '送出全員賽跑名單' }}</button>
+          <button id="arSubmit" class="btn btn-primary btn-big w-full" @click="submitAllrun">{{ st.allrun[tCls] ? '修改後重新送出' : '送出全員賽跑名單' }}</button>
           <div v-if="st.allrun[tCls]" class="flex flex-wrap gap-2 mt-3 items-center">
             <span class="small muted">已送出的名單：</span>
             <button class="btn" @click="printAr('bw')">🖨 列印本班得獎名單（黑白）</button>
@@ -3013,7 +3020,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261127094000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261127095000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -3237,6 +3244,7 @@ const HELP = {
 };
 /* 新功能公告：依組別顯示，每台裝置看過按「知道了」就不再出現（之後新增功能時，在最上面加一筆） */
 const WHATS_NEW = [
+  { id:'n20261127c', roles:['teacher','record','control'], page:'teacher', title:'全員賽跑名單可以一次貼上', text:'在「全員賽跑 得獎名單填報」打開「📋 從 Excel／LINE 一次貼上」，一組一行貼上名字（或從 Excel 複製三欄），按「填入下面表格」就全部填好，核對後送出。逐格打字時按 Enter 會自動跳到下一格。組數可選 3～8 組。' },
   { id:'n20261127b', roles:['record','sport','control','mc','award'], page:'results', title:'🏆 破大會紀錄醒目標示', text:'紀錄組在「成績查詢」前六名旁按「標記破紀錄」，該筆成績就會在成績查詢、大會看板、跑馬燈、司儀播報稿、成績單、獎狀名冊與 PO 文都顯示「🏆 破大會紀錄」。標錯了再按一次「取消破紀錄」即可。' },
   { id:'n20261127a', roles:['record','sport','checkin','mc','control'], page:'review', title:'學生全名只給登入的學校人員看', text:'比賽成績在資料庫裡只存「王○明」，全名另外存在只有學校帳號登入才讀得到的地方。登入的工作人員（含司儀台講稿）照常看到全名；家長、大螢幕、沒登入的人只看到遮名。輸入或修改姓名的方式不變。' },
   { id:'n20261126b', roles:['sport','record','control'], page:'score', title:'田賽成績登錄新增「三次試跳／試擲」自動取最佳', text:'跳遠、壘球擲遠、樂樂棒球擲遠在「成績登錄」新增第一次、第二次、第三次三格，可填數字、X（犯規）或 O（免跳），系統自動算出最佳成績並保存原始紀錄；「審核公布」也看得到三次原始紀錄。' },
@@ -4584,6 +4592,16 @@ createApp({
     const arTried = ref(false);
     function blankGroups(n){ return Array.from({length:n},()=>['','','']); }
     function loadDraft(){ const s=st.value.allrun[tCls.value]; arTried.value=false; if(s){ arDraft.count=s.groups.length; arDraft.groups=s.groups.map(g=>[...g]); } else { arDraft.count=5; arDraft.groups=blankGroups(5); } }
+    /* 全員賽跑：一次貼上（Excel 三欄或 LINE 文字），按 Enter 跳下一格 */
+    const arPaste = ref('');
+    const arPasteParsed = computed(()=>{ const t=arPaste.value.trim(); if(!t) return [];
+      const lines=t.split(/\r?\n/).map(l=>l.split(/[\t,，、;；|｜]+|\s+/).map(x=>x.trim().replace(/^\d+[.、．)]/,'')).filter(Boolean).filter(x=>!/^第?[一二三四五六七八1-8]組$|^組別$|^第[一二三]名$|^[1-8]$/.test(x))).filter(a=>a.length);
+      const out=[]; if(lines.every(a=>a.length===3)) lines.forEach(a=>out.push(a.slice(0,3))); else { const f=lines.flat(); for(let i=0;i<f.length;i+=3) out.push([f[i]||'',f[i+1]||'',f[i+2]||'']); }
+      return out.slice(0,8); });
+    const arPasteBad = computed(()=>{ const g=arPasteParsed.value; if(!g.length) return ''; if(g.some(x=>x.some(n=>!n))) return '最後一組不足 3 人，請補齊';
+      const names=g.flat(); const dup=[...new Set(names.filter((n,i)=>names.indexOf(n)!==i))]; if(dup.length) return '名字重複：'+dup.join('、'); if(names.some(n=>n.length>10)) return '有名字超過 10 個字'; return ''; });
+    function applyArPaste(){ const g=arPasteParsed.value; if(!g.length) return; arDraft.count=g.length; arDraft.groups=g.map(x=>x.map(n=>n.slice(0,10))); arTried.value=false; arPaste.value=''; toast('已填入 '+g.length+' 組，請核對後按送出'); nextTick(()=>{ const el=document.getElementById('ar0_0'); if(el) el.scrollIntoView({ block:'center' }); }); }
+    function arNext(gi,ni){ let g=gi, n=ni+1; if(n>2){ n=0; g++; } const el=document.getElementById(g<arDraft.groups.length ? 'ar'+g+'_'+n : 'arSubmit'); if(el) el.focus(); }
     function fitDraft(){ while(arDraft.groups.length<arDraft.count) arDraft.groups.push(['','','']); arDraft.groups.length=arDraft.count; }
     function submitAllrun(){ if(!need('allrun')) return; if(FORMAL && !arHelper.value && !can('data') && ownCls.value && tCls.value!==ownCls.value){ toast('只能送自己班的名單；老師請假時請總控幫忙填',true); return; } arTried.value=true; if(arDraft.groups.some(g=>g.some(n=>!n))){ toast('還有空白欄位，請把每組前三名都填上',true); return; } st.value.allrun[tCls.value]={ at:(new Date().getMonth()+1)+'/'+pad(new Date().getDate())+' '+hhmm(), groups:arDraft.groups.map(g=>[...g]), by:(FORMAL && fb.user ? String(fb.user.name||fb.email) : roleObj.value.name) }; log('全員賽跑名單送出：'+clsLabel(tCls.value)); toast('已送出！紀錄組會彙整成獎狀名單'); }
 
@@ -5200,7 +5218,7 @@ createApp({
       dockOpen, setDock, qa, quickAssign, person, useBackup, restorePrimary, eventPoints, setCustomPts, baseNames, bulk, applyBulk,
       gFilter, gKind, guestList, ng, arrive, addGuest, personText, personMark, shortTitle, batchesOf, presenterOf, toggleAbsent, readyBatchObj, batchTime, winnersOf, winnerGroups, awardIssues, teacherCalls, sync, toggleCloud, canEmbed, embedUrl,
       batchInfo, readyBatch, doneBatch,
-      tCls, teacherEvents, teacherAwards, arDraft, arTried, fitDraft, submitAllrun,
+      tCls, teacherEvents, teacherAwards, arDraft, arTried, fitDraft, submitAllrun, arPaste, arPasteParsed, arPasteBad, applyArPaste, arNext,
       exTab, certFilter, certRows, prizeRows, totalRows, postScope, postWeb, postSocial, remindText,
       imType, imRaw, imRows, imHeaders, imMode, imAfter, imTemplate, parseImport, readImportFile, imOk, imBad, doImport,
       copy, copyTable, downloadXlsx, setPreset, resetDemo, clearMarks,
