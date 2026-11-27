@@ -2997,7 +2997,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261126201500'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261127090000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -3915,6 +3915,9 @@ createApp({
     const arPubGradeText = computed(()=>{ const n=arPubGrades.value.map(x=>(AR_PUB_OPTS.find(o=>o.id===x)||{}).name).filter(Boolean); return n.length ? n.join('、') : '目前不公開'; });
     const pubAllrun = reactive({});
     const maskGroups = d => ({ at:d.at||'', groups:(d.groups||[]).map(g=>g.map(n=>maskName(n))) });
+    /* Firestore 不能存「陣列裡的陣列」：全員賽跑每組名單在資料庫存成 { n:[第一名,第二名,第三名] }，讀回來再轉回陣列 */
+    function arEnc(d){ if(!d) return d; return Object.assign({}, d, { groups:(d.groups||[]).map(g=>({ n: Array.isArray(g) ? g.slice() : ((g&&g.n)||[]) })) }); }
+    function arDec(d){ if(!d) return d; return Object.assign({}, d, { groups:(d.groups||[]).map(g=> Array.isArray(g) ? g : ((g&&g.n)||[])) }); }
     /* 登入的老師（工作人員畫面）看全名；家長、大螢幕只拿得到遮名版（allrunPub），全名資料不會傳到家長手機 */
     const arFull = computed(()=> !maskOn.value && (!FORMAL || !!fb.user));
     const arPubData = computed(()=> arFull.value ? (st.value.allrun||{}) : (FORMAL ? pubAllrun : Object.fromEntries(Object.entries(st.value.allrun||{}).map(([k,v])=>[k, maskGroups(v)]))));
@@ -3925,7 +3928,7 @@ createApp({
     /* 有填報權限的人登入時，把完整名單同步一份遮名版（補上以前送出的班級） */
     /* 用到 fb（在後面才宣告）的監看，等畫面掛上後才開始，避免「fb 尚未初始化」錯誤 */
     onMounted(()=>{ watch(()=>[JSON.stringify(st.value.allrun||{}), fb.user && fb.user.email, Object.keys(pubAllrun).length], ()=>{ if(!FORMAL || !fb.user || !(fb.admin || can('allrun'))) return;
-      Object.entries(st.value.allrun||{}).forEach(([c,d])=>{ const m=maskGroups(d); if(JSON.stringify(m)!==JSON.stringify(pubAllrun[c]||null)){ try{ fref('allrunPub',c).set(m); }catch(e){} } }); }, { immediate:true }); });
+      Object.entries(st.value.allrun||{}).forEach(([c,d])=>{ const m=maskGroups(d); if(JSON.stringify(m)!==JSON.stringify(pubAllrun[c]||null)){ try{ fref('allrunPub',c).set(arEnc(m)).catch(()=>{}); }catch(e){} } }); }, { immediate:true }); });
     /* ----- 臨時插入流程（突發狀況） ----- */
     const ADHOC_TPL = [
       { k:'雨天備案', title:'雨天暫停，移至室內', unit:'全校師生', place:'風雨操場、各班教室', notify:['site','equip'], mc:'大會報告：因為下雨，比賽暫停，請各班依照導師指示移到風雨操場或回教室休息，器材組、場地組請協助收器材，恢復時間請聽廣播。' },
@@ -4950,13 +4953,13 @@ createApp({
         applyRemote(()=>ch.forEach(c=>{ const id=c.doc.id; if(c.type==='removed'){ delete remoteSer[name][id]; apply(id,null); return; } const d=c.doc.data(); const ser=canon(d); if(remoteSer[name][id]===ser || pend[name+'/'+id]>0) return; remoteSer[name][id]=ser; apply(id,d); }));
       }, e=>{ fb.err='無法讀取「'+name+'」：'+(e.code||''); });
     }
-    function revertLocal(col,id,prev){ if(!prev) return; const d=JSON.parse(prev); applyRemote(()=>{ if(ARR_COLS.includes(col)){ const a=st.value[col], i=a.findIndex(x=>x.id===id); if(i>=0) a.splice(i,1,d); } else if(col==='allrun') st.value.allrun[id]=d; else if(col==='meta'){ if(id==='settings') st.value.settings=d; else if(id==='live') st.value.live=d; else if(id==='flow') st.value.delayMin=d.delayMin||0; } }); }
+    function revertLocal(col,id,prev){ if(!prev) return; const d=JSON.parse(prev); applyRemote(()=>{ if(ARR_COLS.includes(col)){ const a=st.value[col], i=a.findIndex(x=>x.id===id); if(i>=0) a.splice(i,1,d); } else if(col==='allrun') st.value.allrun[id]=arDec(d); else if(col==='meta'){ if(id==='settings') st.value.settings=d; else if(id==='live') st.value.live=d; else if(id==='flow') st.value.delayMin=d.delayMin||0; } }); }
     function fbWrite(col,id,obj){
       if(!fdb || !fb.user) return;
-      const data = ARR_COLS.includes(col) ? Object.assign({}, obj, { id }) : obj;
+      const data = ARR_COLS.includes(col) ? Object.assign({}, obj, { id }) : (col==='allrun' ? arEnc(obj) : obj);
       const ser=canon(data), prev=remoteSer[col][id]; if(prev===ser) return;
       remoteSer[col][id]=ser; const t0=performance.now(); fb.pending++; const pk=col+'/'+id; pend[pk]=(pend[pk]||0)+1;
-      fref(col,id).set(JSON.parse(JSON.stringify(data)))
+      Promise.resolve().then(()=>fref(col,id).set(JSON.parse(JSON.stringify(data)))) // 資料格式錯誤會當場丟錯：包成 Promise，才會顯示錯誤、不會卡在「離線中」
         .then(()=>{ fb.latency=Math.round(performance.now()-t0); fb.lastAck=hhmmss(); lastServer=Date.now();
           if(!prev && ((col==='broadcasts' && data.type==='notice') || col==='reports')) pingPush(); })
         .catch(e=>{ remoteSer[col][id]=prev; revertLocal(col,id,prev); toast(e && e.code==='permission-denied' ? '沒有權限修改這項資料（目前身分：'+roleObj.value.name+'）' : '資料送出失敗：'+((e&&e.code)||''), true); })
@@ -4992,8 +4995,8 @@ createApp({
       fUnsubs.push(listenArr('broadcasts', fdb.collection('broadcasts').orderBy('ts','desc').limit(200), { keep:true }));
       fUnsubs.push(listenArr('broadcasts', fdb.collection('broadcasts').where('done','==',false), { onLeave:b=>{ if(!b.done){ b.done=true; } } }));
       fUnsubs.push(listenMap('meta', fdb.collection('meta'), (id,d)=>{ if(!d) return; if(id==='settings') st.value.settings=d; else if(id==='live') st.value.live=Object.assign(liveDefault(), d); else if(id==='flow') st.value.delayMin=d.delayMin||0; else if(id==='homeroom') homeroomText.value=d.text||''; }));
-      if(fb.user) fUnsubs.push(listenMap('allrun', fdb.collection('allrun'), (id,d)=>{ if(d) st.value.allrun[id]=d; else delete st.value.allrun[id]; }));
-      fUnsubs.push(fdb.collection('allrunPub').onSnapshot(snap=>{ snap.docChanges().forEach(ch=>{ if(ch.type==='removed') delete pubAllrun[ch.doc.id]; else pubAllrun[ch.doc.id]=ch.doc.data(); }); }, ()=>{}));
+      if(fb.user) fUnsubs.push(listenMap('allrun', fdb.collection('allrun'), (id,d)=>{ if(d) st.value.allrun[id]=arDec(d); else delete st.value.allrun[id]; }));
+      fUnsubs.push(fdb.collection('allrunPub').onSnapshot(snap=>{ snap.docChanges().forEach(ch=>{ if(ch.type==='removed') delete pubAllrun[ch.doc.id]; else pubAllrun[ch.doc.id]=arDec(ch.doc.data()); }); }, ()=>{}));
       if(fb.user && (fb.admin || fb.myRoles.some(r=>['record','control'].includes(r)))){
         fUnsubs.push(listenArr('logs', fdb.collection('logs').orderBy('ts','desc').limit(300)));
         fUnsubs.push(fdb.collection('devices').onSnapshot(s=>{ fb.devices=s.docs.map(d=>{ const x=d.data(); return Object.assign({ id:d.id }, x, { tsMs: x.ts && x.ts.toMillis ? x.ts.toMillis() : 0 }); }); }, ()=>{}));
