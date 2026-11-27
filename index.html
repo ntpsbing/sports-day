@@ -786,6 +786,72 @@ html.ov-transparent body::before{ display:none; }
   html:not(.print-color) .rpt-tbl .rpt-box{ border:1.8px solid #000 !important; }
   html:not(.print-color) .rpt-sign-row{ border-top:1.8px solid #000 !important; color:#000 !important; }
 }
+
+/* =========================================================
+   跨裝置體驗與防超框全面優化（2026-11-27 P0+P1+P2）
+   ========================================================= */
+*, *::before, *::after{ box-sizing:border-box; }
+html, body{ overflow-x:clip; max-width:100%; }
+.shell, .shell > *, .main, .main > section, .card, .card-flat, .tblwrap{ min-width:0; max-width:100%; }
+.tblwrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+.main{ padding-top:26px; padding-bottom:148px; }
+@media (min-width:1024px){ .main{ padding-top:26px; padding-bottom:96px; } }
+.pagehead, .main > section, .card[id]{ scroll-margin-top:86px; }
+
+/* 側邊欄與抽屜：防止 Email 撐寬或推擠主畫面 */
+.side{ overflow-x:hidden; }
+.side-logout{ max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:block; }
+.side-email{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+
+/* 觸控目標統一達 44px 以上，手機好點不誤觸 */
+.btn-sm{ min-height:44px; }
+.evchip{ min-height:44px; padding:0 12px; }
+.pg-chip{ min-height:44px; }
+.seg button{ min-height:44px; }
+.rec-btn{ min-height:36px; padding:4px 10px; font-size:14px; }
+@media (max-width:1023.98px){
+  .rec-btn{ min-height:44px; padding:6px 12px; }
+}
+
+/* 彈窗遮罩加深＋微霧化，避免後方文字透出干擾閱讀 */
+.modal-bg{ background:rgba(5,15,25,.68); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px); }
+
+/* 即時動態面板遮罩：點外面即可收合 */
+.dock-scrim{ position:fixed; inset:0; background:rgba(5,15,25,.28); z-index:44; animation:fadeIn .18s; }
+
+/* 唯讀權限提示條更醒目 */
+.perm-banner{ border:1.5px solid var(--brand); border-left-width:5px; border-radius:12px; padding:12px 16px; font-weight:700; }
+
+/* 來賓卡片等高對齊，操作鈕統一貼底 */
+.guest-card{ height:100%; }
+.guest-actions{ margin-top:auto; padding-top:10px; border-top:1px dashed var(--line); }
+
+/* 手機頂欄精簡排版：保留完整「運動會通報」不被裁成單字，按鈕皆 ≥44px */
+@media (max-width:640px){
+  .topin{ gap:6px; min-height:60px; padding-block:6px; padding-left:max(10px, env(safe-area-inset-left,0px)); padding-right:max(10px, env(safe-area-inset-right,0px)); }
+  .menubtn{ min-width:44px; min-height:44px; padding:0 8px; }
+  .bellbtn{ padding:0 8px; }
+  .brand{ gap:6px; padding:2px 4px; margin-left:0; flex:1 1 auto; min-width:0; }
+  .logo, .logo-img{ width:34px; height:34px; box-shadow:0 0 0 2px rgba(255,255,255,.35); }
+  .brand .t2{ font-size:17px; letter-spacing:0; }
+  .topwho{ max-width:74px; padding:4px 8px; font-size:13px; min-height:36px; display:inline-flex; align-items:center; justify-content:center; }
+  .pagehead > .flex .btn, .pagehead > .flex summary.btn,
+  .ph-slim > .flex .btn, .ph-slim > .flex summary.btn{ min-height:44px; padding:0 11px; font-size:14px; }
+  .news-banner{ padding:2px 6px 2px 10px !important; }
+  .dockbtn{ right:12px; bottom:calc(68px + env(safe-area-inset-bottom,0px)); width:48px; height:48px; min-height:48px; }
+  /* 大會看板手機排版優化：避免孤字與底部擁擠 */
+  .b-head-title{ font-size:clamp(19px, 5.2vw, 24px) !important; line-height:1.3; text-wrap:balance; }
+  .b-head .logo-img{ width:46px !important; height:46px !important; }
+  .board .ticker{ font-size:17px; padding:8px 0; }
+  .board{ padding:14px 12px 48px; }
+  /* 卡片表格手機不溢出 */
+  .tbl.cards td{ flex-wrap:wrap; word-break:break-word; }
+  .tbl.cards td::before{ flex:0 0 4.5em; }
+}
+@media (max-width:380px){
+  .topwho{ max-width:64px; font-size:12px; padding:4px 6px; }
+  .brand .t2{ font-size:16px; }
+}
 </style>
 
 <!-- 獎牌用的金、銀、銅漸層（全站共用一份） -->
@@ -804,7 +870,7 @@ html.ov-transparent body::before{ display:none; }
     <div class="topin">
       <button v-if="!(FORMAL && !fb.user)" class="menubtn lg-hide" @click="drawer=true" aria-label="開啟選單"><span aria-hidden="true" style="font-size:22px">☰</span></button>
       <button class="brand" @click="go(homePage)" title="回到首頁">
-        <img v-if="logoOk" :src="LOGO" alt="楠梓國小校徽" class="logo-img" @error="logoOk=false">
+        <img v-if="logoOk && LOGO" :src="LOGO" alt="楠梓國小校徽" class="logo-img" @error="logoOk=false">
         <span v-else class="logo" aria-hidden="true">楠</span>
         <span class="brand-t">
           <span class="t1 sm-hide">{{ st.settings.title }}・{{ dateLabel }}</span>
@@ -858,7 +924,7 @@ html.ov-transparent body::before{ display:none; }
         <button class="btn btn-sm" v-if="unreadNotices.length" @click="unreadNotices.forEach(markRead)">全部標為已讀</button>
       </div>
       <div v-if="FORMAL && fb.user && notifyPerm==='granted'" class="card-flat mb-2 small">📲 瀏覽器關掉也收得到（推播）：
-        <b :style="{ color: pushState==='ok' ? 'var(--ok)' : 'var(--warn)' }">{{ { ok:'✔ 這台已登記', nokey:'○ 管理員尚未設定推播金鑰', unsupported:'✗ 這個瀏覽器不支援（iPhone 請從主畫面圖示打開）', error:'✗ 登記失敗，請重新整理再試', '':'登記中…' }[pushState] }}</b>
+        <b :style="{ color: pushState==='ok' ? 'var(--ok)' : 'var(--warn)' }">{{ { ok:'✔ 這台已登記', nokey:'○ 管理員尚未設定推播金鑰', unsupported:'○ 這個瀏覽器不支援背景推播（iPhone 請從主畫面圖示打開）', error:'○ 尚未啟用背景推播（請確認瀏覽器通知權限或點重試）', '':'登記中…' }[pushState] }}</b>
         <button v-if="pushState==='error'" class="btn btn-sm ml-1" @click="registerPush">重試</button></div>
       <div v-if="isIOS && !isStandalone" class="card-flat mb-2 small" style="background:var(--warn-soft);color:var(--warn)">
         <b>📱 iPhone 開啟通知步驟：</b>點 Safari 下方「分享（□↑）」→「加入主畫面」，再從主畫面圖示打開並點「開啟手機／桌面通知」；靜音鍵要關掉才會響鈴（iPhone 網頁不支援震動）。
@@ -911,7 +977,7 @@ html.ov-transparent body::before{ display:none; }
             <option v-for="id in c.ids" :key="id" :value="id">{{ roleName(id) }}</option>
           </optgroup>
         </select>
-        <button v-if="FORMAL && fb.user" class="btn btn-sm w-full mt-2 lg-hide" @click="signOut">登出 {{ fb.email }}</button>
+        <button v-if="FORMAL && fb.user" class="btn btn-sm w-full mt-2 lg-hide side-logout" @click="signOut" :title="'登出 '+fb.email">登出（{{ fb.email }}）</button>
       </div>
 
       <button v-if="!isPublicView" :class="['sitem start',{on:page==='start'}]" @click="go('start')"><span class="ico">🏠</span><span class="sname">首頁</span></button>
@@ -946,7 +1012,7 @@ html.ov-transparent body::before{ display:none; }
         <template v-if="FORMAL">
           <div class="small mb-1 flex items-center gap-2"><span :class="['syncdot', fb.online ? '' : 'off']"></span><b>{{ fb.online ? '已連線・即時同步' : '離線中' }}</b></div>
           <div class="small muted mb-1" v-if="!isPublicView">延遲 <b class="num">{{ fb.latency!=null ? (fb.latency/1000).toFixed(2)+' 秒' : '—' }}</b>・未送出 <b class="num">{{ fb.pending }}</b> 筆</div>
-          <div class="small muted mb-2 sm-hide" v-if="fb.user" style="word-break:break-all">{{ fb.email }}</div>
+          <div class="small muted mb-2 sm-hide side-email" v-if="fb.user" :title="fb.email">{{ fb.email }}</div>
         </template>
         <template v-else>
           <div class="small mb-2 flex items-center gap-2"><span :class="['syncdot', sync.on ? (sync.ok ? '' : 'off') : 'local']"></span><b>{{ sync.on ? sync.status : '本機即時同步（0.5 秒）' }}</b></div>
@@ -985,14 +1051,14 @@ html.ov-transparent body::before{ display:none; }
         </details>
       </div>
     </div>
-    <div class="note note-info mb-4 no-print" v-if="!gate && PAGE_PERM[page] && !can(PAGE_PERM[page]) && page!=='overlay' && page!=='start'">👀 這頁你可以看，操作由 <b>{{ whoCan(PAGE_PERM[page]) }}</b> 負責。<span v-if="!FORMAL">想體驗操作，請在選單最上面切換身分。</span></div>
+    <div class="note note-info perm-banner mb-4 no-print" v-if="!gate && PAGE_PERM[page] && !can(PAGE_PERM[page]) && page!=='overlay' && page!=='start'">👀 目前為檢視模式：這頁你可以看，操作由 <b>{{ whoCan(PAGE_PERM[page]) }}</b> 負責。<span v-if="!FORMAL">想體驗操作，請在選單最上面切換身分。</span></div>
     <div class="card-flat helpbox mb-4 no-print" v-if="helpOpen && HELP[page] && !gate && !isPublicView" style="border:2px solid var(--brand)">
       <div class="font-bold mb-1" style="font-size:17px">💡 這頁怎麼用</div>
       <ol class="list-decimal" style="font-size:16px;line-height:1.7;padding-left:2em"><li v-for="h in HELP[page]" class="py-0.5">{{ h }}</li></ol>
       <button class="btn btn-sm btn-primary mt-2" @click="closeHelp">收起</button>
     </div>
-    <div class="mb-3 no-print" v-if="newsList.length && !gate && !isPublicView && !['board','overlay','watch'].includes(page)" style="border:1.5px solid #1E9E5A;border-radius:14px;padding:4px 6px 4px 12px;background:color-mix(in srgb,#1E9E5A 7%,var(--card))">
-      <div class="flex items-center justify-between gap-2"><button class="font-bold" style="font-size:15px;color:#14774A;background:none;border:0;padding:6px 0;cursor:pointer;text-align:left;flex:1;min-width:0" @click="newsOpen=!newsOpen" :aria-expanded="newsOpen">🆕 {{ newsList.length }} 項新功能 {{ newsOpen ? '▲ 收合' : '▼' }}</button><button style="background:none;border:0;font-size:20px;color:#14774A;width:40px;height:40px;cursor:pointer;flex:none" @click="dismissNews" aria-label="不再顯示新功能" title="不再顯示">✕</button></div>
+    <div class="mb-3 no-print news-banner" v-if="newsList.length && !gate && !isPublicView && !['board','overlay','watch'].includes(page)" style="border:1.5px solid #1E9E5A;border-radius:14px;padding:4px 6px 4px 12px;background:color-mix(in srgb,#1E9E5A 7%,var(--card))">
+      <div class="flex items-center justify-between gap-2"><button class="font-bold" style="font-size:15px;color:#14774A;background:none;border:0;padding:8px 0;min-height:44px;cursor:pointer;text-align:left;flex:1;min-width:0" @click="newsOpen=!newsOpen" :aria-expanded="newsOpen">🆕 {{ newsList.length }} 項新功能 {{ newsOpen ? '▲ 收合' : '▼' }}</button><button style="background:none;border:0;font-size:20px;color:#14774A;width:44px;height:44px;cursor:pointer;flex:none" @click="dismissNews" aria-label="不再顯示新功能" title="不再顯示">✕</button></div>
       <div v-for="n in newsList" v-show="newsOpen" :key="n.id" class="py-2" style="border-top:1px solid var(--line)">
         <div class="font-bold" style="font-size:16px">{{ n.title }}</div>
         <div class="small" style="line-height:1.6">{{ n.text }}</div>
@@ -1370,7 +1436,7 @@ html.ov-transparent body::before{ display:none; }
             <h2 class="h-sec mb-1">設定誰負責哪一組</h2>
             <p class="small muted mb-3">用學校 Google 帳號登入。沒有設定的人一律是「班級導師」。</p>
             <div class="grid gap-2 mb-3" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
-              <input class="inp" id="rfEmail" v-model.trim="roleForm.email" placeholder="帳號（例：xxx@e1.ntps.kh.edu.tw）" inputmode="email">
+              <input class="inp" id="rfEmail" v-model.trim="roleForm.email" placeholder="輸入學校信箱（例：tc01@e1...）" inputmode="email">
               <button class="btn btn-primary" @click="setRole" :disabled="!roleForm.email || !roleForm.roles.length">{{ fb.roles.some(r=>r.email===roleForm.email.toLowerCase().trim()) ? '更新權限' : '設定權限' }}</button>
             </div>
             <div class="lbl">負責組別（可以勾選多個；每位學校帳號都保有導師功能）</div>
@@ -1416,8 +1482,8 @@ html.ov-transparent body::before{ display:none; }
               <button v-for="g in roleGroups" :key="g.id" role="tab" :aria-selected="roleTab===g.id" :class="['rtab',{on:roleTab===g.id, empty:!g.n}]" @click="roleTab=g.id">{{ g.name }} <span class="rtab-n">{{ g.n }}</span></button>
             </div>
             <div v-if="roleTab!=='all' && !roleRowsTab.length" class="card-flat small muted text-center" style="padding:24px">「{{ roleName(roleTab) }}」還沒有設定成員。在上方輸入帳號、勾選這一組，按「設定權限」。</div>
-            <div v-else class="tblwrap" style="max-height:480px;overflow:auto"><table class="tbl small"><thead><tr><th>姓名</th><th>組別</th><th></th></tr></thead><tbody>
-              <tr v-for="r in roleRowsTab" :key="r.email"><td><b style="font-size:1.05em">{{ r.name || '（未填姓名）' }}</b><div class="muted" style="word-break:break-all;font-size:.8em">{{ r.email }}</div></td><td>{{ r.roles.map(id=>(id==='blocked'?'⛔ 已停用（只能當家長）':((ROLES.find(x=>x.id===id)||{}).name||id))).join('、') }}</td><td class="flex gap-1" v-if="!fb.admin && r.roles.includes('control')"><span class="small muted">僅管理員可改</span></td><td class="flex gap-1" v-else><button class="btn btn-sm" @click="editRole(r)">修改</button><button class="btn btn-sm" @click="removeRole(r.email)">移除</button><button v-if="!r.roles.includes('blocked')" class="btn btn-sm" style="color:#B42318" @click="blockAccount(r)" title="不是本校教職員：停用工作人員功能，只能看家長畫面">停用</button></td></tr>
+            <div v-else class="tblwrap" style="max-height:480px;overflow:auto"><table class="tbl cards small"><thead><tr><th>姓名</th><th>組別</th><th>操作</th></tr></thead><tbody>
+              <tr v-for="r in roleRowsTab" :key="r.email"><td data-label="成員"><div><b style="font-size:1.05em">{{ r.name || '（未填姓名）' }}</b><div class="muted" style="word-break:break-all;font-size:.82em">{{ r.email }}</div></div></td><td data-label="組別">{{ r.roles.map(id=>(id==='blocked'?'⛔ 已停用（只能當家長）':((ROLES.find(x=>x.id===id)||{}).name||id))).join('、') }}</td><td data-label="操作" class="flex gap-1 flex-wrap" v-if="!fb.admin && r.roles.includes('control')"><span class="small muted">僅管理員可改</span></td><td data-label="操作" class="flex gap-1 flex-wrap" v-else><button class="btn btn-sm" @click="editRole(r)">修改</button><button class="btn btn-sm" @click="removeRole(r.email)">移除</button><button v-if="!r.roles.includes('blocked')" class="btn btn-sm" style="color:#B42318" @click="blockAccount(r)" title="不是本校教職員：停用工作人員功能，只能看家長畫面">停用</button></td></tr>
             </tbody></table></div>
           </div>
     </section>
@@ -1437,10 +1503,10 @@ html.ov-transparent body::before{ display:none; }
           </div>
           <div class="b-head flex items-center justify-between gap-3 flex-wrap">
             <div class="flex items-center gap-3" style="min-width:0">
-              <img v-if="logoOk" :src="LOGO" alt="楠梓國小校徽" class="logo-img" style="width:64px;height:64px" @error="logoOk=false">
+              <img v-if="logoOk && LOGO" :src="LOGO" alt="楠梓國小校徽" class="logo-img" style="width:64px;height:64px" @error="logoOk=false">
               <div style="min-width:0">
               <div class="b-label">KAOHSIUNG NANZI ELEMENTARY ・ 創校 127 週年</div>
-              <div style="font-size:clamp(22px,2.6vw,34px);font-weight:900">{{ st.settings.title }}</div>
+              <div class="b-head-title" style="font-size:clamp(22px,2.6vw,34px);font-weight:900">{{ st.settings.title }}</div>
               </div>
             </div>
             <div class="num" style="font-size:clamp(34px,4vw,56px);font-weight:800">{{ clock }}</div>
@@ -2023,7 +2089,7 @@ html.ov-transparent body::before{ display:none; }
         </div>
       </fold-card>
       <div class="grid-auto mb-4">
-        <div v-for="g in guestList" :key="g.id" class="card flex flex-col gap-2" :style="g.absent?'opacity:.75':''">
+        <div v-for="g in guestList" :key="g.id" class="card guest-card flex flex-col gap-2" :style="g.absent?'opacity:.75':''">
           <div class="flex justify-between gap-2">
             <div style="min-width:0" v-if="gEdit!==g.id"><div class="small muted"><span class="chip st-none" style="font-size:13px">{{ g.kind }}</span> {{ g.org }}</div><div class="h-sec">{{ g.name }} {{ g.title }}</div></div>
             <div v-else class="grid gap-2" style="grid-template-columns:1fr 1fr;flex:1;min-width:0">
@@ -2036,14 +2102,16 @@ html.ov-transparent body::before{ display:none; }
           </div>
           <div class="small muted">
             <span v-if="g.arrived && g.kind!=='校內'">{{ g.introduced ? '✔ 司儀已介紹' : '⧗ 等待司儀介紹' }}</span>
-            <span v-for="b in batchesOf(g.id)" :key="b.id" class="block">頒獎：{{ shortTitle(b.title) }}（{{ b.presenter===g.id ? '主要' : b.backup===g.id ? '備援' : '臨時' }}）</span>
+            <span v-for="b in batchesOf(g.id)" :key="b.id" class="block">{{ /^(頒獎|閉幕頒獎)：/.test(shortTitle(b.title)) ? shortTitle(b.title) : '頒獎：'+shortTitle(b.title) }}（{{ b.presenter===g.id ? '主要' : b.backup===g.id ? '備援' : '臨時' }}）</span>
           </div>
-          <button v-if="!g.arrived && !g.absent" class="btn btn-primary btn-big" @click="arrive(g)">報到{{ g.kind==='校內' ? '' : '（通知司儀介紹）' }}</button>
-          <div class="flex gap-2 flex-wrap">
-            <button v-if="g.arrived" class="btn btn-sm" @click="unarrive(g)">取消報到</button>
-            <button v-if="can('guest')" class="btn btn-sm" :class="gEdit===g.id?'btn-primary':''" @click="toggleGEdit(g)">{{ gEdit===g.id ? '✔ 完成' : '✏️ 修改' }}</button>
-            <button v-if="can('data')" class="btn btn-sm" @click="removeGuest(g)">刪除</button>
-            <button class="btn btn-sm" :class="g.absent?'':'btn-bad'" @click="toggleAbsent(g)">{{ g.absent ? '改為可以出席' : '無法出席' }}</button>
+          <div class="guest-actions flex flex-col gap-2">
+            <button v-if="!g.arrived && !g.absent" class="btn btn-primary btn-big w-full" @click="arrive(g)">報到{{ g.kind==='校內' ? '' : '（通知司儀介紹）' }}</button>
+            <div class="flex gap-2 flex-wrap">
+              <button v-if="g.arrived" class="btn btn-sm" @click="unarrive(g)">取消報到</button>
+              <button v-if="can('guest')" class="btn btn-sm" :class="gEdit===g.id?'btn-primary':''" @click="toggleGEdit(g)">{{ gEdit===g.id ? '✔ 完成' : '✏️ 修改' }}</button>
+              <button v-if="can('data')" class="btn btn-sm" @click="removeGuest(g)">刪除</button>
+              <button class="btn btn-sm" :class="g.absent?'':'btn-bad'" @click="toggleAbsent(g)">{{ g.absent ? '改為可以出席' : '無法出席' }}</button>
+            </div>
           </div>
         </div>
       </div>
@@ -3125,6 +3193,7 @@ html.ov-transparent body::before{ display:none; }
   <button class="dockbtn no-print" v-if="page!=='overlay' && page!=='board' && page!=='start' && page!=='results' && page!=='accounts' && !dockOpen" @click="setDock(true)" aria-label="打開即時動態">
     <span class="syncdot dock-l"></span><span class="dock-i" aria-hidden="true">📣</span><span class="dock-l">即時動態</span><span class="badge" v-if="urgentBc.length" style="background:#B42318;color:#fff">!</span>
   </button>
+  <div class="dock-scrim no-print" v-if="dockOpen && page!=='overlay' && page!=='board' && page!=='start' && page!=='results'" @click="setDock(false)"></div>
   <aside class="dock no-print" v-if="dockOpen && page!=='overlay' && page!=='board' && page!=='start' && page!=='results'" aria-label="即時動態">
     <div class="flex items-center justify-between gap-2 mb-2">
       <b>即時動態</b><span class="small muted num">{{ clock }}</span>
@@ -3709,8 +3778,8 @@ createApp({
 
     /* ----- 頁面切換（網址 #名稱，可直接分享某一頁） ----- */
     const validPage = p => PAGES.some(x=>x.id===p);
-    function go(p){ page.value=p; drawer.value=false; helpOpen.value=false; if(p==='live') syncLiveDraft(); try{ if(location.hash!=='#'+p) location.hash=p; }catch(e){} window.scrollTo({top:0, behavior:'smooth'}); }
-    function readHash(){ const h=(location.hash||'').slice(1); if(validPage(h)) page.value=h; }
+    function go(p){ page.value=p; drawer.value=false; helpOpen.value=false; dockOpen.value=false; if(p==='live') syncLiveDraft(); try{ if(location.hash!=='#'+p) location.hash=p; }catch(e){} nextTick(()=>{ window.scrollTo({top:0, left:0, behavior:'instant'}); }); }
+    function readHash(){ const h=(location.hash||'').slice(1); if(validPage(h)){ page.value=h; drawer.value=false; dockOpen.value=false; nextTick(()=>{ window.scrollTo({top:0, left:0, behavior:'instant'}); }); } }
     window.addEventListener('hashchange', readHash);
 
     const roleObj = computed(()=>{
@@ -5090,7 +5159,15 @@ createApp({
     setInterval(()=>{ if(page.value==='board' && latestPublished.value.length) boardIdx.value=(boardIdx.value+1)%latestPublished.value.length; },8000);
     function toggleBoardMode(){ boardMode.value=!boardMode.value; }
     function fullscreen(){ boardMode.value=true; try{ const p=document.documentElement.requestFullscreen && document.documentElement.requestFullscreen(); if(p && p.catch) p.catch(()=>toast('這個畫面不支援全螢幕，已切換成投影模式',true)); }catch(e){} }
-    document.addEventListener('keydown', e=>{ if(e.key==='Escape' && boardMode.value) boardMode.value=false; });
+    document.addEventListener('keydown', e=>{
+      if(e.key!=='Escape') return;
+      if(modal.value){ modal.value=null; return; }
+      if(insertOpen.value){ insertOpen.value=false; return; }
+      if(noticeOpen.value){ noticeOpen.value=false; return; }
+      if(drawer.value){ drawer.value=false; return; }
+      if(dockOpen.value){ setDock(false); return; }
+      if(boardMode.value){ boardMode.value=false; }
+    });
 
     /* ----- 直播 ----- */
     const liveUrlDraft = ref(''); const liveTitleDraft = ref(''); const markNote = ref('');
