@@ -3032,20 +3032,7 @@ body{ min-height:100%; min-height:100dvh; max-width:100%; }
           </div>
           <div class="flex gap-2 flex-wrap no-print">
             <button v-if="activeStationId" class="btn btn-sm" @click="activeStationId=''">取消高亮</button>
-            <button type="button" class="btn btn-sm" @click="mapLightbox=true">🔍 看原圖</button>
-          </div>
-        </div>
-        <!-- 站內原圖檢視燈箱（iPhone 加入主畫面也能一鍵關閉返回，不會卡在純圖頁） -->
-        <div v-if="mapLightbox" class="modal-bg no-print" style="z-index:95;padding:12px" @click.self="mapLightbox=false">
-          <div style="width:min(1080px,100%);max-height:92dvh;display:flex;flex-direction:column;gap:10px;background:#0f172a;border-radius:16px;padding:12px;border:1.5px solid rgba(255,255,255,.25);box-shadow:0 20px 50px rgba(0,0,0,.6)">
-            <div class="flex items-center justify-between gap-2">
-              <span style="color:#fff;font-weight:900;font-size:16px">🗺️ 體育社團體驗區 場地配置圖</span>
-              <button type="button" class="btn btn-sm" style="background:#fff;color:#0f172a;font-weight:900;min-height:44px;padding:0 16px" @click="mapLightbox=false">✕ 關閉返回</button>
-            </div>
-            <div style="overflow:auto;-webkit-overflow-scrolling:touch;border-radius:10px;background:#fff">
-              <img src="stations-map.jpg?v=20261127" alt="運動會體育社團體驗暨秩序維護場地配置圖" style="display:block;width:100%;height:auto;min-width:600px">
-            </div>
-            <div style="color:rgba(255,255,255,.8);font-size:13px;text-align:center">可左右滑動或雙指縮放查看細節・點右上角「✕ 關閉返回」回到體育闖關</div>
+            <button type="button" class="btn btn-sm" @click="mapZoom=false; mapLightbox=true">🔍 看原圖</button>
           </div>
         </div>
         <!-- 快速關卡切換按鈕（點哪一關，地圖就亮哪一關） -->
@@ -3365,6 +3352,23 @@ body{ min-height:100%; min-height:100dvh; max-width:100%; }
     <div v-for="t in toasts" :key="t.id" :class="['toast',{bad:t.bad}]"><span class="ck">{{ t.bad ? '!' : '✓' }}</span><span>{{ t.text }}</span></div>
   </div>
 
+  <!-- 體育闖關原圖檢視燈箱（置於最外層固定定位，iPhone 立刻置中顯示、預設全圖不裁切且可一鍵放大拖曳） -->
+  <div v-if="mapLightbox" class="modal-bg no-print" style="position:fixed;inset:0;z-index:95;padding:max(12px,env(safe-area-inset-top,12px)) 12px max(12px,env(safe-area-inset-bottom,12px));display:flex;align-items:center;justify-content:center" @click.self="mapLightbox=false">
+    <div style="width:min(1080px,100%);max-height:88dvh;display:flex;flex-direction:column;gap:10px;background:#0f172a;border-radius:16px;padding:12px;border:1.5px solid rgba(255,255,255,.25);box-shadow:0 20px 50px rgba(0,0,0,.6)">
+      <div class="flex items-center justify-between gap-2 flex-wrap">
+        <span style="color:#fff;font-weight:900;font-size:16px">🗺️ 場地配置圖</span>
+        <div class="flex items-center gap-2">
+          <button type="button" class="btn btn-sm" style="background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.4);min-height:42px;padding:0 12px;font-size:14px" @click="mapZoom=!mapZoom">{{ mapZoom ? '↺ 還原全圖' : '🔍 放大查看' }}</button>
+          <button type="button" class="btn btn-sm" style="background:#fff;color:#0f172a;font-weight:900;min-height:42px;padding:0 14px;font-size:14px" @click="mapLightbox=false">✕ 關閉</button>
+        </div>
+      </div>
+      <div style="flex:1 1 auto;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y pinch-zoom;border-radius:10px;background:#fff">
+        <img src="stations-map.jpg?v=20261127" alt="運動會體育社團體驗暨秩序維護場地配置圖" :style="mapZoom ? 'display:block;width:200%;max-width:none;height:auto' : 'display:block;width:100%;max-width:100%;height:auto'">
+      </div>
+      <div style="color:rgba(255,255,255,.82);font-size:13px;text-align:center">{{ mapZoom ? '手指可任意左右上下滑動查看細節・點「↺ 還原全圖」回到整張圖' : '完整顯示全圖・點「🔍 放大查看」可放大並滑動看細節' }}</div>
+    </div>
+  </div>
+
   <!-- 確認視窗（取代瀏覽器 confirm） -->
   <div class="modal-bg" v-if="modal" @click.self="modal=null">
     <div class="modal" role="dialog" aria-modal="true">
@@ -3400,7 +3404,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261127140000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261127140600'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -5399,7 +5403,7 @@ createApp({
     function announceGift(g){ if(!need('gift')) return; g.announced=true; bc('thanks','大會報告：感謝 '+g.donor+' 熱心捐贈 '+g.item+'，讓我們以熱烈的掌聲表達感謝！'); log('公布感謝：'+g.donor); toast('已上看板跑馬燈，司儀台收到感謝稿'); }
     const giftRows = computed(()=>[['時間','捐贈單位／姓名','禮品','金額']].concat(st.value.gifts.map(g=>[g.at,g.donor,g.item,g.amount||''])));
     const giftText = computed(()=>'【感謝芳名錄】楠梓國小'+st.value.settings.title+'\n感謝以下單位與個人熱心捐贈：\n'+st.value.gifts.map(g=>'・'+g.donor+'　'+g.item).join('\n')+'\n謹致謝忱！');
-    const activeStationId = ref(''), mapLightbox = ref(false);
+    const activeStationId = ref(''), mapLightbox = ref(false), mapZoom = ref(false);
     const STATION_ZONES = [
       { match:/跆拳道|^1\b|第1/, style:{ left:'18.2%', top:'48.2%', width:'26.2%', height:'12.8%' } },
       { match:/舞蹈|^2\b|第2/,   style:{ left:'59.2%', top:'48.2%', width:'26.8%', height:'12.8%' } },
@@ -5706,7 +5710,7 @@ createApp({
       rvTab, rvNote, publish, sendBack, askReopen,
       mcText, doneBc, addInsert, bcStyle,
       FORMAL, fb, roleTab, roleGroups, roleRowsTab, signIn, signOut, initFormal, roleForm, setRole, editRole, removeRole, roleBulk, roleBulkRows, applyRoleBulk, roleQ, roleRowsShown, rosterDraft, onRosterInput, rosterMap, loginMatches, pendingMatches, saveRoster, setRosterAuto, applyMatches, isOnline, devicesSorted, devicesOnline, devicesRecent, addTl, removeTl, removeGuest,
-      RTYPES, STA, rf, rFilter, canHandle, openReports, myOpenReports, reportList, openMedicReports, submitReport, setReport, md, mdEditId, editMedical, cancelMedical, addMedical, medicalRows, eqFilter, ne, tlLabel, equipGroups, nextEquip, setEquip, addEquip, removeEquip, blockAccount, lunchInfo, lunchMissing, setLunchInfo, toggleLunch, callLunch, gf, gfEditId, editGift, cancelGift, addGift, announceGift, giftRows, giftText, activeStationId, mapLightbox, stationZoneOf, stationDotColor, pickStation, setStation, addStation, removeStation, supportMissing, initSupport,
+      RTYPES, STA, rf, rFilter, canHandle, openReports, myOpenReports, reportList, openMedicReports, submitReport, setReport, md, mdEditId, editMedical, cancelMedical, addMedical, medicalRows, eqFilter, ne, tlLabel, equipGroups, nextEquip, setEquip, addEquip, removeEquip, blockAccount, lunchInfo, lunchMissing, setLunchInfo, toggleLunch, callLunch, gf, gfEditId, editGift, cancelGift, addGift, announceGift, giftRows, giftText, activeStationId, mapLightbox, mapZoom, stationZoneOf, stationDotColor, pickStation, setStation, addStation, removeStation, supportMissing, initSupport,
       dockOpen, setDock, qa, quickAssign, person, useBackup, restorePrimary, eventPoints, setCustomPts, baseNames, bulk, applyBulk,
       gFilter, gKind, guestList, ng, arrive, addGuest, personText, personMark, shortTitle, batchesOf, presenterOf, toggleAbsent, readyBatchObj, batchTime, winnersOf, winnerGroups, awardIssues, teacherCalls, sync, toggleCloud, canEmbed, embedUrl,
       batchInfo, readyBatch, doneBatch,
