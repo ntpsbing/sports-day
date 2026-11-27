@@ -2044,7 +2044,10 @@ body{ min-height:100%; min-height:100dvh; max-width:100%; }
         <span class="t-row"><span class="t-ic">🎤</span><b>現在唸這段</b><span class="pill pill-todo">還沒播{{ pendingBc.length>1 ? '・後面還有 '+(pendingBc.length-1)+' 則' : '' }}</span></span>
         <span class="small muted"><span class="chip" :style="bcStyle(pendingBc[0].type)">{{ BC[pendingBc[0].type] }}<span v-if="pendingBc[0].title">：{{ pendingBc[0].title }}</span></span>　{{ pendingBc[0].at }}<template v-if="pendingBc[0].by">・{{ pendingBc[0].by }}</template></span>
         <div class="mc-card">{{ bt(pendingBc[0].text) }}</div>
-        <button class="t-btn primary" style="border:0;cursor:pointer;font-size:19px;padding:14px" v-if="can('mc')" @click="doneBc(pendingBc[0])">唸完了，按這裡</button>
+        <div class="flex flex-wrap gap-2 items-center" v-if="can('mc') || canWithdrawB(pendingBc[0])">
+          <button class="t-btn primary" style="border:0;cursor:pointer;font-size:19px;padding:14px;flex:1 1 200px" v-if="can('mc')" @click="doneBc(pendingBc[0])">唸完了，按這裡</button>
+          <button class="btn btn-bad" style="min-height:52px;padding:0 18px;font-size:17px" v-if="canWithdrawB(pendingBc[0])" @click="withdrawBc(pendingBc[0])">取消這則</button>
+        </div>
       </div>
       <div class="t-card mb-4" style="cursor:default" v-else>
         <span class="t-row"><span class="t-ic">🎤</span><b>目前沒有要唸的稿子</b><span class="pill pill-ok">✓</span></span>
@@ -3404,7 +3407,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261127140600'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261127141200'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
