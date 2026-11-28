@@ -1328,7 +1328,8 @@ body{ min-height:100%; min-height:100dvh; max-width:100%; }
                   </td>
                   <td v-if="!ev.team" class="res-name">{{ pn(x.e.name) }}</td>
                   <td class="res-mark-cell r">
-                    <div class="res-mark-val num">{{ ev.better==='place' ? (x.place ? '第 '+x.place+' 名' : '—') : (fmtMark(ev,x.e) || '—') }}</div>
+                    <div class="res-mark-val num">{{ (ev.better==='place' && !(ev.cat==='relay' && fmtMark(ev,x.e))) ? (x.place ? '第 '+x.place+' 名' : '—') : (fmtMark(ev,x.e) || '—') }}</div>
+                    <div v-if="x.e.note && fullResults" class="small muted" style="font-size:12px;margin-top:2px">備註：{{ x.e.note }}</div>
                     <div class="res-mark-tags" v-if="x.tieBreak || x.e.record || (recEditMode && can('publish') && fullResults && x.place && x.place<=6)">
                       <span v-if="x.tieBreak" class="res-tie-tag">比次佳成績</span>
                       <span v-if="x.e.record" class="rec-badge">🏆 破大會紀錄</span>
@@ -1844,6 +1845,7 @@ body{ min-height:100%; min-height:100dvh; max-width:100%; }
             <div class="flex flex-wrap items-center gap-2 mb-2">
               <div class="font-bold" style="font-size:18px;color:var(--brand)">👦 男生組（4×100 公尺決賽）</div>
               <span v-if="r4FinalsOf(tCls).entryM && (r4FinalsOf(tCls).entryM.lane || r4FinalsOf(tCls).entryM.color)" :style="laneBadgeStyle(r4FinalsOf(tCls).entryM)">{{ laneText(r4FinalsOf(tCls).entryM) }}</span>
+              <span v-if="r4FinalsOf(tCls).entryM && r4FinalsOf(tCls).entryM.preMark" class="chip st-none" style="font-size:13px">預賽 {{ r4FinalsOf(tCls).entryM.preMark }}</span>
             </div>
             <div class="grid gap-2 mb-2" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr))">
               <div v-for="(n,i) in r4Draft.M" :key="'m'+i">
@@ -1862,6 +1864,7 @@ body{ min-height:100%; min-height:100dvh; max-width:100%; }
             <div class="flex flex-wrap items-center gap-2 mb-2">
               <div class="font-bold" style="font-size:18px;color:#B83280">👧 女生組（4×100 公尺決賽）</div>
               <span v-if="r4FinalsOf(tCls).entryF && (r4FinalsOf(tCls).entryF.lane || r4FinalsOf(tCls).entryF.color)" :style="laneBadgeStyle(r4FinalsOf(tCls).entryF)">{{ laneText(r4FinalsOf(tCls).entryF) }}</span>
+              <span v-if="r4FinalsOf(tCls).entryF && r4FinalsOf(tCls).entryF.preMark" class="chip st-none" style="font-size:13px">預賽 {{ r4FinalsOf(tCls).entryF.preMark }}</span>
             </div>
             <div class="grid gap-2 mb-2" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr))">
               <div v-for="(n,i) in r4Draft.F" :key="'f'+i">
@@ -1971,13 +1974,15 @@ body{ min-height:100%; min-height:100dvh; max-width:100%; }
         <div class="flex flex-wrap gap-2 mb-4">
           <button class="btn btn-primary" @click="startCheckin(ckEv)" :disabled="isLocked(ckEv)">開始檢錄（通知司儀廣播）</button>
           <button class="btn" @click="secondCall(ckEv)" :disabled="!ckStat.away && !ckStat.unk">呼叫第二次檢錄</button>
+          <button class="btn" v-if="isR4Ev(ckEv) || ckEntries.some(x=>x.lane||x.preMark)" @click="announceLanes(ckEv)">🎤 送出道次與預賽給司儀</button>
           <button class="btn btn-ok" @click="finishCheckin(ckEv)" :disabled="isLocked(ckEv)">檢錄完成，交給裁判</button>
         </div>
         <div class="grid gap-2" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr))">
           <div v-for="e in ckEntries" :key="e.id" class="card-flat flex items-center justify-between gap-2" :style="laneStyle(e)">
-            <div style="min-width:0">
-              <div v-if="e.lane || e.color" class="mb-1">
-                <span :style="laneBadgeStyle(e)">{{ laneText(e) }}</span>
+            <div style="min-width:0;flex:1">
+              <div v-if="e.lane || e.color || e.preMark" class="mb-1 flex flex-wrap items-center gap-1">
+                <span v-if="e.lane || e.color" :style="laneBadgeStyle(e)">{{ laneText(e) }}</span>
+                <span v-if="e.preMark" class="chip st-none" style="font-size:12px;padding:1px 8px">預賽 {{ e.preMark }}</span>
               </div>
               <div class="font-bold" style="font-size:20px">{{ clsLabel(e.cls) }}</div>
               <div class="small muted" v-if="!ckEv.team">{{ e.name }}</div>
@@ -1986,6 +1991,10 @@ body{ min-height:100%; min-height:100dvh; max-width:100%; }
                   <span style="color:var(--ink)">{{ r4LineText(ckEv, e.cls, true, true) }}</span>
                 </template>
                 <span v-else class="muted">（導師尚未填報選手名單）</span>
+              </div>
+              <div v-if="isR4Ev(ckEv) && (can('checkin') || can('score'))" class="flex items-center gap-2 mt-2">
+                <label class="small muted" :for="'pm_'+e.id" style="white-space:nowrap">預賽秒數：</label>
+                <input class="inp num" :id="'pm_'+e.id" style="font-size:15px;padding:4px 8px;max-width:120px;min-height:34px" placeholder="例 1:10.36" v-model.trim="e.preMark" @blur="normPreMark(e)">
               </div>
             </div>
             <div class="flex gap-2">
@@ -2024,7 +2033,7 @@ body{ min-height:100%; min-height:100dvh; max-width:100%; }
         <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
           <div>
             <h2 class="h-sec">{{ scEv.name }}</h2>
-            <div class="small muted">{{ scEv.better==='place' ? '直接輸入名次（1、2、3…）' : scEv.better==='low' ? '輸入秒數，例如 '+(scEv.team?'62.35':'9.84')+'（越少越好）' : scEv.cat==='field' ? '可填第一次／第二次／第三次（數字、X 犯規、O 免跳），系統自動帶出最佳成績（越遠越好）' : scEv.unit==='公尺' ? '輸入公尺，例如 3.45（越遠越好）' : '輸入'+scEv.unit+'數，例如 120（越多越好）' }}・取前 {{ scEv.awardTop }} 名</div>
+            <div class="small muted">{{ scEv.cat==='relay' ? '輸入時間（支援「1:10.36」「1：10.36」「5:32.45」或純秒數，半形全形自動換算）；踩線等請直接勾「違規」（自動 +5 秒，可改秒數）並填備註；未出賽／未完賽才勾「棄權」' : scEv.better==='place' ? '直接輸入名次（1、2、3…）' : scEv.better==='low' ? '輸入秒數，例如 9.84（越少越好）' : scEv.cat==='field' ? '可填第一次／第二次／第三次（數字、X 犯規、O 免跳），系統自動帶出最佳成績（越遠越好）' : scEv.unit==='公尺' ? '輸入公尺，例如 3.45（越遠越好）' : '輸入'+scEv.unit+'數，例如 120（越多越好）' }}・取前 {{ scEv.awardTop }} 名</div>
           </div>
           <span :class="['chip','st-'+scEv.status]">{{ STATUS[scEv.status] }}</span>
         </div>
@@ -2035,7 +2044,7 @@ body{ min-height:100%; min-height:100dvh; max-width:100%; }
         </ul>
         <div class="tblwrap">
           <table class="tbl cards">
-            <thead><tr><th>即時名次</th><th>班級</th><th v-if="!scEv.team">姓名</th><th v-if="scEv.cat==='field'">第一次</th><th v-if="scEv.cat==='field'">第二次</th><th v-if="scEv.cat==='field'">第三次</th><th>{{ scEv.better==='place' ? '名次' : scEv.cat==='field' ? '最佳成績（'+scEv.unit+'）' : '成績（'+scEv.unit+'）' }}</th><th>棄權/犯規</th></tr></thead>
+            <thead><tr><th>即時名次</th><th>班級</th><th v-if="!scEv.team">姓名</th><th v-if="scEv.cat==='field'">第一次</th><th v-if="scEv.cat==='field'">第二次</th><th v-if="scEv.cat==='field'">第三次</th><th>{{ scEv.cat==='relay' ? '原始時間（分:秒）' : scEv.better==='place' ? '名次' : scEv.cat==='field' ? '最佳成績（'+scEv.unit+'）' : '成績（'+scEv.unit+'）' }}</th><th v-if="scEv.cat==='relay'">違規（加秒）</th><th v-if="scEv.cat==='relay'">備註（違規說明）</th><th>{{ scEv.cat==='relay' ? '棄權' : '棄權/犯規' }}</th></tr></thead>
             <tbody>
               <tr v-for="x in scRows" :key="x.e.id" :class="{shake: scShake && needsMark(scEv,x.e)}">
                 <td data-label="即時名次"><span :class="['place','p'+x.place]">{{ x.place || '—' }}</span></td>
@@ -2044,11 +2053,21 @@ body{ min-height:100%; min-height:100dvh; max-width:100%; }
                 <td v-if="scEv.cat==='field'" data-label="第一次" style="min-width:94px"><input class="inp num" style="font-size:19px;max-width:100px;padding:6px 8px;text-align:center" placeholder="數字/X/O" :value="tryVal(x.e,0)" @input="onTryInput(scEv,x.e,0,$event.target.value)" :disabled="isLocked(scEv) || x.e.dq || !can('score')"></td>
                 <td v-if="scEv.cat==='field'" data-label="第二次" style="min-width:94px"><input class="inp num" style="font-size:19px;max-width:100px;padding:6px 8px;text-align:center" placeholder="數字/X/O" :value="tryVal(x.e,1)" @input="onTryInput(scEv,x.e,1,$event.target.value)" :disabled="isLocked(scEv) || x.e.dq || !can('score')"></td>
                 <td v-if="scEv.cat==='field'" data-label="第三次" style="min-width:94px"><input class="inp num" style="font-size:19px;max-width:100px;padding:6px 8px;text-align:center" placeholder="數字/X/O" :value="tryVal(x.e,2)" @input="onTryInput(scEv,x.e,2,$event.target.value)" :disabled="isLocked(scEv) || x.e.dq || !can('score')"></td>
-                <td :data-label="scEv.cat==='field' ? '最佳成績' : '成績'" style="min-width:130px">
-                  <input v-if="scEv.better!=='place'" class="inp num" style="font-size:22px;max-width:160px" inputmode="decimal" :id="'mk_'+x.e.id" v-model.trim="x.e.mark" :disabled="isLocked(scEv) || x.e.dq || !can('score')" :class="{err: markWarn(scEv,x.e)}">
+                <td :data-label="scEv.cat==='relay' ? '原始時間' : scEv.cat==='field' ? '最佳成績' : '成績'" style="min-width:130px">
+                  <input v-if="useTimeMode(scEv)" class="inp num" style="font-size:21px;max-width:160px" :inputmode="scEv.cat==='relay' ? 'text' : 'decimal'" :placeholder="isR4Ev(scEv) ? '例 1:10.36' : scEv.cat==='relay' ? '例 5:32.45' : ''" :id="'mk_'+x.e.id" v-model.trim="x.e.mark" @blur="normTimeInput(scEv,x.e)" :disabled="isLocked(scEv) || x.e.dq || !can('score')" :class="{err: markWarn(scEv,x.e)}">
                   <input v-else class="inp num" style="font-size:22px;max-width:110px" inputmode="numeric" :id="'pl_'+x.e.id" v-model.number="x.e.place" :disabled="isLocked(scEv) || x.e.dq || !can('score')">
+                  <div v-if="scEv.cat==='relay' && penaltySec(x.e)>0 && !isNaN(effVal(scEv,x.e))" class="small" style="color:var(--warn);font-weight:700;margin-top:2px">加秒後：{{ fmtMark(scEv,x.e).split('（')[0] }}</div>
                 </td>
-                <td data-label="棄權/犯規"><label class="flex items-center gap-2" style="min-height:44px"><input type="checkbox" :id="'dq_'+x.e.id" v-model="x.e.dq" :disabled="isLocked(scEv) || !can('score')" style="width:22px;height:22px"> 是</label></td>
+                <td v-if="scEv.cat==='relay'" data-label="違規（加秒）" style="min-width:138px">
+                  <div class="flex items-center gap-2" style="min-height:44px">
+                    <label class="flex items-center gap-1" style="white-space:nowrap;cursor:pointer"><input type="checkbox" :checked="penaltySec(x.e)>0" @change="x.e.penalty = $event.target.checked ? (penaltySec(x.e)||5) : 0" :disabled="isLocked(scEv) || x.e.dq || !can('score')" style="width:22px;height:22px"> 違規</label>
+                    <input v-if="penaltySec(x.e)>0" class="inp num" style="font-size:17px;width:68px;padding:4px 6px;text-align:center;min-height:36px" type="number" min="0.5" max="60" step="0.5" v-model.number="x.e.penalty" :disabled="isLocked(scEv) || x.e.dq || !can('score')" aria-label="加秒數"><span v-if="penaltySec(x.e)>0" class="small muted">秒</span>
+                  </div>
+                </td>
+                <td v-if="scEv.cat==='relay'" data-label="備註" style="min-width:150px">
+                  <input class="inp" style="font-size:16px;min-width:140px;padding:6px 10px" placeholder="例：第2棒踩線" maxlength="40" v-model.trim="x.e.note" :disabled="isLocked(scEv) || !can('score')">
+                </td>
+                <td :data-label="scEv.cat==='relay' ? '棄權' : '棄權/犯規'"><label class="flex items-center gap-2" style="min-height:44px"><input type="checkbox" :id="'dq_'+x.e.id" v-model="x.e.dq" :disabled="isLocked(scEv) || !can('score')" style="width:22px;height:22px"> 是</label></td>
               </tr>
             </tbody>
           </table>
@@ -2085,7 +2104,10 @@ body{ min-height:100%; min-height:100dvh; max-width:100%; }
                     <span v-for="(tv,ti) in x.e.tries" :key="ti" :style="tryBadgeStyle(tv)">{{ ['一','二','三'][ti] }} {{ tv || '—' }}</span>
                   </div>
                 </td>
-                <td class="num" style="text-align:right;white-space:nowrap">{{ fmtMark(e,x.e) }}<span v-if="x.e.record" class="rec-badge">🏆 破大會紀錄</span></td>
+                <td class="num" style="text-align:right">
+                  <div>{{ fmtMark(e,x.e) }}<span v-if="x.e.record" class="rec-badge">🏆 破大會紀錄</span></div>
+                  <div v-if="x.e.note" class="small" style="color:var(--warn);font-weight:700">備註：{{ x.e.note }}</div>
+                </td>
               </tr></tbody>
             </table></div>
             <div class="small muted mt-1" v-if="ranked(e).some(x=>!x.place)">另有 {{ ranked(e).filter(x=>!x.place).length }} 筆無成績或棄權</div>
@@ -3531,7 +3553,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261127222800'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261128121500'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -3542,8 +3564,8 @@ const EVENT_DEFS = [
   { key:'m60',    base:'60公尺',       cat:'track', grades:[3,4,5,6], unit:'秒',   better:'low',  stage:'pre', range:[8.2,13.5] },
   { key:'m100',   base:'100公尺',      cat:'track', grades:[4,5,6], unit:'秒',   better:'low',  stage:'pre', range:[13,21] },
   { key:'m200',   base:'200公尺',      cat:'track', grades:[5,6],   unit:'秒',   better:'low',  stage:'pre', range:[28,46] },
-  { key:'r4',     base:'4×100公尺接力', cat:'relay', grades:[4,5,6], unit:'秒',   better:'low',  stage:'day', range:[58,95], team:true, genders:['男','女'], todo:'組數待確認' },
-  { key:'relay',  base:'大隊接力',     cat:'relay', grades:[4,5,6], unit:'名次', better:'place',stage:'day', team:true, genders:['混'], todo:'組數待確認' },
+  { key:'r4',     base:'4×100公尺接力', cat:'relay', grades:[4,5,6], unit:'秒',   better:'low',  stage:'day', range:[55,115], team:true, genders:['男','女'], todo:'組數待確認' },
+  { key:'relay',  base:'大隊接力',     cat:'relay', grades:[4,5,6], unit:'秒',   better:'low',  stage:'day', range:[200,520], team:true, genders:['混'], todo:'組數待確認' },
 ];
 const PLAN_QUESTIONS = [
   '總錦標積分辦法：計畫書沒寫各名次幾分、接力是否加倍（目前先用 7・5・4・3・2・1，接力 ×2）',
@@ -3755,6 +3777,7 @@ const HELP = {
 };
 /* 新功能公告：依組別顯示，每台裝置看過按「知道了」就不再出現（之後新增功能時，在最上面加一筆） */
 const WHATS_NEW = [
+  { id:'n20261128a', roles:['sport','checkin','mc','record','control'], page:'score', title:'⏱️ 接力全面支援「分:秒」、違規加秒、備註與 4×100 預賽秒數', text:'4×100 與大隊接力成績欄支援半形「1:10.36」、全形「1：10.36」、「5:32.45」與純秒數自動換算；新增「違規加秒」與「備註（例：第2棒踩線）」自動計算加秒後名次（不需誤勾棄權/取消資格）。檢錄頁也支援填入 4×100 預賽秒數並一鍵送出給司儀台播報。' },
   { id:'n20261127h', roles:['teacher','checkin','sport','record','control','doc'], page:'teacher', title:'🏃‍♂️ 4×100 接力決賽選手名單開放晉級班級導師填報', text:'晉級 4×100 決賽的班級，導師在「導師查詢」會自動出現「🏃‍♂️ 4×100 選手名單」卡片（只顯示本班晉級的組別與道次色別，未晉級班級不顯示）；送出後自動同步到檢錄處、成績查詢（家長看遮名、老師看全名）、獎狀套印名單與「匯出與列印 → 4×100名單」。' },
   { id:'n20261127g', roles:['teacher','public','quest','control','record'], page:'stations', title:'🎯 體育社團體驗區全面公開＋互動發光地圖', text:'家長與老師不用登入也能打開「體育闖關」！點任一關卡按鈕或卡片，地圖上對應的體驗區立刻發光跳出定位圖釘，並即時顯示開放中／人多狀態。' },
   { id:'n20261127f', roles:['record','doc','award','medic','gift','control'], page:'export', title:'所有報表皆補上「🖨 列印黑白／彩色／存成 PDF」', text:'「獎狀名單」「獎品統計」「成績總表」「醫護紀錄」「捐贈芳名錄」都加上專屬 A4 列印按鈕，黑白列印採純黑格線、淡灰表頭、每頁自動重印表頭與核對打勾欄＋底部簽核欄，印出來整齊好核對。' },
@@ -4203,15 +4226,59 @@ createApp({
     function modalOk(){ const m=modal.value; modal.value=null; m.onOk && m.onOk(m.input); }
 
     /* ----- 排名與積分 ----- */
+    /* 時間解析：支援半形「1:10.36」、全形「1：10.36」、1分10.36秒、純秒數「70.36」等，統一轉成秒數 */
+    function parseTimeSec(val){
+      const s = String(val==null?'':val).trim()
+        .replace(/[０-９]/g, c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0))
+        .replace(/[：∶＇’']/g, ':')
+        .replace(/．/g, '.')
+        .replace(/\s+/g, '');
+      if(!s) return NaN;
+      const m1 = s.match(/^(\d+)分(\d+(?:\.\d+)?)秒?$/);
+      if(m1) return parseInt(m1[1],10)*60 + parseFloat(m1[2]);
+      const m2 = s.match(/^(\d+):(\d+(?:\.\d+)?)$/);
+      if(m2){ const sec=parseFloat(m2[2]); if(isNaN(sec) || sec>=60) return NaN; return parseInt(m2[1],10)*60 + sec; }
+      const n = Number(s);
+      return isNaN(n) ? NaN : n;
+    }
+    function formatMinSec(sec){
+      const m = Math.floor(sec/60), rem = Math.round((sec - m*60)*100)/100;
+      const rStr = rem.toFixed(2);
+      return m + ':' + (rem<10 ? '0'+rStr : rStr);
+    }
+    function isTimeEv(ev){ return !!(ev && (ev.unit==='秒' || ev.cat==='relay' || ev.better==='low')); }
+    function useTimeMode(ev){ return !!(ev && (ev.cat==='relay' || ev.better!=='place')); }
+    function penaltySec(e){ const p = parseFloat(e && e.penalty); return (!isNaN(p) && p>0) ? p : 0; }
+    function effVal(ev, e){
+      if(!e || e.mark==='' || e.mark==null) return NaN;
+      if(isTimeEv(ev)){ const b=parseTimeSec(e.mark); if(isNaN(b)) return NaN; return Math.round((b + penaltySec(e))*1000)/1000; }
+      return parseFloat(e.mark);
+    }
+    function normTimeInput(ev, e){
+      if(!ev || !e || !isTimeEv(ev)) return;
+      const s = String(e.mark==null?'':e.mark).trim(); if(!s) return;
+      const sec = parseTimeSec(s); if(isNaN(sec)) return;
+      e.mark = sec>=60 ? formatMinSec(sec) : sec.toFixed(2);
+    }
+    function normPreMark(e){
+      if(!e) return;
+      const s = String(e.preMark==null?'':e.preMark).trim(); if(!s) return;
+      const sec = parseTimeSec(s); if(isNaN(sec)) return;
+      e.preMark = sec>=60 ? formatMinSec(sec) : sec.toFixed(2);
+    }
     function ranked(ev){
       const list=ev.entries.map(e=>({ e, place:null }));
-      if(ev.better==='place'){ list.forEach(x=>{ const p=parseInt(x.e.place); x.place=(x.e.dq||!p)?null:p; }); }
-      else{
+      const hasAnyTime = ev.cat==='relay' && ev.entries.some(e=>!e.dq && !isNaN(effVal(ev,e)));
+      if(ev.better==='place' && !(ev.cat==='relay' && hasAnyTime)){
+        list.forEach(x=>{ const p=parseInt(x.e.place); x.place=(x.e.dq||!p)?null:p; });
+      } else {
         const tryNums = e => Array.isArray(e.tries) ? e.tries.map(v=>parseFloat(v)).filter(n=>!isNaN(n) && n>0).sort((a,b)=>b-a) : [];
         const cmpTry = (a,b) => { const ta=tryNums(a.e), tb=tryNums(b.e); for(let k=1;k<Math.max(ta.length,tb.length);k++){ const d=(tb[k]||0)-(ta[k]||0); if(d!==0) return d; } return 0; };
-        const ok=list.filter(x=>!x.e.dq && x.e.mark!=='' && !isNaN(parseFloat(x.e.mark)));
+        const ok=list.filter(x=>!x.e.dq && x.e.mark!=='' && !isNaN(effVal(ev,x.e)));
+        const lowerBetter = ev.better==='low' || ev.cat==='relay';
         ok.sort((a,b)=>{
-          const d = ev.better==='low' ? parseFloat(a.e.mark)-parseFloat(b.e.mark) : parseFloat(b.e.mark)-parseFloat(a.e.mark);
+          const va=effVal(ev,a.e), vb=effVal(ev,b.e);
+          const d = lowerBetter ? va-vb : vb-va;
           if(d!==0) return d;
           if(ev.cat==='field'){ const td=cmpTry(a,b); if(td!==0) return td; }
           const pa=parseInt(a.e.place)||999, pb=parseInt(b.e.place)||999;
@@ -4219,20 +4286,32 @@ createApp({
         });
         let prev=null, prevItem=null, place=0;
         ok.forEach((x,i)=>{
-          const m=parseFloat(x.e.mark), ep=parseInt(x.e.place)||0, pp=prevItem?(parseInt(prevItem.e.place)||0):0;
+          const m=effVal(ev,x.e), ep=parseInt(x.e.place)||0, pp=prevItem?(parseInt(prevItem.e.place)||0):0;
           const diffTry = prevItem && ev.cat==='field' && cmpTry(prevItem, x)!==0;
           const diffPlace = ep && pp && ep!==pp;
           if(m!==prev || diffTry || diffPlace){ place=i+1; prev=m; }
           prevItem=x; x.place=place;
         });
-        const byMark={}; ok.forEach(x=>{ const k=parseFloat(x.e.mark).toFixed(2); (byMark[k]=byMark[k]||[]).push(x); });
+        const byMark={}; ok.forEach(x=>{ const k=effVal(ev,x.e).toFixed(2); (byMark[k]=byMark[k]||[]).push(x); });
         Object.values(byMark).forEach(arr=>{ if(arr.length>1 && new Set(arr.map(x=>x.place)).size>1) arr.forEach(x=>{ x.tieBreak=true; }); });
       }
       return list.sort((a,b)=>(a.place||999)-(b.place||999));
     }
     function top(ev,p){ return ranked(ev).find(x=>x.place===p) || null; }
     const CODE_ZH = { NM:'無成績', DNS:'未出賽', DNF:'未完賽', DQ:'犯規' };
-    function fmtMark(ev,e){ if(e.code) return CODE_ZH[e.code] || e.code; if(ev.better==='place' || e.mark==='' || e.mark==null) return ''; const v=parseFloat(e.mark); if(isNaN(v)) return e.mark; return ev.unit==='秒' ? v.toFixed(2)+' 秒' : ev.unit==='公尺' ? v.toFixed(2)+' 公尺' : (Number.isInteger(v) ? v : v.toFixed(1))+' '+(ev.unit||''); } // 中文直覺單位（秒／公尺／自訂單位）
+    function fmtMark(ev,e){
+      if(e.code) return CODE_ZH[e.code] || e.code;
+      if(e.mark==='' || e.mark==null) return '';
+      if(isTimeEv(ev)){
+        const base = parseTimeSec(e.mark); if(isNaN(base)) return String(e.mark);
+        const pen = penaltySec(e), tot = base + pen;
+        const fmt = s => s>=60 ? formatMinSec(s) : s.toFixed(2)+' 秒';
+        return pen>0 ? fmt(tot)+'（原 '+fmt(base)+' + 加 '+pen+' 秒）' : fmt(tot);
+      }
+      if(ev.better==='place') return '';
+      const v=parseFloat(e.mark); if(isNaN(v)) return e.mark;
+      return ev.unit==='公尺' ? v.toFixed(2)+' 公尺' : (Number.isInteger(v) ? v : v.toFixed(1))+' '+(ev.unit||'');
+    } // 中文直覺單位（分:秒／秒／公尺／自訂單位，自動含違規加秒）
     const isPub = e => e.status==='published' || e.status==='awarded';
     /* 每一組的名次得分：自訂 > 不計分 > 通用（通用＝積分辦法×接力倍數，並依「列入積分的項目」勾選） */
     function eventPoints(ev){
@@ -4653,7 +4732,17 @@ createApp({
     const ckStat = computed(()=>{ const e=ckEv.value; if(!e) return {}; return { here:e.entries.filter(x=>x.present===true).length, away:e.entries.filter(x=>x.present===false).length, unk:e.entries.filter(x=>x.present===null).length }; });
     function isLocked(e){ return isPub(e); }
     function setPresent(e,v){ if(!need('checkin')) return; e.present = e.present===v ? null : v; }
-    function startCheckin(e){ if(!need('checkin')) return; { const t=st.value.timeline.find(x=>(x.eventIds||[]).includes(e.id)); if(t) equipAlert(t.id); } e.status='checkin'; bc('check', e.name+' 開始檢錄，請參賽'+(e.team?'班級選手':'選手')+'到司令台旁檢錄處報到。'); log('開始檢錄：'+e.name); toast('已通知司儀廣播檢錄'); }
+    function laneIntroText(e){
+      const arr = sortEntries(e.entries||[]);
+      if(!arr.some(x=>x.lane || x.color || x.preMark)) return '';
+      return arr.map(x=>{
+        const lp = laneText(x, true);
+        const pm = x.preMark ? '（預賽 '+x.preMark+'）' : '';
+        return (lp ? lp+' ' : '') + clsLabel(x.cls) + (e.team ? '' : ' '+x.name) + pm;
+      }).join('、');
+    }
+    function startCheckin(e){ if(!need('checkin')) return; { const t=st.value.timeline.find(x=>(x.eventIds||[]).includes(e.id)); if(t) equipAlert(t.id); } e.status='checkin'; const intro=laneIntroText(e); bc('check', e.name+' 開始檢錄，請參賽'+(e.team?'班級選手':'選手')+'到司令台旁檢錄處報到。'+(intro?' 出賽道次：'+intro+'。':'')); log('開始檢錄：'+e.name); toast('已通知司儀廣播檢錄'); }
+    function announceLanes(e){ if(!need('checkin')) return; const intro=laneIntroText(e); if(!intro){ toast('這組尚未填入道次或預賽秒數',true); return; } bc('check', e.name+' 決賽道次介紹：'+intro+'。'); log('送出道次與預賽給司儀：'+e.name); toast('已送出道次與預賽成績給司儀台'); }
     function secondCall(e){ if(!need('checkin')) return; const miss=e.entries.filter(x=>x.present!==true).map(x=>clsLabel(x.cls)+(e.team?'':' '+x.name)); const uniq=[...new Set(miss)]; bc('check','第二次檢錄：'+e.name+'，請 '+uniq.slice(0,12).join('、')+(uniq.length>12?' 等':'')+' 盡快到檢錄處報到。'); if(e.status==='none') e.status='checkin'; log('第二次檢錄：'+e.name); toast('已請司儀廣播第二次檢錄'); }
     function finishCheckin(e){ if(!need('checkin')) return; e.status='running'; log('檢錄完成：'+e.name+'（到 '+ckStat.value.here+'）'); toast('檢錄完成，已交給裁判'); }
 
@@ -4662,17 +4751,17 @@ createApp({
     const scEv = computed(()=>st.value.events.find(e=>e.id===scEvId.value));
     const scShake = ref(false);
     const scRows = computed(()=>{ const e=scEv.value; if(!e) return []; const r=ranked(e); const map=new Map(r.map(x=>[x.e.id,x.place])); return sortEntries(e.entries).map(x=>({ e:x, place:map.get(x.e?x.e.id:x.id) || map.get(x.id) })); });
-    function needsMark(ev,e){ if(e.dq) return false; return ev.better==='place' ? !parseInt(e.place) : (e.mark==='' || isNaN(parseFloat(e.mark))); }
-    function markWarn(ev,e){ if(e.dq || e.mark==='' || !ev.range) return false; const v=parseFloat(e.mark); if(isNaN(v)) return true; return v<ev.range[0]*0.7 || v>ev.range[1]*1.4; }
+    function needsMark(ev,e){ if(e.dq) return false; if(useTimeMode(ev)) return e.mark==='' || isNaN(effVal(ev,e)); return !parseInt(e.place); }
+    function markWarn(ev,e){ if(e.dq || e.mark==='' || !useTimeMode(ev)) return false; const v=effVal(ev,e); if(isNaN(v)) return true; const rg = ev.range || (isR4Ev(ev) ? [55,115] : ev.cat==='relay' ? [200,520] : null); if(!rg) return false; return v<rg[0]*0.7 || v>rg[1]*1.4; }
     const scIssues = computed(()=>{
       const ev=scEv.value; if(!ev) return []; const out=[];
-      const miss=ev.entries.filter(x=>needsMark(ev,x)).length; if(miss) out.push({ block:true, text:'還有 '+miss+' 筆沒有填'+(ev.better==='place'?'名次':'成績')+'（沒跑完請勾「棄權/犯規」）' });
-      if(ev.better==='place'){ const ps=ev.entries.filter(x=>!x.dq && parseInt(x.place)).map(x=>parseInt(x.place)); const dup=ps.filter((p,i)=>ps.indexOf(p)!==i); if(dup.length) out.push({ block:true, text:'名次重複：第 '+[...new Set(dup)].join('、')+' 名' }); }
-      const odd=ev.entries.filter(x=>markWarn(ev,x)); if(odd.length) out.push({ block:false, text:odd.length+' 筆成績看起來不太合理（已標紅），請再確認' });
+      const miss=ev.entries.filter(x=>needsMark(ev,x)).length; if(miss) out.push({ block:true, text:'還有 '+miss+' 筆沒有填'+(useTimeMode(ev)?'時間／成績':'名次')+'（沒跑完請勾「棄權/取消資格」）' });
+      if(!useTimeMode(ev)){ const ps=ev.entries.filter(x=>!x.dq && parseInt(x.place)).map(x=>parseInt(x.place)); const dup=ps.filter((p,i)=>ps.indexOf(p)!==i); if(dup.length) out.push({ block:true, text:'名次重複：第 '+[...new Set(dup)].join('、')+' 名' }); }
+      const odd=ev.entries.filter(x=>markWarn(ev,x)); if(odd.length) out.push({ block:false, text:odd.length+' 筆成績格式有誤或超出常見範圍（已標紅），請再確認' });
       return out;
     });
     /* ===== 裁判確認：公布前必須由裁判確認；確認後成績若被改動，要重新確認 ===== */
-    function refSig(ev){ return canon(ev.entries.map(x=>[x.id, String(x.mark??''), String(x.place??''), !!x.dq, x.code||'', Array.isArray(x.tries)?x.tries.join('|'):'']).sort((a,b)=>String(a[0]).localeCompare(String(b[0])))); }
+    function refSig(ev){ return canon(ev.entries.map(x=>[x.id, String(x.mark??''), String(x.place??''), !!x.dq, x.code||'', String(x.penalty??''), String(x.note||''), Array.isArray(x.tries)?x.tries.join('|'):'']).sort((a,b)=>String(a[0]).localeCompare(String(b[0])))); }
     const refOk = ev => !!(ev.refConfirm && ev.refConfirm.sig===refSig(ev));
     const refChanged = ev => !!(ev.refConfirm && ev.refConfirm.sig!==refSig(ev));
     const refName = () => FORMAL ? ((fb.user && fb.user.name) || fb.email) : roleObj.value.name;
@@ -5405,10 +5494,14 @@ createApp({
       const baseWant = imType.value==='results' ? ['項目','年級','性別','班級','姓名','成績','名次'] : ['單位','姓名','職稱','備註','類別'];
       const hasLaneCol = imType.value==='results' && hdr.some(h=>['道次','跑道'].includes(h.trim()));
       const hasColorCol = imType.value==='results' && hdr.some(h=>['衣服顏色','顏色','背心顏色'].includes(h.trim()));
+      const hasPreCol = imType.value==='results' && hdr.some(h=>['預賽成績','預賽秒數','預賽'].includes(h.trim()));
+      const hasNoteCol = imType.value==='results' && hdr.some(h=>['備註','違規備註'].includes(h.trim()));
       const hasTryCols = imType.value==='results' && hdr.some(h=>['第一次','第一次成績','一次'].includes(h.trim()));
       const want = baseWant.slice();
       if(hasLaneCol) want.push('道次');
       if(hasColorCol) want.push('衣服顏色');
+      if(hasPreCol) want.push('預賽成績');
+      if(hasNoteCol) want.push('備註');
       if(hasTryCols) want.push('第一次','第二次','第三次');
       if(!hdr.some(h=>baseWant.includes(h.trim()))){ body=rows; hdr=want; }
       const idx=want.map(w=>hdr.findIndex(h=>{
@@ -5418,6 +5511,8 @@ createApp({
         if(w==='成績' && t==='最佳成績') return true;
         if(w==='道次' && t==='跑道') return true;
         if(w==='衣服顏色' && (t==='顏色' || t==='背心顏色')) return true;
+        if(w==='預賽成績' && (t==='預賽秒數' || t==='預賽')) return true;
+        if(w==='備註' && t==='違規備註') return true;
         if(w==='第一次' && (t==='第一次成績' || t==='一次')) return true;
         if(w==='第二次' && (t==='第二次成績' || t==='二次')) return true;
         if(w==='第三次' && (t==='第三次成績' || t==='三次')) return true;
@@ -5425,7 +5520,7 @@ createApp({
       }));
       want.forEach((w,i)=>{ if(idx[i]<0) idx[i]=i; });
       imHeaders.value=want;
-      const laneIdx = want.indexOf('道次'), colorIdx = want.indexOf('衣服顏色');
+      const laneIdx = want.indexOf('道次'), colorIdx = want.indexOf('衣服顏色'), preIdx = want.indexOf('預賽成績'), noteIdx = want.indexOf('備註');
       const t1Idx = want.indexOf('第一次'), t2Idx = want.indexOf('第二次'), t3Idx = want.indexOf('第三次');
       const out=body.filter(r=>r.some(c=>String(c).trim())).slice(0,3000).map((r,li)=>{
         const cells=idx.map(i=>String(r[i]==null?'':r[i]).trim()); const row={ line:(sheet?sheet+' ':'')+(li+2), cells, ok:false, msg:'', after };
@@ -5433,6 +5528,9 @@ createApp({
         let [it,gr,gd,cl,nm,mk,pl]=cells;
         const lane = laneIdx>=0 ? parseLane(cells[laneIdx]) : 0;
         const color = colorIdx>=0 ? normColor(cells[colorIdx]) : '';
+        let preMark = preIdx>=0 ? String(cells[preIdx]||'').trim() : '';
+        if(preMark){ const ps=parseTimeSec(preMark); if(!isNaN(ps)) preMark = ps>=60 ? formatMinSec(ps) : ps.toFixed(2); }
+        const note = noteIdx>=0 ? String(cells[noteIdx]||'').trim().slice(0,40) : '';
         const tries = t1Idx>=0 ? [normTry(cells[t1Idx]), normTry(cells[t2Idx]), normTry(cells[t3Idx])] : null;
         if(tries && tries.some(v=>v!=='') && mk===''){ mk = bestFromTries(tries); }
         const base=normBase(it); const def=EVENT_DEFS.find(d=>d.base===base) || customDef(base) || customDef(String(it).replace(/\s/g,''));
@@ -5443,14 +5541,17 @@ createApp({
         const needCls = +cls.split('-')[1]>(st.value.settings.classes[g]||0) ? +cls.split('-')[1] : 0; // 例：成績單有 412 班但設定只有 11 班 → 匯入時自動調成 12 班
         if(!def.team && !nm){ row.msg='個人項目要填姓名'; return row; }
         const codeOf=v=>{ const u=String(v).toUpperCase().replace(/\s/g,''); return MARK_CODES.includes(u)?u:''; };
-        const code=codeOf(mk)||codeOf(pl)||(def.unit==='秒' && parseFloat(mk)>=99?'DNS':''); // 99.99 是學校表單「未出賽」的寫法
-        if(!code && mk!=='' && isNaN(parseFloat(mk))){ row.msg='成績「'+mk+'」不是數字（沒成績請寫 NM、DNS）'; return row; }
+        const parsedMk = (def.unit==='秒' || def.cat==='relay') ? parseTimeSec(mk) : parseFloat(mk);
+        const code=codeOf(mk)||codeOf(pl)||(def.unit==='秒' && def.cat!=='relay' && parsedMk>=99?'DNS':''); // 99.99 是個人賽「未出賽」寫法（接力可超過 99 秒）
+        if(!code && mk!=='' && isNaN(parsedMk)){ row.msg='成績「'+mk+'」格式不正確（時間請寫如 1:10.36 或 70.36；沒成績請寫 NM、DNS）'; return row; }
+        if(!code && mk!=='' && (def.unit==='秒' || def.cat==='relay') && !isNaN(parsedMk)){ mk = parsedMk>=60 ? formatMinSec(parsedMk) : parsedMk.toFixed(2); }
         if(!code && pl!=='' && !parseInt(pl)){ row.msg='名次「'+pl+'」不是數字'; return row; }
         const evId=def.key+'-'+g+'-'+(gender==='男'?'M':gender==='女'?'F':'X'); const ev=st.value.events.find(e=>e.id===evId);
         const evName=ev ? ev.name : makeEvent(def,g,gender,0).name+'（新增項目）';
         const laneHint = (lane || color) ? '・'+(lane?'第'+lane+'道':'')+(color||DEFAULT_LANE_COLORS[lane]?'（'+(color||DEFAULT_LANE_COLORS[lane])+'）':'') : '';
+        const preHint = preMark ? '・預賽 '+preMark : '';
         const tryHint = (tries && tries.some(v=>v!=='')) ? '・三試('+tries.map(v=>v||'—').join('/')+')' : '';
-        row.ok=true; row.target=evName+laneHint+tryHint+(code?'・'+code:'')+(needCls?'・'+ZH[g]+'年級將調為 '+needCls+' 班':''); row.data={ evId, def:def.key, base:def.base, g, gender, cls, name:nm, mark:code?'':mk, place:code?'':pl, code, needCls, lane, color, tries }; return row;
+        row.ok=true; row.target=evName+laneHint+preHint+tryHint+(code?'・'+code:'')+(needCls?'・'+ZH[g]+'年級將調為 '+needCls+' 班':''); row.data={ evId, def:def.key, base:def.base, g, gender, cls, name:nm, mark:code?'':mk, place:code?'':pl, code, needCls, lane, color, preMark, note, tries }; return row;
       });
       imRows.value = append ? imRows.value.concat(out) : out;
     }
@@ -5484,7 +5585,7 @@ createApp({
         let ev=st.value.events.find(e=>e.id===id);
         if(!ev){ const d0=list[0], def=EVENT_DEFS.find(d=>d.key===d0.def)||customDef(d0.base); ev=makeEvent(def,d0.g,d0.gender,st.value.events.length); st.value.events.push(ev); attachToBatch(ev); } // 例如三年級 60 公尺：系統原本沒有就自動建立
         if(imMode.value==='replace') ev.entries=[];
-        list.forEach(d=>{ let x=ev.entries.find(e=>e.cls===d.cls && (ev.team || e.name===d.name)); if(!x){ x={ id:uid(), cls:d.cls, name:d.name, mark:'', place:'', dq:false, present:null }; ev.entries.push(x); } x.name=d.name||x.name; if(d.mark!=='') x.mark=d.mark; if(d.place!=='') x.place=parseInt(d.place); if(d.lane) x.lane=d.lane; if(d.color) x.color=d.color; if(d.tries && d.tries.some(v=>v!=='')) x.tries=d.tries.slice(0,3); x.code=d.code||''; x.dq=!!d.code; if(d.code){ x.mark=''; x.place=''; } });
+        list.forEach(d=>{ let x=ev.entries.find(e=>e.cls===d.cls && (ev.team || e.name===d.name)); if(!x){ x={ id:uid(), cls:d.cls, name:d.name, mark:'', place:'', dq:false, present:null }; ev.entries.push(x); } x.name=d.name||x.name; if(d.mark!=='') x.mark=d.mark; if(d.place!=='') x.place=parseInt(d.place); if(d.lane) x.lane=d.lane; if(d.color) x.color=d.color; if(d.preMark) x.preMark=d.preMark; if(d.note) x.note=d.note; if(d.tries && d.tries.some(v=>v!=='')) x.tries=d.tries.slice(0,3); x.code=d.code||''; x.dq=!!d.code; if(d.code){ x.mark=''; x.place=''; } });
         ev.entries = sortEntries(ev.entries);
         const after=list[0].after||imAfter.value;
         if(after==='published'){ ev.status='published'; ev.ts=Date.now(); ev.publishedAt=(new Date().getMonth()+1)+'/'+pad(new Date().getDate())+' '+hhmm(); }
@@ -5986,6 +6087,7 @@ createApp({
 
     return { bt, toggleRec, recEditMode, recordList, st, role, page, helpOpen, newsOpen, tOpen, openHomeFlow, checkTimeOf, ownCls, tClsEdit, backToOwnCls, arHelper, arSheet, arSheetDone, arSheetMissing, printAr, printPage, rptData, printReport, downloadArXlsx, savePdf, pageXlsx, openT, tHelloName, myProg, myProgNext, tTodo, teacherNotices, acctMgr, isCtrlEmail, closeHelp, newsList, dismissNews, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
       isR4Cls, isR4Done, r4FinalsOf, r4GroupLabel, r4ShortLabel, isR4Ev, r4RosterOf, r4LineText, r4Classes, r4Done, r4Missing, r4ExGrade, r4Open, r4ShownClasses, r4RemindText, r4ExportRows, r4Draft, r4Tried, r4Paste, r4PasteParsed, applyR4Paste, r4Next, submitR4, loadR4Draft,
+      parseTimeSec, formatMinSec, isTimeEv, useTimeMode, penaltySec, effVal, normTimeInput, normPreMark, announceLanes,
       SHORT, arOpen, homeroomDraft, homeroomRows, homeroomLogins, saveHomeroom, myHomeroom, onHrInput, cd, pad, insertOpen, openInsert, promptGroup, promptNext, scriptState, jumpScripts, ringLong, toggleRing, refOk, refChanged, confirmRef, needRef, doneTab, doneShown, restoreBc, scriptLib, scriptsOf, scriptGroups, nextScriptGroup, sf, editScript, saveScript, removeScript, moveScript, queueScript, sPaste, sParsed, importScripts, canBc, pushState, registerPush, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
       drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, arFull, AR_PUB_OPTS, arPubGrades, toggleArPub, arPubGradeText, arPubShown, PG_GRADES, pgGrade, progList, progLeave, shiftHM, flashLine, reportLine, TICKER_TPL, tkOpen, tk, tickerMsgs, hhmmOf, addTicker, removeTicker, canFixName, fixName, overdueTl, overdueSnoozed, snoozeOverdue, remindControl, setAutoFlow, ADHOC_TPL, adhocOpen, adhoc, useAdhocTpl, addAdhoc, tlRange, tlNo, mcScriptOf, prepScriptOf, nextMinsLeft, scheduledTl, mcProgOpen, applyProgram, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
