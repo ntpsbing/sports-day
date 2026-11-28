@@ -2960,6 +2960,35 @@ body{ min-height:100%; min-height:100dvh; max-width:100%; }
               <button class="btn btn-bad" @click="need('data') && ask('確定清空所有成績嗎？選手名單會保留。', clearMarks)">清空所有成績</button>
             </div>
           </fold-card>
+          <fold-card k="cfg-rehearsal" :open="false" v-if="!FORMAL || fb.admin" style="border:2px solid var(--brand)">
+  <template #title>🔒 系統管理員：預演安全還原</template>
+  <template #sum><span class="sumchip">{{ st.settings.adminPinHash ? '✔ 已設密碼' : '⚠ 尚未設密碼' }}</span></template>
+            <p class="small muted mb-2">只有系統管理員本人帳號看得到這張卡片。預演結束後，可一鍵把系統還原成 12/5 賽前乾淨狀態——<b>100% 完整保留已公布的 16 項會前賽成績、4×100 選手名單、道次預賽與全部帳號權限</b>。</p>
+            <div class="card-flat mb-3">
+              <div class="font-bold small mb-2">🔑 管理操作密碼（{{ st.settings.adminPinHash ? '已設定，輸入新密碼即可變更' : '請先設定一組密碼，加密儲存不外洩' }}）</div>
+              <div class="flex flex-wrap gap-2 items-center">
+                <input v-if="st.settings.adminPinHash" class="inp" type="password" style="max-width:170px" v-model="pinForm.old" placeholder="原密碼" autocomplete="off">
+                <input class="inp" type="password" style="max-width:170px" v-model="pinForm.next" placeholder="設定新密碼（至少4碼）" autocomplete="off">
+                <input class="inp" type="password" style="max-width:170px" v-model="pinForm.confirm" placeholder="再輸入一次新密碼" autocomplete="off">
+                <button class="btn btn-primary btn-sm" @click="saveAdminPin">{{ st.settings.adminPinHash ? '更新密碼' : '儲存密碼' }}</button>
+              </div>
+            </div>
+            <div class="card-flat">
+              <div class="font-bold small mb-2">🧹 清除預演測試資料（安全還原）</div>
+              <ul class="small muted mb-2" style="padding-left:18px;line-height:1.6">
+                <li><b>會清空：</b>當天流程進度與順延、4×100／大隊接力測試成績與檢錄點名、測試播報稿、現場通報、醫護紀錄、午餐勾選、器材配送狀態、頒獎進度、跑馬燈公告。</li>
+                <li><b>絕不動到：</b>會前賽 16 項已公布成績、4×100 選手名單、道次色別與預賽秒數、司儀講稿庫、來賓與帳號權限。</li>
+              </ul>
+              <label class="flex items-center gap-2 small mb-2" style="cursor:pointer;min-height:38px">
+                <input type="checkbox" v-model="rehearsalOpt.clearAllrun" style="width:20px;height:20px"> 一併清空「全員賽跑」測試名單（若預演有試填再勾選）
+              </label>
+              <div class="flex flex-wrap gap-2 items-center">
+                <input class="inp" type="password" style="max-width:200px" v-model="rehearsalOpt.pin" placeholder="輸入管理密碼以解鎖" autocomplete="off">
+                <button class="btn btn-bad" @click="runRehearsalReset" :disabled="!st.settings.adminPinHash">🧹 確認清除預演資料</button>
+              </div>
+              <div class="small muted mt-1" v-if="!st.settings.adminPinHash">請先在上方設定管理密碼，才能啟用此按鈕。</div>
+            </div>
+          </fold-card>
         </div>
 
 
@@ -3549,7 +3578,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261128125400'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261128132600'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -5672,6 +5701,76 @@ createApp({
     function setPreset(k){ if(!need('config')) return; st.value.settings.scoring.points = { a:[7,5,4,3,2,1], b:[8,6,5,4,3,2,1], c:[6,5,4,3,2,1] }[k].slice(); log('套用積分辦法：'+st.value.settings.scoring.points.join('・')); toast('已套用，積分已重算'); }
     function resetDemo(){ st.value=migrate(seed()); toast('已還原成範例資料'); loadDraft(); }
     function clearMarks(){ st.value.events.forEach(e=>{ e.entries.forEach(x=>{ x.mark=''; x.place=''; x.dq=false; x.present=null; }); e.status='none'; e.publishedAt=''; }); log('清空所有成績'); toast('已清空所有成績'); }
+    /* ===== 系統管理員：密碼保護＋預演後一鍵安全還原（僅保留會前賽、4×100名單與權限） ===== */
+    const pinForm = reactive({ old:'', next:'', confirm:'' });
+    const rehearsalOpt = reactive({ pin:'', clearAllrun:false });
+    async function sha256Hex(text){
+      const buf = new TextEncoder().encode('nanzi-127-admin:' + String(text||''));
+      if(typeof crypto!=='undefined' && crypto.subtle){
+        const h = await crypto.subtle.digest('SHA-256', buf);
+        return Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,'0')).join('');
+      }
+      // 備援雜湊（非 HTTPS 離線測試用）
+      let v=2166136261; for(const b of buf){ v^=b; v=Math.imul(v,16777619); } return 'f'+(v>>>0).toString(16);
+    }
+    async function saveAdminPin(){
+      if(FORMAL && !fb.admin){ toast('僅系統管理員本人可設定此密碼',true); return; }
+      const nw = String(pinForm.next||'').trim(), cf = String(pinForm.confirm||'').trim();
+      if(nw.length < 4){ toast('密碼請至少設定 4 碼',true); return; }
+      if(nw !== cf){ toast('兩次輸入的新密碼不一致，請重新確認',true); return; }
+      if(st.value.settings.adminPinHash){
+        const oldHash = await sha256Hex(String(pinForm.old||'').trim());
+        if(oldHash !== st.value.settings.adminPinHash){ toast('原密碼不正確',true); return; }
+      }
+      st.value.settings.adminPinHash = await sha256Hex(nw);
+      pinForm.old=''; pinForm.next=''; pinForm.confirm='';
+      log('管理員更新安全操作密碼'); toast('管理密碼已加密儲存 ✔');
+    }
+    async function runRehearsalReset(){
+      if(FORMAL && !fb.admin){ toast('僅系統管理員本人可執行預演還原',true); return; }
+      if(!st.value.settings.adminPinHash){ toast('請先設定管理密碼',true); return; }
+      const entered = String(rehearsalOpt.pin||'').trim();
+      if(!entered){ toast('請先輸入管理密碼',true); return; }
+      const h = await sha256Hex(entered);
+      if(h !== st.value.settings.adminPinHash){ toast('管理密碼錯誤，已取消操作',true); return; }
+      const doClear = () => {
+        // 1. 當天流程回歸未開始、移除臨時插入、順延歸 0、清跑馬燈公告
+        const rmTl = st.value.timeline.filter(t=>t.adhoc).map(t=>t.id);
+        st.value.timeline = st.value.timeline.filter(t=>!t.adhoc);
+        st.value.timeline.forEach(t=>{ t.status='todo'; });
+        if(FORMAL && fb.ready) rmTl.forEach(id=>fbDelete('timeline', id));
+        st.value.delayMin = 0;
+        if(st.value.settings && Array.isArray(st.value.settings.tickerMsgs)) st.value.settings.tickerMsgs = [];
+        // 2. 僅清「當天比賽」（4×100、大隊接力）之測試成績與點名；100% 保留會前賽、道次色別與預賽秒數
+        st.value.events.filter(e=>e.stage==='day').forEach(e=>{
+          (e.entries||[]).forEach(x=>{ x.mark=''; x.place=''; x.dq=false; x.present=null; x.penalty=0; x.note=''; x.code=''; x.record=false; });
+          e.status='none'; e.publishedAt=''; e.ts=0; e.returnNote=''; delete e.refConfirm;
+        });
+        // 3. 頒獎梯次與器材狀態回歸未開始
+        (st.value.batches||[]).forEach(b=>{ b.status='todo'; });
+        (st.value.equip||[]).forEach(eq=>{ eq.status='todo'; eq.at=''; });
+        // 4. 清除預演播報稿、現場通報、醫護紀錄、午餐勾選（保留 _info）
+        const delArr = (col) => {
+          const ids = (st.value[col]||[]).map(x=>x.id).filter(Boolean);
+          st.value[col] = [];
+          if(FORMAL && fb.ready) ids.forEach(id=>fbDelete(col, id));
+        };
+        delArr('broadcasts'); delArr('reports'); delArr('medical');
+        const info = st.value.lunch && st.value.lunch._info ? Object.assign({}, st.value.lunch._info) : null;
+        Object.keys(st.value.lunch||{}).forEach(k=>{ if(k!=='_info') delete st.value.lunch[k]; });
+        if(info) st.value.lunch._info = info;
+        // 5. 若有勾選，一併清空全員賽跑測試名單（絕不動 4×100 選手名單 st.relay4）
+        if(rehearsalOpt.clearAllrun){
+          const arIds = Object.keys(st.value.allrun||{});
+          st.value.allrun = {};
+          if(FORMAL && fb.ready) arIds.forEach(c=>{ fbDelete('allrun', c); try{ fref('allrunPub', c).delete().catch(()=>{}); }catch(e){} });
+        }
+        rehearsalOpt.pin = ''; rehearsalOpt.clearAllrun = false;
+        log('管理員執行「預演安全還原」（已完整保留會前賽成績與 4×100 選手名單）');
+        toast('✔ 預演測試資料已清除！會前賽成績與 4×100 選手名單皆完整保留');
+      };
+      ask('確定要清除預演測試資料並還原至賽前狀態嗎？（已公布的 16 項會前賽成績、4×100 選手名單與所有帳號權限會 100% 保留）', doClear);
+    }
 
     /* ----- 意見回饋 ----- */
     const fbk = reactive({ name:'', pages:[], stars:4, good:'', fix:'' }); const fbTried=ref(false);
@@ -6124,7 +6223,7 @@ createApp({
       tCls, teacherEvents, teacherAwards, arDraft, arTried, fitDraft, submitAllrun, arPaste, arPasteParsed, arPasteBad, applyArPaste, arNext,
       exTab, certFilter, certRows, prizeRows, totalRows, postScope, postWeb, postSocial, remindText,
       imType, imRaw, imRows, imHeaders, imMode, imAfter, imTemplate, parseImport, readImportFile, imOk, imBad, doImport,
-      copy, copyTable, downloadXlsx, setPreset, resetDemo, clearMarks,
+      copy, copyTable, downloadXlsx, setPreset, resetDemo, clearMarks, pinForm, rehearsalOpt, saveAdminPin, runRehearsalReset,
       fbk, fbTried, fbText, sendFeedback, boardIdx, boardEvent, tickerText, toggleBoardMode, fullscreen };
   }
 })
