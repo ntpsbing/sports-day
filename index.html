@@ -1845,7 +1845,7 @@ body{ min-height:100%; min-height:100dvh; max-width:100%; }
             <div class="flex flex-wrap items-center gap-2 mb-2">
               <div class="font-bold" style="font-size:18px;color:var(--brand)">👦 男生組（4×100 公尺決賽）</div>
               <span v-if="r4FinalsOf(tCls).entryM && (r4FinalsOf(tCls).entryM.lane || r4FinalsOf(tCls).entryM.color)" :style="laneBadgeStyle(r4FinalsOf(tCls).entryM)">{{ laneText(r4FinalsOf(tCls).entryM) }}</span>
-              <span v-if="r4FinalsOf(tCls).entryM && r4FinalsOf(tCls).entryM.preMark" class="chip st-none" style="font-size:13px">預賽 {{ r4FinalsOf(tCls).entryM.preMark }}</span>
+              <span v-if="r4FinalsOf(tCls).entryM && preMarkOf('r4-'+tCls[0]+'-M', r4FinalsOf(tCls).entryM)" class="chip st-none" style="font-size:13px">預賽 {{ preMarkOf('r4-'+tCls[0]+'-M', r4FinalsOf(tCls).entryM) }}</span>
             </div>
             <div class="grid gap-2 mb-2" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr))">
               <div v-for="(n,i) in r4Draft.M" :key="'m'+i">
@@ -1864,7 +1864,7 @@ body{ min-height:100%; min-height:100dvh; max-width:100%; }
             <div class="flex flex-wrap items-center gap-2 mb-2">
               <div class="font-bold" style="font-size:18px;color:#B83280">👧 女生組（4×100 公尺決賽）</div>
               <span v-if="r4FinalsOf(tCls).entryF && (r4FinalsOf(tCls).entryF.lane || r4FinalsOf(tCls).entryF.color)" :style="laneBadgeStyle(r4FinalsOf(tCls).entryF)">{{ laneText(r4FinalsOf(tCls).entryF) }}</span>
-              <span v-if="r4FinalsOf(tCls).entryF && r4FinalsOf(tCls).entryF.preMark" class="chip st-none" style="font-size:13px">預賽 {{ r4FinalsOf(tCls).entryF.preMark }}</span>
+              <span v-if="r4FinalsOf(tCls).entryF && preMarkOf('r4-'+tCls[0]+'-F', r4FinalsOf(tCls).entryF)" class="chip st-none" style="font-size:13px">預賽 {{ preMarkOf('r4-'+tCls[0]+'-F', r4FinalsOf(tCls).entryF) }}</span>
             </div>
             <div class="grid gap-2 mb-2" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr))">
               <div v-for="(n,i) in r4Draft.F" :key="'f'+i">
@@ -1980,9 +1980,9 @@ body{ min-height:100%; min-height:100dvh; max-width:100%; }
         <div class="grid gap-2" style="grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr))">
           <div v-for="e in ckEntries" :key="e.id" class="card-flat flex items-center justify-between gap-2" :style="laneStyle(e)">
             <div style="min-width:0;flex:1">
-              <div v-if="e.lane || e.color || e.preMark" class="mb-1 flex flex-wrap items-center gap-1">
+              <div v-if="e.lane || e.color || preMarkOf(ckEv, e)" class="mb-1 flex flex-wrap items-center gap-1">
                 <span v-if="e.lane || e.color" :style="laneBadgeStyle(e)">{{ laneText(e) }}</span>
-                <span v-if="e.preMark" class="chip st-none" style="font-size:12px;padding:1px 8px">預賽 {{ e.preMark }}</span>
+                <span v-if="preMarkOf(ckEv, e)" class="chip st-none" style="font-size:12px;padding:1px 8px">預賽 {{ preMarkOf(ckEv, e) }}</span>
               </div>
               <div class="font-bold" style="font-size:20px">{{ clsLabel(e.cls) }}</div>
               <div class="small muted" v-if="!ckEv.team">{{ e.name }}</div>
@@ -1994,7 +1994,7 @@ body{ min-height:100%; min-height:100dvh; max-width:100%; }
               </div>
               <div v-if="isR4Ev(ckEv) && (can('checkin') || can('score'))" class="flex items-center gap-2 mt-2">
                 <label class="small muted" :for="'pm_'+e.id" style="white-space:nowrap">預賽秒數：</label>
-                <input class="inp num" :id="'pm_'+e.id" style="font-size:15px;padding:4px 8px;max-width:120px;min-height:34px" placeholder="例 1:10.36" v-model.trim="e.preMark" @blur="normPreMark(e)">
+                <input class="inp num" :id="'pm_'+e.id" style="font-size:15px;padding:4px 8px;max-width:120px;min-height:34px" :placeholder="preMarkOf(ckEv, e) || '例 1:10.36'" v-model.trim="e.preMark" @blur="normPreMark(e)">
               </div>
             </div>
             <div class="flex gap-2">
@@ -3553,7 +3553,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261128122200'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261128122500'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -4736,12 +4736,29 @@ createApp({
     const ckStat = computed(()=>{ const e=ckEv.value; if(!e) return {}; return { here:e.entries.filter(x=>x.present===true).length, away:e.entries.filter(x=>x.present===false).length, unk:e.entries.filter(x=>x.present===null).length }; });
     function isLocked(e){ return isPub(e); }
     function setPresent(e,v){ if(!need('checkin')) return; e.present = e.present===v ? null : v; }
+    /* 115 學年度四～六年級 4×100 公尺接力決賽官方預賽成績（依決賽檢錄單，手動修改 e.preMark 時優先以手動為準） */
+    const R4_PRE_TIMES = {
+      'r4-4-F': { '4-02':'1:17.35', '4-08':'1:16.46', '4-03':'1:16.23', '4-12':'1:11.94', '4-11':'1:13.63', '4-04':'1:16.40' },
+      'r4-4-M': { '4-02':'1:13.38', '4-09':'1:13.00', '4-04':'1:12.95', '4-10':'1:09.71', '4-03':'1:10.71', '4-01':'1:12.97' },
+      'r4-5-F': { '5-11':'1:10.88', '5-06':'1:10.71', '5-02':'1:09.67', '5-04':'1:05.26', '5-03':'1:07.21', '5-01':'1:10.40' },
+      'r4-5-M': { '5-08':'1:10.32', '5-10':'1:09.25', '5-05':'1:07.12', '5-09':'1:06.27', '5-02':'1:06.96', '5-07':'1:09.22' },
+      'r4-6-F': { '6-12':'1:07.41', '6-05':'1:06.33', '6-03':'1:04.74', '6-04':'1:04.48', '6-11':'1:04.50', '6-08':'1:05.56' },
+      'r4-6-M': { '6-02':'1:04.56', '6-08':'1:03.58', '6-04':'1:01.14', '6-03':'59.48',   '6-11':'59.79',   '6-01':'1:03.38' },
+    };
+    function preMarkOf(evOrId, e){
+      if(!e) return '';
+      if(e.preMark) return String(e.preMark).trim();
+      const id = typeof evOrId==='string' ? evOrId : (evOrId && evOrId.id);
+      const m = id && R4_PRE_TIMES[id];
+      return (m && e.cls && m[e.cls]) ? m[e.cls] : '';
+    }
     function laneIntroText(e){
       const arr = sortEntries(e.entries||[]);
-      if(!arr.some(x=>x.lane || x.color || x.preMark)) return '';
+      if(!arr.some(x=>x.lane || x.color || preMarkOf(e,x))) return '';
       return arr.map(x=>{
         const lp = laneText(x, true);
-        const pm = x.preMark ? '（預賽 '+x.preMark+'）' : '';
+        const pmVal = preMarkOf(e, x);
+        const pm = pmVal ? '（預賽 '+pmVal+'）' : '';
         return (lp ? lp+' ' : '') + clsLabel(x.cls) + (e.team ? '' : ' '+x.name) + pm;
       }).join('、');
     }
@@ -6091,7 +6108,7 @@ createApp({
 
     return { bt, toggleRec, recEditMode, recordList, st, role, page, helpOpen, newsOpen, tOpen, openHomeFlow, checkTimeOf, ownCls, tClsEdit, backToOwnCls, arHelper, arSheet, arSheetDone, arSheetMissing, printAr, printPage, rptData, printReport, downloadArXlsx, savePdf, pageXlsx, openT, tHelloName, myProg, myProgNext, tTodo, teacherNotices, acctMgr, isCtrlEmail, closeHelp, newsList, dismissNews, boardMode, clock, toasts, modal, ROLES, PAGES, HELP, ZH, STATUS, BC, QUICK_BC, EX_TABS, PLAN_QUESTIONS,
       isR4Cls, isR4Done, r4FinalsOf, r4GroupLabel, r4ShortLabel, isR4Ev, r4RosterOf, r4LineText, r4Classes, r4Done, r4Missing, r4ExGrade, r4Open, r4ShownClasses, r4RemindText, r4ExportRows, r4Draft, r4Tried, r4Paste, r4PasteParsed, applyR4Paste, r4Next, submitR4, loadR4Draft,
-      parseTimeSec, formatMinSec, isTimeEv, useTimeMode, penaltySec, effVal, normTimeInput, normPreMark, announceLanes,
+      parseTimeSec, formatMinSec, isTimeEv, useTimeMode, penaltySec, effVal, normTimeInput, normPreMark, preMarkOf, announceLanes,
       SHORT, arOpen, homeroomDraft, homeroomRows, homeroomLogins, saveHomeroom, myHomeroom, onHrInput, cd, pad, insertOpen, openInsert, promptGroup, promptNext, scriptState, jumpScripts, ringLong, toggleRing, refOk, refChanged, confirmRef, needRef, doneTab, doneShown, restoreBc, scriptLib, scriptsOf, scriptGroups, nextScriptGroup, sf, editScript, saveScript, removeScript, moveScript, queueScript, sPaste, sParsed, importScripts, canBc, pushState, registerPush, testAllMyDevices, noNameGuests, setGuestName, gEdit, toggleGEdit, STATUS_FLOW, toneOf, toneRow, NOTICE_TPL, NOTICE_TO, mcNotify, ntText, ntTo, ntAlsoMc, noticeOpen, canReceive, myNotices, unreadNotices, isUnread, markRead, sendNoticeForm, withdrawNotice, notifySupported, notifyPerm, askNotify, testNotify, soundOn, voiceOn, toggleSound, toggleVoice, isIOS, isStandalone, UNIT_OPTS, CAT_NAME, evGroups, unitLabel, evForm, openEvForm, evFormPreview, saveEvForm, deleteEvGroup, evChecks, jumpCheck, jumpRow, showDoneTl, tlDoneN, tlPick, toggleTlEv, evWarnN, evInfoN, evCheckOpen, REPORT_TPL, PLACE_TPL, bcCat, useTpl, slotKey, nextSlot, previewing, isOpenR, canWithdrawR, canWithdrawB, withdrawReport, withdrawBc, printHere, shareHere, gate, canSee, homePage, fullResults, imSheetPlan, pn, maskName, maskOn, RES_GRADES, resGrade, resQ, resOpen, resHit, resultsShown, resRows, ICON, SDESC, VERB, RICON, SHARE_OPTS, ROLE_CATS, LOGO, logoOk, otherOpen, myWork, commonPages, otherGroups, otherCount, roleName, isPublicView, whoName, startCards, statusText, shareTarget, shareUrl, sharePage, moreEl, closeMore,
       drawer, navMode, navGroups, tabItems, pageObj, pageGroupName, PAGE_PERM, TASK_DESC, can, need, whoCan, canPrint, doPrint, arFull, AR_PUB_OPTS, arPubGrades, toggleArPub, arPubGradeText, arPubShown, PG_GRADES, pgGrade, progList, progLeave, shiftHM, flashLine, reportLine, TICKER_TPL, tkOpen, tk, tickerMsgs, hhmmOf, addTicker, removeTicker, canFixName, fixName, overdueTl, overdueSnoozed, snoozeOverdue, remindControl, setAutoFlow, ADHOC_TPL, adhocOpen, adhoc, useAdhocTpl, addAdhoc, tlRange, tlNo, mcScriptOf, prepScriptOf, nextMinsLeft, scheduledTl, mcProgOpen, applyProgram, newVersion, reloadApp, sheetOpt, sheetTitle, sheetPrintedAt, sheetDate, sheetGroups, sheetRows, sheetChamp, sheetChampSub, sheetStat, sheetBatchOf, isPub, undoTl, unarrive, undoBatch, downloadTemplate,
       OV_BG, OV_MODES, liveUrlDraft, liveTitleDraft, markNote, validUrl, setLive, saveLive, startLive, endLive, addMark, toggleOvMode, liveShareText, marksText, ovIdx, ovSlide, ovBgStyle, ovPrevStyle,
