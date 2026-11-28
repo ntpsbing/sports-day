@@ -2649,9 +2649,12 @@ body{ min-height:100%; min-height:100dvh; max-width:100%; }
           <button class="btn btn-sm btn-primary" @click="exTab='cert'; certFilter='allrun'">🖨 轉成獎狀名單（可下載 Excel）</button>
         </div>
         <details v-for="c in allrunClasses.filter(x=>st.allrun[x])" :key="c" :id="'ar_'+c" class="card-flat mb-2" :open="arOpen===c || allrunDone<=6" @toggle="e=>{ if(e.target.open) arOpen=c; }">
-          <summary class="flex items-center gap-2 flex-wrap cursor-pointer" style="min-height:40px">
-            <b style="font-size:17px">{{ clsLabel(c) }}</b>
-            <span class="small muted">{{ st.allrun[c].at }} 送出・{{ st.allrun[c].groups.length }} 組</span>
+          <summary class="flex items-center justify-between gap-2 flex-wrap cursor-pointer" style="min-height:40px">
+            <div class="flex items-center gap-2 flex-wrap">
+              <b style="font-size:17px">{{ clsLabel(c) }}</b>
+              <span class="small muted">{{ st.allrun[c].at }} 送出・{{ st.allrun[c].groups.length }} 組<template v-if="st.allrun[c].by">・{{ st.allrun[c].by }}</template></span>
+            </div>
+            <button v-if="!FORMAL || fb.admin" type="button" class="btn btn-sm btn-bad" style="min-height:34px;padding:2px 10px;font-size:14px" @click.stop.prevent="deleteAllrunClass(c)">🗑️ 刪除此班測試名單</button>
           </summary>
           <table class="rtbl mt-2" style="width:100%">
             <thead><tr><th style="width:4.5em">組別</th><th>第一名</th><th>第二名</th><th>第三名</th></tr></thead>
@@ -2960,35 +2963,6 @@ body{ min-height:100%; min-height:100dvh; max-width:100%; }
               <button class="btn btn-bad" @click="need('data') && ask('確定清空所有成績嗎？選手名單會保留。', clearMarks)">清空所有成績</button>
             </div>
           </fold-card>
-          <fold-card k="cfg-rehearsal" :open="false" v-if="!FORMAL || fb.admin" style="border:2px solid var(--brand)">
-  <template #title>🔒 系統管理員：預演安全還原</template>
-  <template #sum><span class="sumchip">{{ st.settings.adminPinHash ? '✔ 已設密碼' : '⚠ 尚未設密碼' }}</span></template>
-            <p class="small muted mb-2">只有系統管理員本人帳號看得到這張卡片。預演結束後，可一鍵把系統還原成 12/5 賽前乾淨狀態——<b>100% 完整保留已公布的 16 項會前賽成績、4×100 選手名單、道次預賽與全部帳號權限</b>。</p>
-            <div class="card-flat mb-3">
-              <div class="font-bold small mb-2">🔑 管理操作密碼（{{ st.settings.adminPinHash ? '已設定，輸入新密碼即可變更' : '請先設定一組密碼，加密儲存不外洩' }}）</div>
-              <div class="flex flex-wrap gap-2 items-center">
-                <input v-if="st.settings.adminPinHash" class="inp" type="password" style="max-width:170px" v-model="pinForm.old" placeholder="原密碼" autocomplete="off">
-                <input class="inp" type="password" style="max-width:170px" v-model="pinForm.next" placeholder="設定新密碼（至少4碼）" autocomplete="off">
-                <input class="inp" type="password" style="max-width:170px" v-model="pinForm.confirm" placeholder="再輸入一次新密碼" autocomplete="off">
-                <button class="btn btn-primary btn-sm" @click="saveAdminPin">{{ st.settings.adminPinHash ? '更新密碼' : '儲存密碼' }}</button>
-              </div>
-            </div>
-            <div class="card-flat">
-              <div class="font-bold small mb-2">🧹 清除預演測試資料（安全還原）</div>
-              <ul class="small muted mb-2" style="padding-left:18px;line-height:1.6">
-                <li><b>會清空：</b>當天流程進度與順延、4×100／大隊接力測試成績與檢錄點名、測試播報稿、現場通報、醫護紀錄、午餐勾選、器材配送狀態、頒獎進度、跑馬燈公告。</li>
-                <li><b>絕不動到：</b>會前賽 16 項已公布成績、4×100 選手名單、道次色別與預賽秒數、司儀講稿庫、來賓與帳號權限。</li>
-              </ul>
-              <label class="flex items-center gap-2 small mb-2" style="cursor:pointer;min-height:38px">
-                <input type="checkbox" v-model="rehearsalOpt.clearAllrun" style="width:20px;height:20px"> 一併清空「全員賽跑」測試名單（若預演有試填再勾選）
-              </label>
-              <div class="flex flex-wrap gap-2 items-center">
-                <input class="inp" type="password" style="max-width:200px" v-model="rehearsalOpt.pin" placeholder="輸入管理密碼以解鎖" autocomplete="off">
-                <button class="btn btn-bad" @click="runRehearsalReset" :disabled="!st.settings.adminPinHash">🧹 確認清除預演資料</button>
-              </div>
-              <div class="small muted mt-1" v-if="!st.settings.adminPinHash">請先在上方設定管理密碼，才能啟用此按鈕。</div>
-            </div>
-          </fold-card>
         </div>
 
 
@@ -3018,6 +2992,36 @@ body{ min-height:100%; min-height:100dvh; max-width:100%; }
               <td data-label="狀態"><span :class="['chip','st-'+e.status]">{{ STATUS[e.status] }}</span></td>
             </tr></tbody>
           </table></div>
+        </fold-card>
+
+        <fold-card k="cfg-rehearsal" :open="false" v-if="!FORMAL || fb.admin" style="grid-column:1/-1;border:2px solid var(--brand)">
+  <template #title>🔒 系統管理員：預演安全還原</template>
+  <template #sum><span class="sumchip">{{ st.settings.adminPinHash ? '✔ 已設密碼' : '⚠ 尚未設密碼' }}</span></template>
+          <p class="small muted mb-2">只有系統管理員本人帳號看得到這張卡片。預演結束後，可一鍵把系統還原成 12/5 賽前乾淨狀態——<b>100% 完整保留已公布的 16 項會前賽成績、4×100 選手名單、道次預賽與全部帳號權限</b>。</p>
+          <div class="card-flat mb-3">
+            <div class="font-bold small mb-2">🔑 管理操作密碼（{{ st.settings.adminPinHash ? '已設定，輸入新密碼即可變更' : '請先設定一組密碼，加密儲存不外洩' }}）</div>
+            <div class="flex flex-wrap gap-2 items-center">
+              <input v-if="st.settings.adminPinHash" class="inp" type="password" style="max-width:170px" v-model="pinForm.old" placeholder="原密碼" autocomplete="off">
+              <input class="inp" type="password" style="max-width:170px" v-model="pinForm.next" placeholder="設定新密碼（至少4碼）" autocomplete="off">
+              <input class="inp" type="password" style="max-width:170px" v-model="pinForm.confirm" placeholder="再輸入一次新密碼" autocomplete="off">
+              <button class="btn btn-primary btn-sm" @click="saveAdminPin">{{ st.settings.adminPinHash ? '更新密碼' : '儲存密碼' }}</button>
+            </div>
+          </div>
+          <div class="card-flat">
+            <div class="font-bold small mb-2">🧹 清除預演測試資料（安全還原）</div>
+            <ul class="small muted mb-2" style="padding-left:18px;line-height:1.6">
+              <li><b>會清空：</b>當天流程進度與順延、4×100／大隊接力測試成績與檢錄點名、測試播報稿、現場通報、醫護紀錄、午餐勾選、器材配送狀態、頒獎進度、跑馬燈公告。</li>
+              <li><b>絕不動到：</b>會前賽 16 項已公布成績、4×100 選手名單、道次色別與預賽秒數、司儀講稿庫、來賓與帳號權限。</li>
+            </ul>
+            <label class="flex items-center gap-2 small mb-2" style="cursor:pointer;min-height:38px">
+              <input type="checkbox" v-model="rehearsalOpt.clearAllrun" style="width:20px;height:20px"> 一併清空「全員賽跑」測試名單（若只需刪單一班級，請至「匯出與列印 → 全員賽跑進度」逐班刪除）
+            </label>
+            <div class="flex flex-wrap gap-2 items-center">
+              <input class="inp" type="password" style="max-width:200px" v-model="rehearsalOpt.pin" placeholder="輸入管理密碼以解鎖" autocomplete="off">
+              <button class="btn btn-bad" @click="runRehearsalReset" :disabled="!st.settings.adminPinHash">🧹 確認清除預演資料</button>
+            </div>
+            <div class="small muted mt-1" v-if="!st.settings.adminPinHash">請先在上方設定管理密碼，才能啟用此按鈕。</div>
+          </div>
         </fold-card>
 
         <fold-card k="cfg-log" :open="false" style="grid-column:1/-1">
@@ -3578,7 +3582,7 @@ if (!window.Vue) {
 }
 const { createApp, ref, reactive, computed, watch, nextTick, onMounted } = Vue;
 const KEY = 'nanzi-sportsday-demo-v1';
-const BUILD_ID = '20261128132600'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
+const BUILD_ID = '20261128133000'; // ▶ 每次更新網站時改成新的時間，開著舊頁面的人會看到「立即更新」
 const ZH = ['零','一','二','三','四','五','六','七','八','九','十','十一','十二','十三','十四','十五'];
 
 /* ---------- 計畫書裡的比賽項目 ---------- */
@@ -5771,6 +5775,16 @@ createApp({
       };
       ask('確定要清除預演測試資料並還原至賽前狀態嗎？（已公布的 16 項會前賽成績、4×100 選手名單與所有帳號權限會 100% 保留）', doClear);
     }
+    function deleteAllrunClass(c){
+      if(FORMAL && !fb.admin){ toast('僅系統管理員可刪除班級名單',true); return; }
+      if(!st.value.allrun || !st.value.allrun[c]) return;
+      ask('確定要刪除「'+clsLabel(c)+'」的全員賽跑名單嗎？（僅刪除此班，不影響其他班級與 4×100 名單）', ()=>{
+        delete st.value.allrun[c];
+        if(FORMAL && fb.ready){ fbDelete('allrun', c); try{ fref('allrunPub', c).delete().catch(()=>{}); }catch(e){} }
+        log('管理員刪除全員賽跑測試名單：'+clsLabel(c));
+        toast('已刪除 '+clsLabel(c)+' 全員賽跑名單');
+      });
+    }
 
     /* ----- 意見回饋 ----- */
     const fbk = reactive({ name:'', pages:[], stars:4, good:'', fix:'' }); const fbTried=ref(false);
@@ -6223,7 +6237,7 @@ createApp({
       tCls, teacherEvents, teacherAwards, arDraft, arTried, fitDraft, submitAllrun, arPaste, arPasteParsed, arPasteBad, applyArPaste, arNext,
       exTab, certFilter, certRows, prizeRows, totalRows, postScope, postWeb, postSocial, remindText,
       imType, imRaw, imRows, imHeaders, imMode, imAfter, imTemplate, parseImport, readImportFile, imOk, imBad, doImport,
-      copy, copyTable, downloadXlsx, setPreset, resetDemo, clearMarks, pinForm, rehearsalOpt, saveAdminPin, runRehearsalReset,
+      copy, copyTable, downloadXlsx, setPreset, resetDemo, clearMarks, pinForm, rehearsalOpt, saveAdminPin, runRehearsalReset, deleteAllrunClass,
       fbk, fbTried, fbText, sendFeedback, boardIdx, boardEvent, tickerText, toggleBoardMode, fullscreen };
   }
 })
